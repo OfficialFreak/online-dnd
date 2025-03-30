@@ -3,7 +3,7 @@
     import "../app.css";
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { userState } from "./state.svelte";
+    import { gameState, userState } from "./state.svelte";
     import { connect } from "./connection.svelte";
 
     const appWindow = getCurrentWindow();
@@ -35,19 +35,30 @@
         }
     });
 </script>
-<div data-tauri-drag-region class="titlebar">
-    <button onclick={reconnect} aria-label="Reconnect" class="cursor-pointer">
-        <div class="h-[30px] w-[30px] flex justify-center items-center">
-            {#if userState.ws}
-                <div aria-label="success" class="status status-success"></div>
-            {:else}
-                <div class="inline-grid *:[grid-area:1/1]">
-                    <div class="status status-error animate-ping"></div>
-                    <div class="status status-error"></div>
-                </div>
-            {/if}
+<div data-tauri-drag-region class="titlebar z-10">
+    <div>
+        <button onclick={reconnect} aria-label="Reconnect" class="cursor-pointer">
+            <div class="h-[30px] w-[30px] flex justify-center items-center">
+                {#if userState.ws}
+                    <div aria-label="success" class="status status-success"></div>
+                {:else}
+                    <div class="inline-grid *:[grid-area:1/1]">
+                        <div class="status status-error animate-ping"></div>
+                        <div class="status status-error"></div>
+                    </div>
+                {/if}
+            </div>
+        </button>
+        {#if gameState.dm}
+        <div class="dropdown">
+            <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
+                <li><a>Do some cool shit</a></li>
+                <li><a>Do some even cooler shit</a></li>
+            </ul>
         </div>
-    </button>
+        {/if}
+    </div>
 
     <div>
         <button class="titlebar-button" id="titlebar-minimize" onclick={appWindow.minimize} aria-label="Minimize">
@@ -90,5 +101,9 @@
     }
     .titlebar-button:hover {
         background: var(--root-bg, var(--color-base-200));
+    }
+
+    :global(body) {
+        margin-top: 30px;
     }
 </style>
