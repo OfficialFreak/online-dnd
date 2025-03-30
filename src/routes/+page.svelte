@@ -1,40 +1,40 @@
 <script>
-    // @ts-ignore
-    import WebSocket from '@tauri-apps/plugin-websocket';
-    import { load } from '@tauri-apps/plugin-store';
     import { onMount } from 'svelte';
-    import { redirect } from '@sveltejs/kit';
     import { fade } from 'svelte/transition';
+    import { goto } from '$app/navigation';
+    import { userState } from './state.svelte';
+    import { connect } from './connection.svelte';
+    import { invoke } from '@tauri-apps/api/core';
 
-    let ws = $state();
     let token = $state("");
-    let loading = $state(false);
+    let loading = $state(true);
     let error = $state(false);
-    let url = $derived(`ws://dnd.wiegraebe.dev?key=${token}`);
-    let store = $state();
+    let url = $derived(`ws://${userState.base_url}/ws?key=${encodeURIComponent(token)}`);
 
-    async function connect() {
+    async function connectLoadingWrapper() {
         loading = true;
-        try {
-            ws = await WebSocket.connect(url);
+        if (await connect(url)) {
+            loading = false;
             error = false;
-            await store.set('token', { value: token });
-            await store.save();
-            redirect(200, "/app")
-        } catch (err) {
+            await userState.store.set('token', { value: token });
+            await userState.store.save();
+            goto("/app");
+        } else {
             error = true;
-        } finally {
             loading = false;
         }
     }
 
     onMount(async () => {
-        store = await load('store.json', { autoSave: false });
-        const tmp_token = await store.get('token');
+        invoke("close_splashscreen");
+        const tmp_token = await userState.store.get('token');
         if (tmp_token) {
             token = tmp_token.value;
-            await connect();
+            await connectLoadingWrapper();
+        } else {
+            loading = false;
         }
+
     })
 </script>
 
@@ -48,7 +48,7 @@
             <label class="fieldset-label" for="token">Passwort</label>
             <input type="password" class="input" placeholder="Passwort eingeben" name="token" bind:value={token} />
             
-            <button class="btn btn-neutral mt-4" onclick={connect}>Verbinden</button>
+            <button class="btn btn-neutral mt-4" onclick={connectLoadingWrapper}>Verbinden</button>
         </fieldset>
         <div class="toast toast-end">   
             {#if error}
