@@ -1,18 +1,18 @@
 <script>
+// @ts-nocheck
+
     import { goto } from "$app/navigation";
-    import { onDestroy, onMount } from "svelte";
+    import { onDestroy } from "svelte";
     import { gameState, userState } from "../state.svelte";
     import { connect } from "../connection.svelte";
 
     let token = $state();
     let custom_text = $state("");
-    // @ts-ignore
     let messages = $state([]);
     let url = $derived(`ws://${userState.base_url}/ws?key=${encodeURIComponent(token)}`);
 
     onDestroy(() => {
         if (userState.ws) {
-            // @ts-ignore
             userState.ws.disconnect();
         }
     });
@@ -36,7 +36,6 @@
 
     $effect(() => {
         if (userState.ws) {
-            // @ts-ignore
             userState.ws.addListener((msg) => {
                 if (msg.type == "Text") {
                     let json_msg = JSON.parse(msg.data);
@@ -59,9 +58,7 @@
     });
 
     async function sendMsg() {
-        // @ts-ignore
         if (userState.ws) {
-            // @ts-ignore
             await userState.ws.send(JSON.stringify({
                 "type": "message",
                 "msg": custom_text

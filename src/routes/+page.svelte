@@ -1,10 +1,13 @@
 <script>
+// @ts-nocheck
+
     import { onMount } from 'svelte';
     import { fade } from 'svelte/transition';
     import { goto } from '$app/navigation';
     import { userState } from './state.svelte';
     import { connect } from './connection.svelte';
     import { invoke } from '@tauri-apps/api/core';
+    import { load } from '@tauri-apps/plugin-store';
 
     let token = $state("");
     let loading = $state(true);
@@ -26,7 +29,7 @@
     }
 
     onMount(async () => {
-        invoke("close_splashscreen");
+        userState.store = await load('store.json', { autoSave: false });
         const tmp_token = await userState.store.get('token');
         if (tmp_token) {
             token = tmp_token.value;
@@ -34,11 +37,12 @@
         } else {
             loading = false;
         }
+        invoke("close_splashscreen");
 
     })
 </script>
 
-<main class="h-screen flex justify-center items-center flex-col">
+<main class="h-[calc(100vh-30px)] flex justify-center items-center flex-col">
     {#if loading}
         <span class="loading loading-infinity w-30"></span>
     {:else}

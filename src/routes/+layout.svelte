@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
     let { children } = $props();
     import "../app.css";
 
@@ -52,9 +54,9 @@
         {#if gameState.dm}
         <div class="dropdown">
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
-            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-                <li><a>Do some cool shit</a></li>
-                <li><a>Do some even cooler shit</a></li>
+            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
+                <li><a href="https://google.com">Do some cool shit</a></li>
+                <li><a href="https://google.com">Do some even cooler shit</a></li>
             </ul>
         </div>
         {/if}
