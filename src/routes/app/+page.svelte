@@ -3,23 +3,23 @@
 
     import { goto } from "$app/navigation";
     import { onDestroy } from "svelte";
-    import { gameState, userState } from "../state.svelte";
+    import { gameState, appState } from "../state.svelte";
     import { connect } from "../connection.svelte";
 
     let token = $state();
     let custom_text = $state("");
     let messages = $state([]);
-    let url = $derived(`ws://${userState.base_url}/ws?key=${encodeURIComponent(token)}`);
+    let url = $derived(`ws://${appState.base_url}/ws?key=${encodeURIComponent(token)}`);
 
     onDestroy(() => {
-        if (userState.ws) {
-            userState.ws.disconnect();
+        if (appState.ws) {
+            appState.ws.disconnect();
         }
     });
 
     $effect(() => {
-        if (!userState.ws) {
-            userState.store.get('token').then((tmp_token) => {
+        if (!appState.ws) {
+            appState.store.get('token').then((tmp_token) => {
                 if (!tmp_token) {
                     goto("/");
                     return;
@@ -35,8 +35,8 @@
     });
 
     $effect(() => {
-        if (userState.ws) {
-            userState.ws.addListener((msg) => {
+        if (appState.ws) {
+            appState.ws.addListener((msg) => {
                 if (msg.type == "Text") {
                     let json_msg = JSON.parse(msg.data);
                     // TODO: Handle message type etc.
@@ -58,8 +58,8 @@
     });
 
     async function sendMsg() {
-        if (userState.ws) {
-            await userState.ws.send(JSON.stringify({
+        if (appState.ws) {
+            await appState.ws.send(JSON.stringify({
                 "type": "message",
                 "msg": custom_text
             }));

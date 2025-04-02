@@ -4,7 +4,7 @@
     import { onMount } from 'svelte';
     import { fade } from 'svelte/transition';
     import { goto } from '$app/navigation';
-    import { userState } from './state.svelte';
+    import { appState } from './state.svelte';
     import { connect } from './connection.svelte';
     import { invoke } from '@tauri-apps/api/core';
     import { load } from '@tauri-apps/plugin-store';
@@ -12,15 +12,15 @@
     let token = $state("");
     let loading = $state(true);
     let error = $state(false);
-    let url = $derived(`ws://${userState.base_url}/ws?key=${encodeURIComponent(token)}`);
+    let url = $derived(`ws://${appState.base_url}/ws?key=${encodeURIComponent(token)}`);
 
     async function connectLoadingWrapper() {
         loading = true;
         if (await connect(url)) {
             loading = false;
             error = false;
-            await userState.store.set('token', { value: token });
-            await userState.store.save();
+            await appState.store.set('token', { value: token });
+            await appState.store.save();
             goto("/app");
         } else {
             error = true;
@@ -29,8 +29,8 @@
     }
 
     onMount(async () => {
-        userState.store = await load('store.json', { autoSave: false });
-        const tmp_token = await userState.store.get('token');
+        appState.store = await load('store.json', { autoSave: false });
+        const tmp_token = await appState.store.get('token');
         if (tmp_token) {
             token = tmp_token.value;
             await connectLoadingWrapper();

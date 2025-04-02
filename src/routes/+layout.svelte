@@ -5,15 +5,15 @@
     import "../app.css";
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, userState } from "./state.svelte";
+    import { gameState, appState } from "./state.svelte";
     import { connect } from "./connection.svelte";
 
     const appWindow = getCurrentWindow();
     let token = $state();
-    let url = $derived(`ws://${userState.base_url}/ws?key=${encodeURIComponent(token)}`);
+    let url = $derived(`ws://${appState.base_url}/ws?key=${encodeURIComponent(token)}`);
 
     async function reconnect() {
-        const tmp_token = await userState.store.get('token')
+        const tmp_token = await appState.store.get('token')
         if (tmp_token) {
             token = tmp_token.value;
             await connect(url);
@@ -21,17 +21,17 @@
     }
 
     $effect(() => {
-        if (userState.ws) {
+        if (appState.ws) {
             // @ts-ignore
-            userState.ws.addListener((msg) => {
+            appState.ws.addListener((msg) => {
                 console.log(msg);
                 // Assume the worst, kill ourselves xD
                 if (typeof msg === "string") {
                     console.log("Closed connection :o")
-                    userState.ws = null;
+                    appState.ws = null;
                 } else if (msg.type == "Close") {
                     console.log("Closed connection :o")
-                    userState.ws = null;
+                    appState.ws = null;
                 }
             })
         }
@@ -41,7 +41,7 @@
     <div>
         <button onclick={reconnect} aria-label="Reconnect" class="cursor-pointer">
             <div class="h-[30px] w-[30px] flex justify-center items-center">
-                {#if userState.ws}
+                {#if appState.ws}
                     <div aria-label="success" class="status status-success"></div>
                 {:else}
                     <div class="inline-grid *:[grid-area:1/1]">

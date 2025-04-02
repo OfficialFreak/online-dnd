@@ -1,13 +1,9 @@
 import WebSocket from "@tauri-apps/plugin-websocket";
-import { userState } from "./state.svelte";
+import { appState } from "./state.svelte";
 
-/**
- * @param {string} url
- */
-async function connect(url) {
+async function connect(url: string) {
     try {
-        // @ts-ignore
-        userState.ws = await WebSocket.connect(url);
+        appState.ws = await WebSocket.connect(url);
         return true;
     } catch (err) {
         console.error(err);
