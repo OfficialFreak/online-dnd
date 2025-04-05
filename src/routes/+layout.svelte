@@ -1,28 +1,78 @@
-<script>
-// @ts-nocheck
-
+<script lang="ts">
     let { children } = $props();
     import "../app.css";
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState } from "./state.svelte";
+    import { gameState, appState, ensureStore } from "./state.svelte";
     import { connect } from "./connection.svelte";
+    import { load, Store } from "@tauri-apps/plugin-store";
+    import { open } from "@tauri-apps/plugin-dialog";
+    import { readFile } from "@tauri-apps/plugin-fs";
+    import { fetch } from "@tauri-apps/plugin-http";
+    import { onMount } from "svelte";
 
     const appWindow = getCurrentWindow();
-    let token = $state();
-    let url = $derived(`ws://${appState.base_url}/ws?key=${encodeURIComponent(token)}`);
+    let url = $derived(appState.token ? `ws://${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
+
+    async function upload_file(selectedFilePath: string, selectedFileName: string) {
+        if (!selectedFilePath || !appState.token) {
+            // TODO: Notification -> please select a file
+            throw new Error(`Upload failed: no file selected`);
+        }
+        
+        // Read the file as binary
+        const fileContent = await readFile(selectedFilePath);
+        
+        // Create form data using Tauri's HTTP client
+        const formData = new FormData();
+        const blob = new Blob([fileContent]);
+        formData.append('file', blob, selectedFileName);
+        
+        // Make the request using Tauri's fetch
+        const response = await fetch(`${appState.http_protocol}${appState.base_url}/assets?key=${encodeURIComponent(appState.token)}`, {
+            method: 'POST',
+            body: formData,
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+        }
+    }
+
+    async function user_upload() {
+        // Open file dialog and get selected file path
+        const selected = await open({
+            multiple: false,
+            filters: [
+            { name: 'All Files', extensions: ['*'] }
+            // You can add specific filters if needed:
+            // { name: 'Images', extensions: ['png', 'jpg'] }
+            ]
+        });
+        
+        if (selected === null) {
+            // User canceled the selection
+            throw new Error(`Upload failed: no file selected`);
+        }
+        
+        let selectedFilePath = selected;
+        
+        // Extract file name from path
+        let selectedFileName = selectedFilePath.split(/[/\\]/).pop();
+        if (!selectedFileName) {
+            throw new Error("Invalid file name");
+        }
+
+        await upload_file(selectedFilePath, selectedFileName);
+    }
 
     async function reconnect() {
-        const tmp_token = await appState.store.get('token')
-        if (tmp_token) {
-            token = tmp_token.value;
-            await connect(url);
-        }
+        if (!url) return;
+        await connect(url);
     }
 
     $effect(() => {
         if (appState.ws) {
-            // @ts-ignore
             appState.ws.addListener((msg) => {
                 console.log(msg);
                 // Assume the worst, kill ourselves xD
@@ -36,8 +86,14 @@
             })
         }
     });
+
+    onMount(async () => {
+        await ensureStore();
+        appState.store = appState.store as Store;
+        appState.token = ((await appState.store.get('token')) as {value: string}).value as string;
+    })
 </script>
-<div data-tauri-drag-region class="titlebar z-10">
+<div data-tauri-drag-region class="titlebar transition-opacity z-10">
     <div>
         <button onclick={reconnect} aria-label="Reconnect" class="cursor-pointer">
             <div class="h-[30px] w-[30px] flex justify-center items-center">
@@ -55,7 +111,7 @@
         <div class="dropdown">
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
             <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-                <li><a href="https://google.com">Do some cool shit</a></li>
+                <li><button class="btn btn-ghost" onclick={user_upload}>Datei hochladen</button></li>
                 <li><a href="https://google.com">Do some even cooler shit</a></li>
             </ul>
         </div>
@@ -80,9 +136,11 @@
     :global(html), :global(body) {
         overscroll-behavior: none;
     }
+    :global(:root:has( .modal-open, .modal[open], .modal:target, .modal-toggle:checked, .drawer:not(.drawer-open) > .drawer-toggle:checked ) .titlebar) {
+        opacity: 0;
+    }
     .titlebar {
         height: 30px;
-        background: var(--root-bg, var(--color-base-100));
         user-select: none;
         display: flex;
         justify-content: space-between;
@@ -90,6 +148,11 @@
         top: 0;
         left: 0;
         right: 0;
+        background: rgba(28, 34, 41, 0.59);
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(7.5px);
+        -webkit-backdrop-filter: blur(7.5px);
+        border: 1px solid rgba(28, 34, 41, 0.12);
     }
     .titlebar-button {
         display: inline-flex;

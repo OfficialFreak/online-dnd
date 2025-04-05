@@ -15,6 +15,15 @@
     "core:window:allow-start-dragging",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
-    "core:window:allow-close"
+    "core:window:allow-close",
+    "dialog:default",
+    "fs:default",
+    {
+        "identifier": "http:default",
+        "allow": [
+            { "url": "https://dnd.wiegraebe.dev" },
+            { "url": "http://localhost:3030" }
+        ]
+    }
   ]
 }

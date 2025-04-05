@@ -1,13 +1,23 @@
-import type { Store } from "@tauri-apps/plugin-store";
+import type { SceneData } from "$lib/types/messaging/server_messages";
+import { load, type Store } from "@tauri-apps/plugin-store";
 import type WebSocket from "@tauri-apps/plugin-websocket";
 
 export const appState = $state({
+    token: null as string | null,
     ws: null as WebSocket | null,
     store: null as Store | null,
+    http_protocol: "http://",
     base_url: "localhost:3030"
 });
 
 export const gameState = $state({
     name: "Unknown Player",
-    dm: false
+    dm: false,
+    scene: null as SceneData | null
 });
+
+export async function ensureStore() {
+    if (!appState.store) {
+        appState.store = await load('store.json', { autoSave: false });
+    }
+}
