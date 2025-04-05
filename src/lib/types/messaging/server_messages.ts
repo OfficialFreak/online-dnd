@@ -48,9 +48,18 @@ export interface SceneData extends BaseServerMessage {
     "y_offset": number,
 }
 
+export interface Scene {
+    _id: string,
+    name: string,
+    map_file: string,
+    columns: number,
+    x_offset: number,
+    y_offset: number,
+}
+
 export interface SceneList extends BaseServerMessage {
     "type": "scene_list",
-    "scenes": string[]
+    "scenes": Scene[]
 }
 
 export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList

@@ -1,4 +1,4 @@
-import type { SceneData } from "$lib/types/messaging/server_messages";
+import type { SceneData, Scene } from "$lib/types/messaging/server_messages";
 import { load, type Store } from "@tauri-apps/plugin-store";
 import type WebSocket from "@tauri-apps/plugin-websocket";
 
@@ -13,7 +13,8 @@ export const appState = $state({
 export const gameState = $state({
     name: "Unknown Player",
     dm: false,
-    scene: null as SceneData | null
+    scene: null as SceneData | null,
+    scenes: [] as Scene[]
 });
 
 export async function ensureStore() {

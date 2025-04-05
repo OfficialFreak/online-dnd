@@ -10,7 +10,7 @@
     
     
     let size = $derived(w / columns);
-    let rows = $derived(Math.floor(h / size) + 1);
+    let rows = $derived(Math.ceil(h / size) + 1);
     let map_url = $derived(`${appState.http_protocol}${appState.base_url}/assets/${file}?key=${appState.token}`);
 
     $effect(() => {

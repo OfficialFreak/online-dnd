@@ -5,11 +5,14 @@
     import { getCurrentWindow } from '@tauri-apps/api/window';
     import { gameState, appState, ensureStore } from "./state.svelte";
     import { connect } from "./connection.svelte";
-    import { load, Store } from "@tauri-apps/plugin-store";
+    import { Store } from "@tauri-apps/plugin-store";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
     import { fetch } from "@tauri-apps/plugin-http";
     import { onMount } from "svelte";
+    import Map from "$lib/components/Map.svelte";
+    import { ActivateScene, InitialMessage, PutScene } from "$lib/types/messaging/client_messages";
+    import { parseServerMessage } from "$lib/types/messaging/server_messages";
 
     const appWindow = getCurrentWindow();
     let url = $derived(appState.token ? `ws://${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
@@ -64,9 +67,28 @@
         }
 
         await upload_file(selectedFilePath, selectedFileName);
+        scene_file = selectedFileName;
     }
 
-    async function reconnect() {
+    function reset_scene_vars() {
+        scene_name = "";
+        scene_file = null;
+        scene_columns = 10;
+        scene_x_offset = 0;
+        scene_y_offset = 0;
+    }
+
+    async function create_scene() {
+        // TODO: Feedback
+        if (!appState.ws) return;
+
+        await appState.ws.send(PutScene.create(scene_name, scene_file as string, scene_columns, scene_x_offset, scene_y_offset));
+
+        // Reset variables after
+        reset_scene_vars();
+    }
+
+    async function reconnect(){
         if (!url) return;
         await connect(url);
     }
@@ -91,7 +113,55 @@
         await ensureStore();
         appState.store = appState.store as Store;
         appState.token = ((await appState.store.get('token')) as {value: string}).value as string;
-    })
+    });
+
+    $effect(() => {
+        if (appState.ws) {
+            appState.ws.addListener((msg) => {
+                if (msg.type == "Text") {
+                    let message = parseServerMessage(msg.data)
+                    switch (message.type) {
+                        case "message":
+                            break;
+                        case "initial":
+                            gameState.name = message.display_name;
+                            gameState.dm = message.dm_status;
+                            break;
+                        case "event":
+                            switch (message.event_type) {
+                                case 'joined':
+                                    break;
+                                case 'left':
+                                    break;
+                            }
+                            break;
+                        case "scene":
+                            gameState.scene = message;
+                            break;
+                        case "scene_list":
+                            gameState.scenes = message.scenes;
+                            break;
+                    }
+                }
+            });
+            // Request initial
+            appState.ws.send(InitialMessage.create());
+        }
+    });
+
+    async function select_scene(name: string) {
+        if (!appState.ws) return;
+        await appState.ws.send(ActivateScene.create(name));
+    }
+
+    let scene_name: string = $state("");
+    let scene_file: string | null = $state(null);
+    let scene_columns: number = $state(10);
+    let scene_x_offset: number = $state(0);
+    let scene_y_offset: number = $state(0);
+
+    let scene_modal: HTMLDialogElement | null = $state(null);
+    let scene_chooser_modal: HTMLDialogElement | null = $state(null);
 </script>
 <div data-tauri-drag-region class="titlebar transition-opacity z-10">
     <div>
@@ -111,8 +181,8 @@
         <div class="dropdown">
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
             <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-                <li><button class="btn btn-ghost" onclick={user_upload}>Datei hochladen</button></li>
-                <li><a href="https://google.com">Do some even cooler shit</a></li>
+                <li><button class="btn btn-ghost" onclick={() => {scene_modal?.showModal()}}>Szene erstellen</button></li>
+                <li><button class="btn btn-ghost" onclick={() => {scene_chooser_modal?.showModal()}}>Szene auswählen</button></li>
             </ul>
         </div>
         {/if}
@@ -128,8 +198,63 @@
         <button class="titlebar-button" id="titlebar-close" onclick={appWindow.close} aria-label="Close">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>
         </button>
+    </div>
 </div>
-</div>
+<dialog bind:this={scene_modal} class="modal">
+    <div class="modal-box">
+        <h3 class="text-lg font-bold">Szene erstellen</h3>
+        <fieldset class="fieldset">
+            <legend class="fieldset-legend">Szenenname</legend>
+            <input type="text" bind:value={scene_name} class="input" placeholder="Goblinlager" />
+        
+            {#if !scene_file}
+                <button class="btn btn-neutral mt-4" onclick={user_upload}>Map hochladen</button>
+            {:else}
+                <legend class="fieldset-legend">Spalten</legend>
+                <input type="number" bind:value={scene_columns} class="input" placeholder="10" />
+                
+                <legend class="fieldset-legend">X-Offset</legend>
+                <input type="number" bind:value={scene_x_offset} class="input" placeholder="10" />
+                
+                <legend class="fieldset-legend">Y-Offset</legend>
+                <input type="number" bind:value={scene_y_offset} class="input" placeholder="10" />
+
+                <div class="w-full mt-4">
+                    <Map file={scene_file} columns={scene_columns} x_offset={scene_x_offset} y_offset={scene_y_offset} />
+                </div>
+
+                <button class="btn btn-neutral mt-4" onclick={create_scene}>Scene erstellen</button>
+                <p class="fieldset-label">Du kannst Szenen überschreiben indem du eine Neue Szene mit gleichem Namen erstellst.</p>
+            {/if}
+        </fieldset>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button class="outline-0" onclick={reset_scene_vars}>close</button>
+    </form>
+</dialog>
+<dialog bind:this={scene_chooser_modal} class="modal">
+    <div class="modal-box">
+        <h3 class="text-lg font-bold">Szene aktivieren</h3>
+        <ul class="list bg-base-100 rounded-box shadow-md">
+            {#each gameState.scenes as previewScene}
+            <li class="list-row flex flex-row items-center justify-between">
+                <div class="w-20">
+                    <Map file={previewScene.map_file} columns={previewScene.columns} x_offset={previewScene.x_offset} y_offset={previewScene.y_offset} />
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-base font-bold">{previewScene.name}</h3>
+                </div>
+                <button class="btn btn-ghost" onclick={() => {select_scene(previewScene.name)}}>
+                    Auswählen
+                </button>
+            </li>
+            {/each}
+        </ul>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button class="outline-0">close</button>
+    </form>
+</dialog>
 {@render children()}
 
 <style>
