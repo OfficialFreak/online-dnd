@@ -75,7 +75,7 @@
 <!-- This should be fine as there will only be one dice-roller -->
 <div id="diceroller" class="w-full h-full fixed top-0 left-0 z-10 pointer-events-none">
 </div>
-<dialog bind:this={modal} class="modal">
+<dialog bind:this={modal} onclose={diceBox.clear()} class="modal">
     <div class="modal-box flex justify-center pointer-events-none">
         <canvas bind:this={confetti_canvas} class="absolute top-0 left-0 w-full h-full"></canvas>
         {#if single_roll}
@@ -89,7 +89,7 @@
         {/if}
     </div>
     <form method="dialog" class="modal-backdrop">
-        <button class="outline-0" onclick={() => {diceBox.clear()}}>close</button>
+        <button class="outline-0">close</button>
     </form>
 </dialog>
   
