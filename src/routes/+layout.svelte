@@ -125,6 +125,7 @@
     });
 
     onMount(async () => {
+        html = document.getElementsByTagName("html")[0];
         await ensureStore();
         appState.store = appState.store as Store;
         appState.token = ((await appState.store.get('token')) as {value: string}).value as string;
@@ -223,10 +224,6 @@
 
     let audio: HTMLAudioElement | null = $state(null);
 
-    function randomInRange(min: number, max: number) {
-        return Math.random() * (max - min) + min;
-    }
-
     $effect(() => {
         if (!audio) return;
         if (gameState.pressure) {
@@ -260,13 +257,34 @@
             audio.pause();
         }
     });
+
+    let cw = $state();
+    let ch = $state();
+    let html: HTMLHtmlElement | null = $state(null);
+    $effect(() => {
+        if (!html) return;
+        gameState?.scene?.map;
+        cw;
+        ch;
+        scrollbar_visible = html.scrollHeight > html.clientHeight;
+    });
+    let scrollbar_visible = $state(false);
 </script>
+
+<svelte:body bind:clientWidth={cw} bind:clientHeight={ch}></svelte:body>
 
 <svelte:head>
     {#if appState.token}
         {#each Array.from(gameState.resources) as resource}
             <link rel="preload" as="image" href={`${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets/${resource}?key=${encodeURIComponent(appState.token)}`}>
         {/each}
+    {/if}
+    {#if !scrollbar_visible}
+        <style>
+            html, body {
+                scrollbar-gutter: unset !important;
+            }
+        </style>
     {/if}
 </svelte:head>
 
@@ -386,7 +404,6 @@
 <style>
     :global(html), :global(body) {
         overscroll-behavior: none;
-        scrollbar-gutter: unset !important;
     }
     :global(:root:has( .modal-open, .modal[open], .modal:target, .modal-toggle:checked, .drawer:not(.drawer-open) > .drawer-toggle:checked ) .titlebar > div) {
         opacity: 0;
