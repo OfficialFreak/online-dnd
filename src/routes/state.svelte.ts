@@ -6,8 +6,8 @@ export const appState = $state({
     token: null as string | null,
     ws: null as WebSocket | null,
     store: null as Store | null,
-    http_protocol: "http://",
-    base_url: "localhost:3030"
+    secure: true,
+    base_url: "dnd.wiegraebe.dev"
 });
 
 export const gameState = $state({

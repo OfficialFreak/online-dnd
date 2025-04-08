@@ -15,7 +15,7 @@
     import { parseServerMessage } from "$lib/types/messaging/server_messages";
 
     const appWindow = getCurrentWindow();
-    let url = $derived(appState.token ? `ws://${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
+    let url = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
 
     async function upload_file(selectedFilePath: string, selectedFileName: string) {
         if (!selectedFilePath || !appState.token) {
@@ -32,7 +32,7 @@
         formData.append('file', blob, selectedFileName);
         
         // Make the request using Tauri's fetch
-        const response = await fetch(`${appState.http_protocol}${appState.base_url}/assets?key=${encodeURIComponent(appState.token)}`, {
+        const response = await fetch(`${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets?key=${encodeURIComponent(appState.token)}`, {
             method: 'POST',
             body: formData,
         });

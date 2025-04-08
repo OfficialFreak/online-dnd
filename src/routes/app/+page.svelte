@@ -14,7 +14,7 @@
     let privacy_level = $state("public");
     let messages: ServerMessage[] = $state([]);
     let roller: DiceRoller | null = $state(null);
-    let url: string | null = $derived(appState.token ? `ws://${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
+    let url: string | null = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
 
     onDestroy(() => {
         if (appState.ws) {

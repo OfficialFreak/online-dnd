@@ -10,7 +10,7 @@
     let token: string = $state("");
     let loading = $state(true);
     let error = $state(false);
-    let url = $derived(`ws://${appState.base_url}/ws?key=${encodeURIComponent(token)}`);
+    let url = $derived(`${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(token)}`);
 
     async function connectLoadingWrapper() {
         await ensureStore();
