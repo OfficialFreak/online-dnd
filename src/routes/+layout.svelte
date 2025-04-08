@@ -11,7 +11,7 @@
     import { fetch } from "@tauri-apps/plugin-http";
     import { onMount } from "svelte";
     import Map from "$lib/components/Map.svelte";
-    import { ActivateScene, InitialMessage, PreloadResource, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
+    import { ActivateScene, DeleteScene, InitialMessage, PreloadResource, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
     import { parseServerMessage } from "$lib/types/messaging/server_messages";
     import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
@@ -180,6 +180,11 @@
         if (!appState.ws) return;
         await appState.ws.send(ActivateScene.create(name));
     }
+    
+    async function delete_scene(name: string) {
+        if (!appState.ws) return;
+        await appState.ws.send(DeleteScene.create(name));
+    }
 
     const preloadCooldownMap: SvelteMap<string, number> = $state(new SvelteMap());
     const COOLDOWN_MS = 10_000;
@@ -306,8 +311,7 @@
         <div class="dropdown dropdown-hover">
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
             <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-                <li><button class="btn btn-ghost" onclick={() => {scene_modal?.showModal()}}>Szene erstellen</button></li>
-                <li><button class="btn btn-ghost" onclick={() => {scene_chooser_modal?.showModal()}}>Szene auswählen</button></li>
+                <li><button class="btn btn-ghost" onclick={() => {scene_chooser_modal?.showModal()}}>Szenen</button></li>
                 <li><button class="btn btn-ghost" onclick={toggle_pressure}>
                     {#if pressure}
                     Chill Pill
@@ -377,7 +381,7 @@
 </dialog>
 <dialog bind:this={scene_chooser_modal} class="modal">
     <div class="modal-box">
-        <h3 class="text-lg font-bold">Szene aktivieren</h3>
+        <h3 class="text-lg font-bold">Szenen</h3>
         <ul class="list bg-base-100 rounded-box shadow-md">
             {#each gameState.scenes as previewScene}
             <li class="list-row flex flex-row items-center justify-between" onmouseenter={() => {send_preload(previewScene.map_file)}}>
@@ -387,11 +391,19 @@
                 <div class="flex-1">
                     <h3 class="text-base font-bold">{previewScene.name}</h3>
                 </div>
-                <button class="btn btn-ghost" onclick={() => {select_scene(previewScene.name)}}>
-                    Auswählen
-                </button>
+                <div>
+                    <button class="btn btn-ghost" onclick={() => {select_scene(previewScene.name)}}>
+                        Aktivieren
+                    </button>
+                    <button class="btn btn-soft btn-error" onclick={() => {delete_scene(previewScene.name)}}>
+                        Löschen
+                    </button>
+                </div>
             </li>
             {/each}
+            <li>
+                <button class="btn btn-ghost w-full" onclick={() => {scene_modal?.showModal()}}>Szene erstellen</button>
+            </li>
         </ul>
     </div>
     <form method="dialog" class="modal-backdrop">

@@ -51,6 +51,15 @@ export class ActivateScene {
     }
 }
 
+export class DeleteScene {
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "delete_scene",
+            name: name
+        });
+    }
+}
+
 export class PreloadResource {
     static create(file: string): string {
         return JSON.stringify({
