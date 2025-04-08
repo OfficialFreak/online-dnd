@@ -87,6 +87,7 @@
         scene_name = "";
         scene_file = null;
         background_file = null;
+        background_blur = 10;
         scene_columns = 10;
         scene_x_offset = 0;
         scene_y_offset = 0;
@@ -96,7 +97,7 @@
         // TODO: Feedback
         if (!appState.ws) return;
 
-        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, scene_columns, scene_x_offset, scene_y_offset));
+        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset));
 
         // Reset variables after
         reset_scene_vars();
@@ -212,6 +213,7 @@
     let scene_name: string = $state("");
     let scene_file: string | null = $state(null);
     let background_file: string | null = $state(null);
+    let background_blur: number = $state(10);
     let scene_columns: number = $state(10);
     let scene_x_offset: number = $state(0);
     let scene_y_offset: number = $state(0);
@@ -283,7 +285,7 @@
             </div>
         </button>
         {#if gameState.dm}
-        <div class="dropdown">
+        <div class="dropdown dropdown-hover">
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
             <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
                 <li><button class="btn btn-ghost" onclick={() => {scene_modal?.showModal()}}>Szene erstellen</button></li>
@@ -339,8 +341,10 @@
                     <button class="btn btn-neutral mt-4" onclick={() => {user_upload("background")}}>Hintergrundbild hochladen</button>
                     <p class="fieldset-label">Hintergrundbilder sind optional</p>
                 {:else}
-                    <div class="relative w-full h-30 pt-[30px]">
-                        <BlurredBackground file={background_file} />
+                    <legend class="fieldset-legend">Menge an Blur</legend>
+                    <input bind:value={background_blur} type="range" min="0" max="30" class="range" />
+                    <div class="relative w-full h-30 pt-[30px] mt-4">
+                        <BlurredBackground file={background_file} blur={background_blur} />
                     </div>
                 {/if}
 
@@ -376,7 +380,7 @@
         <button class="outline-0">close</button>
     </form>
 </dialog>
-<canvas bind:this={confetti_canvas} class="absolute top-0 left-0 w-full h-full pointer-events-none z-20"></canvas>
+<canvas bind:this={confetti_canvas} class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"></canvas>
 {@render children()}
 
 <style>
@@ -411,9 +415,10 @@
         user-select: none;
         -webkit-user-select: none;
         color: white;
+        cursor: pointer;
     }
     .titlebar-button:hover {
-        background: var(--root-bg, var(--color-base-200));
+        background: rgba(0, 0, 0, 0.2);
     }
 
     :global(body) {

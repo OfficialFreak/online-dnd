@@ -44,6 +44,7 @@ export interface SceneData extends BaseServerMessage {
     "type": "scene",
     "map": string,
     "background": string,
+    "background_blur": number,
     "columns": number,
     "x_offset": number,
     "y_offset": number,

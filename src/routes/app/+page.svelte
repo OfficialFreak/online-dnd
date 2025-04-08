@@ -51,7 +51,7 @@
 
 {#if gameState.scene}
 {#if gameState.scene.background}
-    <BlurredBackground file={gameState.scene.background} />
+    <BlurredBackground file={gameState.scene.background} blur={gameState.scene.background_blur} />
 {/if}
 <Map file={gameState.scene.map} columns={gameState.scene.columns} x_offset={gameState.scene.x_offset} y_offset={gameState.scene.y_offset} />
 {/if}
