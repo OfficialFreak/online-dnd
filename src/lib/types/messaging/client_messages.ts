@@ -28,11 +28,12 @@ export class RollResult {
 }
 
 export class PutScene {
-    static create(name: string, map_file: string, columns: number, x_offset: number, y_offset: number): string {
+    static create(name: string, map_file: string, background_file: string, columns: number, x_offset: number, y_offset: number): string {
         return JSON.stringify({
             type: "put_scene",
             name: name,
             map_file: map_file,
+            background_file: background_file,
             columns: columns,
             x_offset: x_offset,
             y_offset: y_offset
@@ -45,6 +46,24 @@ export class ActivateScene {
         return JSON.stringify({
             type: "activate_scene",
             name: name
+        });
+    }
+}
+
+export class PreloadResource {
+    static create(file: string): string {
+        return JSON.stringify({
+            type: "preload_resource",
+            file: file
+        });
+    }
+}
+
+export class TogglePressure {
+    static create(active: boolean): string {
+        return JSON.stringify({
+            type: "toggle_pressure",
+            active: active
         });
     }
 }

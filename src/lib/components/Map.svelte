@@ -38,7 +38,7 @@
     });
 </script>
 
-<div class="w-full relative">
-    <img src={map_url} alt="Map" class="w-full" />
+<div class="w-full relative select-none">
+    <img src={map_url} alt="Map" class="w-full" data-ambient />
     <canvas bind:this={gridCanvas} bind:clientWidth={w} bind:clientHeight={h} width={w as number} height={h as number} class="absolute top-0 left-0 w-full h-full z-0"></canvas>
 </div>

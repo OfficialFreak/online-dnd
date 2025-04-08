@@ -43,6 +43,7 @@ export interface RollResult extends BaseServerMessage {
 export interface SceneData extends BaseServerMessage {
     "type": "scene",
     "map": string,
+    "background": string,
     "columns": number,
     "x_offset": number,
     "y_offset": number,
@@ -62,7 +63,17 @@ export interface SceneList extends BaseServerMessage {
     "scenes": Scene[]
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList
+export interface PreloadResource extends BaseServerMessage {
+    "type": "preload_resource",
+    "file": string
+}
+
+export interface TogglePressure extends BaseServerMessage {
+    "type": "toggle_pressure",
+    "active": boolean
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -88,6 +99,10 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as SceneData;
         case "scene_list":
             return data as SceneList;
+        case "preload_resource":
+            return data as PreloadResource;
+        case "toggle_pressure":
+            return data as TogglePressure;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

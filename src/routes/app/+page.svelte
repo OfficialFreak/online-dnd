@@ -3,16 +3,13 @@
     import { onDestroy } from "svelte";
     import { gameState, appState } from "../state.svelte";
     import { connect } from "../connection.svelte";
-    import { parseServerMessage, type ServerMessage } from "$lib/types/messaging/server_messages";
-    import { ActivateScene, InitialMessage, PlayerMessage, PutScene, RollResult } from "$lib/types/messaging/client_messages";
+    import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
     import { load } from "@tauri-apps/plugin-store";
     import Map from "$lib/components/Map.svelte";
+    import DiceChooser from "$lib/components/DiceChooser.svelte";
+    import BlurredBackground from "$lib/components/BlurredBackground.svelte";
 
-    let custom_text = $state("");
-    let scene_name = $state("");
-    let privacy_level = $state("public");
-    let messages: ServerMessage[] = $state([]);
     let roller: DiceRoller | null = $state(null);
     let url: string | null = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
 
@@ -43,49 +40,22 @@
         }
     });
 
-    async function sendMsg() {
-        if (appState.ws) {
-            await appState.ws.send(PlayerMessage.create(custom_text));
-        }
-    }
-    
-    async function roll() {
+    async function roll(dice: string[], privacy_level: string) {
         if (!roller) return;
-        let result = await roller.roll(["1d20"]);
+        let result = await roller.roll(dice);
         if (appState.ws && privacy_level !== "private") {
             await appState.ws.send(RollResult.create(result.dice_values, result.roll_result, result.single_roll, privacy_level === "dm"));
         }
     }
-
-    async function save_scene() {
-        if (appState.ws) {
-            await appState.ws.send(PutScene.create(scene_name, "goblin_door.jpg", 18, 0, 0));
-        }
-    }
-
-    async function activate_scene() {
-        if (appState.ws) {
-            await appState.ws.send(ActivateScene.create(scene_name));
-        }   
-    }
 </script>
 
 {#if gameState.scene}
+{#if gameState.scene.background}
+    <BlurredBackground file={gameState.scene.background} />
+{/if}
 <Map file={gameState.scene.map} columns={gameState.scene.columns} x_offset={gameState.scene.x_offset} y_offset={gameState.scene.y_offset} />
 {/if}
-<DiceRoller bind:this={roller} rolls={["1d20"]} />
-
-<button class="btn" onclick={roll}>Reroll</button>
-<input type="text" placeholder="Scene Name" class="input" bind:value={scene_name}/>
-<button class="btn" onclick={save_scene}>Save Scene</button>
-<button class="btn" onclick={activate_scene}>Activate Scene</button>
-
-Name: {gameState.name}
-DM: {gameState.dm}
-
-<select class="select" bind:value={privacy_level}>
-    <option disabled selected>Privacy Level</option>
-    <option value="public">Public</option>
-    <option value="dm">DM Only</option>
-    <option value="private">Private</option>
-</select>
+<div class="fixed bottom-2 left-2 z-10">
+    <DiceChooser roll_callback={roll} />
+</div>
+<DiceRoller bind:this={roller} />

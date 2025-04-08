@@ -11,7 +11,7 @@
     let modal: HTMLDialogElement | null = $state(null);
     let dice_values: string = $state("");
     let roll_result: number = $state(-1);
-    let { rolls } = $props();
+    let rolls: string[] = $state([]);
     let single_roll = $derived(rolls.length === 1 && rolls[0].substring(0, 2) === "1d");
     onMount(() => {
         diceBox = new DiceBox({
@@ -52,10 +52,10 @@
             modal?.showModal();
         };
 
-        diceBox.init().then(() => {console.log("DiceRoller initialized")});
+        diceBox.init();
     });
 
-    export async function roll(rolls: string[]) {
+    export async function roll(new_rolls: string[]) {
         const rollComplete = new Promise<void>((resolve) => {
             const originalHandler = diceBox.onRollComplete;
 
@@ -66,6 +66,7 @@
                 diceBox.onRollComplete = originalHandler;
             };
         });
+        rolls = new_rolls;
         await diceBox.roll(rolls);
         await rollComplete;
         return {dice_values: dice_values, roll_result: roll_result, single_roll: single_roll};
@@ -75,8 +76,8 @@
 <!-- This should be fine as there will only be one dice-roller -->
 <div id="diceroller" class="w-full h-full fixed top-0 left-0 z-10 pointer-events-none">
 </div>
-<dialog bind:this={modal} onclose={diceBox.clear()} class="modal">
-    <div class="modal-box flex justify-center pointer-events-none">
+<dialog bind:this={modal} onclose={() => {diceBox.clear()}} class="modal">
+    <div class="modal-box flex justify-center">
         <canvas bind:this={confetti_canvas} class="absolute top-0 left-0 w-full h-full"></canvas>
         {#if single_roll}
         <h3 class="text-7xl font-bold flex">
