@@ -294,7 +294,6 @@
 </svelte:head>
 
 <div data-tauri-drag-region class="titlebar z-10">
-    <h1 class="bg-red-500">Update worked</h1>
     <div class="flex justify-center transition-opacity">
         <button onclick={reconnect} aria-label="Reconnect" class="cursor-pointer">
             <div class="h-[30px] w-[30px] flex justify-center items-center">
