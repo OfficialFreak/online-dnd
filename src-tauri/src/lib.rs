@@ -1,4 +1,6 @@
 use tauri::{Manager, Window};
+use tauri_plugin_updater::UpdaterExt;
+
 // Create the command:
 // This command must be async so that it doesn't run on the main thread.
 #[tauri::command]
@@ -44,21 +46,21 @@ async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .setup(|app| {
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
+    .setup(|app| {
+        let handle = app.handle().clone();
+        tauri::async_runtime::spawn(async move {
             update(handle).await.unwrap();
-            });
-            Ok(())
-        })
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_http::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_store::Builder::new().build())
-        .plugin(tauri_plugin_websocket::init())
-        .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![close_splashscreen])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        });
+        Ok(())
+    })
+    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_http::init())
+    .plugin(tauri_plugin_fs::init())
+    .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_store::Builder::new().build())
+    .plugin(tauri_plugin_websocket::init())
+    .plugin(tauri_plugin_opener::init())
+    .invoke_handler(tauri::generate_handler![close_splashscreen])
+    .run(tauri::generate_context!())
+    .expect("error while running tauri application");
 }
