@@ -42,6 +42,15 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYxNjc4ODNGODQyRjEyODIKUldTQ0VpK0VQNGhuOGIwUkRYb1F5NCtlNGREUllmTmROcUJSRlk5VDdFVXdGSnA3ZkxtbW9laWEK",
+        "endpoints": [
+          "https://github.com/OfficialFreak/online-dnd/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
