@@ -316,7 +316,7 @@
                     {#if pressure}
                     Chill Pill
                     {:else}
-                    PRESSURE
+                    Pressure
                     {/if}
                 </button></li>
             </ul>
