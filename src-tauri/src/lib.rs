@@ -1,4 +1,5 @@
 use tauri::{Manager, Window};
+#[cfg(not(debug_assertions))]
 use tauri_plugin_updater::UpdaterExt;
 
 // Create the command:
@@ -20,6 +21,7 @@ async fn close_splashscreen(window: Window) {
     };
 }
 
+#[cfg(not(debug_assertions))]
 async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
     if let Some(update) = app.updater()?.check().await? {
         let mut downloaded = 0;
@@ -47,10 +49,17 @@ async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
 pub fn run() {
     tauri::Builder::default()
     .setup(|app| {
-        let handle = app.handle().clone();
-        tauri::async_runtime::spawn(async move {
-            update(handle).await.unwrap();
-        });
+        #[cfg(not(debug_assertions))]
+        {
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                update(handle).await.unwrap();
+            });
+        }
+
+        #[cfg(debug_assertions)]
+        let _ = app;
+        
         Ok(())
     })
     .plugin(tauri_plugin_updater::Builder::new().build())
