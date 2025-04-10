@@ -53,7 +53,13 @@
 {#if gameState.scene.background}
     <BlurredBackground file={gameState.scene.background} blur={gameState.scene.background_blur} />
 {/if}
-<Map file={gameState.scene.map} columns={gameState.scene.columns} x_offset={gameState.scene.x_offset} y_offset={gameState.scene.y_offset} />
+<Map 
+    file={gameState.scene.map} 
+    columns={gameState.scene.columns} 
+    x_offset={gameState.scene.x_offset} 
+    y_offset={gameState.scene.y_offset} 
+    fog_squares={gameState.scene.state.fog_squares[gameState.name] as [number, number][]}
+/>
 {/if}
 <div class="fixed bottom-2 left-2 z-10">
     <DiceChooser roll_callback={roll} />

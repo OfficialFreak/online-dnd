@@ -40,6 +40,10 @@ export interface RollResult extends BaseServerMessage {
     "dm_only": boolean,
 }
 
+export interface SceneState {
+    fog_squares: Record<string, [number, number][]>
+}
+
 export interface SceneData extends BaseServerMessage {
     "type": "scene",
     "map": string,
@@ -48,6 +52,7 @@ export interface SceneData extends BaseServerMessage {
     "columns": number,
     "x_offset": number,
     "y_offset": number,
+    "state": SceneState,
 }
 
 export interface Scene {

@@ -1,3 +1,5 @@
+import type { SceneState } from "./server_messages";
+
 export class InitialMessage {
     static create(): string {
         return JSON.stringify({
@@ -28,7 +30,7 @@ export class RollResult {
 }
 
 export class PutScene {
-    static create(name: string, map_file: string, background_file: string, background_blur: number, columns: number, x_offset: number, y_offset: number): string {
+    static create(name: string, map_file: string, background_file: string, background_blur: number, columns: number, x_offset: number, y_offset: number, state: SceneState): string {
         return JSON.stringify({
             type: "put_scene",
             name: name,
@@ -37,7 +39,8 @@ export class PutScene {
             background_blur: background_blur,
             columns: columns,
             x_offset: x_offset,
-            y_offset: y_offset
+            y_offset: y_offset,
+            state: state
         });
     }
 }

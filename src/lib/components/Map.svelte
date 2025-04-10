@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { appState } from "../../routes/state.svelte";
 
-    let { file, columns, x_offset, y_offset } = $props();
+    let { file, columns, x_offset, y_offset, fog_squares } = $props();
     let gridCanvas: any = $state();
     let ctx: CanvasRenderingContext2D | null = $state(null);
     let w = $state(0);
@@ -16,6 +16,20 @@
     $effect(() => {
         if (ctx) {
             ctx.clearRect(0, 0, w, h);
+            // Draw Fog
+
+            for (let x = 0; x < columns; x++) {
+                for (let y = 0; y < rows; y++) {
+                    if (fog_squares && !fog_squares.some(([vx, vy]: [number, number]) => vx === x && vy === y)) continue;
+                    ctx.beginPath();
+                    ctx.rect(size * x + x_offset, size * y + y_offset, size, size);
+                    ctx.fillStyle = "black";
+                    ctx.fill();
+                }
+            }
+
+            // Draw Grid
+
             ctx.beginPath();
 
             for (let i = 1; i < columns; i++) {

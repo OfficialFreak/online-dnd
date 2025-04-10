@@ -97,7 +97,8 @@
         // TODO: Feedback
         if (!appState.ws) return;
 
-        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset));
+        // @ts-ignore
+        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset, {fog_squares: new Map()}));
 
         // Reset variables after
         reset_scene_vars();
@@ -311,8 +312,8 @@
         <div class="dropdown dropdown-hover">
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
             <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-                <li><button class="btn btn-ghost" onclick={() => {scene_chooser_modal?.showModal()}}>Szenen</button></li>
-                <li><button class="btn btn-ghost" onclick={toggle_pressure}>
+                <li><button class="btn btn-ghost justify-start" onclick={() => {scene_chooser_modal?.showModal()}}>Szenen</button></li>
+                <li><button class="btn btn-ghost justify-start" onclick={toggle_pressure}>
                     {#if pressure}
                     Chill Pill
                     {:else}
@@ -356,7 +357,7 @@
                 <input type="number" bind:value={scene_y_offset} class="input" placeholder="10" />
 
                 <div class="w-full mt-4">
-                    <Map file={scene_file} columns={scene_columns} x_offset={scene_x_offset} y_offset={scene_y_offset} />
+                    <Map file={scene_file} columns={scene_columns} x_offset={scene_x_offset} y_offset={scene_y_offset} fog_squares={[]} />
                 </div>
 
                 {#if !background_file}
@@ -386,7 +387,7 @@
             {#each gameState.scenes as previewScene}
             <li class="list-row flex flex-row items-center justify-between" onmouseenter={() => {send_preload(previewScene.map_file)}}>
                 <div class="w-20">
-                    <Map file={previewScene.map_file} columns={previewScene.columns} x_offset={previewScene.x_offset} y_offset={previewScene.y_offset} />
+                    <Map file={previewScene.map_file} columns={previewScene.columns} x_offset={previewScene.x_offset} y_offset={previewScene.y_offset} fog_squares={[]} />
                 </div>
                 <div class="flex-1">
                     <h3 class="text-base font-bold">{previewScene.name}</h3>
