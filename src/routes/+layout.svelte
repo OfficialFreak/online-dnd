@@ -98,7 +98,7 @@
         if (!appState.ws) return;
 
         // @ts-ignore
-        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset, {fog_squares: new Map()}));
+        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset, {"fog_squares": {}}));
 
         // Reset variables after
         reset_scene_vars();
