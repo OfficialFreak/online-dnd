@@ -58,7 +58,7 @@
     columns={gameState.scene.columns} 
     x_offset={gameState.scene.x_offset} 
     y_offset={gameState.scene.y_offset} 
-    fog_squares={gameState.scene.state.fog_squares[gameState.name] as [number, number][]}
+    fog_squares={gameState.scene.state?.fog_squares[gameState.name] || [] as [number, number][]}
 />
 {/if}
 <div class="fixed bottom-2 left-2 z-10">
