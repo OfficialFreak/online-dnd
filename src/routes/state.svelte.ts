@@ -15,8 +15,8 @@ export const appState = $state({
     token: null as string | null,
     ws: null as WebSocket | null,
     store: null as any,
-    secure: false,
-    base_url: "localhost:3030",
+    secure: true,
+    base_url: "dnd.wiegraebe.dev",
     selected_tool: Tools.None
 });
 
