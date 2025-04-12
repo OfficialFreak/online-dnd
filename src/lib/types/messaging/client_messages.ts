@@ -1,4 +1,4 @@
-import type { SceneState } from "./server_messages";
+import type { SceneData, SceneState } from "./server_messages";
 
 export class InitialMessage {
     static create(): string {
@@ -41,6 +41,19 @@ export class PutScene {
             x_offset: x_offset,
             y_offset: y_offset,
             state: state
+        });
+    }
+    static update(scene: SceneData): string {
+        return JSON.stringify({
+            type: "put_scene",
+            name: scene.name,
+            map_file: scene.map,
+            background_file: scene.background,
+            background_blur: scene.background_blur,
+            columns: scene.columns,
+            x_offset: scene.x_offset,
+            y_offset: scene.y_offset,
+            state: scene.state
         });
     }
 }

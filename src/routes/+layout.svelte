@@ -1,11 +1,11 @@
 <script lang="ts">
     let { children } = $props();
     import "../app.css";
+    import '@fortawesome/fontawesome-free/css/all.min.css';
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState, ensureStore } from "./state.svelte";
+    import { gameState, appState, ensureStore, mouseDown } from "./state.svelte";
     import { connect } from "./connection.svelte";
-    import { Store } from "@tauri-apps/plugin-store";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
     import { fetch } from "@tauri-apps/plugin-http";
@@ -17,6 +17,7 @@
     // @ts-ignore
     import confetti from "canvas-confetti";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
+    import { listen } from "@tauri-apps/api/event";
 
     const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
     const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
@@ -128,7 +129,7 @@
     onMount(async () => {
         html = document.getElementsByTagName("html")[0];
         await ensureStore();
-        appState.store = appState.store as Store;
+        appState.store = appState.store;
         appState.token = ((await appState.store.get('token')) as {value: string}).value as string;
 
         audio = new Audio("speed.mp3");
@@ -168,6 +169,9 @@
                             break;
                         case "toggle_pressure":
                             gameState.pressure = message.active;
+                            break;
+                        case "users":
+                            gameState.users = message.users;
                             break;
                     }
                 }
@@ -264,6 +268,12 @@
         }
     });
 
+    let updating = $state(false);
+
+    listen("update-started", () => {
+        updating = true;
+    })
+
     let cw = $state();
     let ch = $state();
     let html: HTMLHtmlElement | null = $state(null);
@@ -277,7 +287,12 @@
     let scrollbar_visible = $state(false);
 </script>
 
-<svelte:body bind:clientWidth={cw} bind:clientHeight={ch}></svelte:body>
+<svelte:body 
+    bind:clientWidth={cw} 
+    bind:clientHeight={ch} 
+    onmousedown={() => {mouseDown.value = true}} 
+    onmouseup={() => {mouseDown.value = false}}
+></svelte:body>
 
 <svelte:head>
     {#if appState.token}
@@ -289,6 +304,15 @@
         <style>
             html, body {
                 scrollbar-gutter: unset !important;
+            }
+            .scrollbar-gutter-affected {
+                scrollbar-gutter: unset !important;
+            }
+        </style>
+    {:else}
+        <style>
+            .scrollbar-gutter-affected {
+                scrollbar-gutter: stable !important;
             }
         </style>
     {/if}
@@ -321,6 +345,13 @@
                     {/if}
                 </button></li>
             </ul>
+        </div>
+        {/if}
+        {#if updating}
+        <div class="tooltip tooltip-bottom" data-tip="Die App wird sich gleich neustarten">
+            <div tabindex="0" role="button" class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-events-none ml-2">
+                Updatevorgang...
+            </div>
         </div>
         {/if}
     </div>

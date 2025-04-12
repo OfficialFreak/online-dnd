@@ -1,5 +1,7 @@
 use tauri::{Manager, Window};
 #[cfg(not(debug_assertions))]
+use tauri::{Emitter};
+#[cfg(not(debug_assertions))]
 use tauri_plugin_updater::UpdaterExt;
 
 // Create the command:
@@ -24,6 +26,7 @@ async fn close_splashscreen(window: Window) {
 #[cfg(not(debug_assertions))]
 async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
     if let Some(update) = app.updater()?.check().await? {
+        app.emit("update-started", None::<bool>).unwrap();
         let mut downloaded = 0;
     
         update

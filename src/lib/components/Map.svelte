@@ -1,8 +1,8 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { appState } from "../../routes/state.svelte";
+    import { appState, fogState, gameState, mouseDown, Tools } from "../../routes/state.svelte";
 
-    let { file, columns, x_offset, y_offset, fog_squares } = $props();
+    let { file, columns, x_offset, y_offset, fog_squares, editable = false } = $props();
     let gridCanvas: any = $state();
     let ctx: CanvasRenderingContext2D | null = $state(null);
     let w = $state(0);
@@ -11,7 +11,7 @@
     
     let size = $derived(w / columns);
     let rows = $derived(Math.ceil(h / size) + 1);
-    let map_url = $derived(`${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets/${file}?key=${appState.token}`);
+    let map_url = $derived(`${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets/${file}?key=${encodeURIComponent(appState.token || "")}`);
 
     $effect(() => {
         if (ctx) {
@@ -47,12 +47,42 @@
         }
     });
 
+    function clickHandler(event: MouseEvent, click: boolean) {
+        if ((!mouseDown.value && !click) || !editable) return;
+        let x = Math.floor((event.pageX - x_offset) / size);
+        // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
+        let y = Math.floor((event.pageY - y_offset - 30) / size);
+
+        if (!gameState.scene) return;
+        let edit_players = fogState.selected_player === "all" ? gameState.users.map((user) => user.name) : [fogState.selected_player]
+
+        for (const player of edit_players) {
+            gameState.scene.state.fog_squares[player] ??= [];
+            if (appState.selected_tool === Tools.AddFog && !gameState.scene.state.fog_squares[player].some(([sx, sy]) => sx === x && sy === y)) {
+                gameState.scene.state.fog_squares[player].push([x, y]);
+            } else if (appState.selected_tool === Tools.RemoveFog) {
+                let idx = gameState.scene.state.fog_squares[player].findIndex(([sx, sy]) => sx === x && sy === y);
+                if (idx === -1) return;
+                gameState.scene.state.fog_squares[player].splice(idx, 1);
+            }
+        }
+    }
+
     onMount(() => {
         ctx = gridCanvas.getContext("2d");
     });
 </script>
 
 <div class="w-full relative select-none">
-    <img src={map_url} alt="Map" class="w-full" data-ambient />
-    <canvas bind:this={gridCanvas} bind:clientWidth={w} bind:clientHeight={h} width={w as number} height={h as number} class="absolute top-0 left-0 w-full h-full z-0"></canvas>
+    <img src={map_url} alt="Map" class="w-full" />
+    <canvas 
+        bind:this={gridCanvas}
+        bind:clientWidth={w}
+        bind:clientHeight={h}
+        width={w as number}
+        height={h as number}
+        onmousedown={(evt) => {clickHandler(evt, true)}}
+        onmousemove={(evt) => {clickHandler(evt, false)}}
+        class="absolute top-0 left-0 w-full h-full z-0">
+    </canvas>
 </div>

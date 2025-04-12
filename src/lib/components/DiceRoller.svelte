@@ -74,7 +74,7 @@
 </script>  
 
 <!-- This should be fine as there will only be one dice-roller -->
-<div id="diceroller" class="w-full h-full fixed top-0 left-0 z-10 pointer-events-none">
+<div id="diceroller" class="w-full h-full fixed top-0 left-0 z-10 pointer-events-none overflow-hidden scrollbar-gutter-affected">
 </div>
 <dialog bind:this={modal} onclose={() => {diceBox.clear()}} class="modal">
     <div class="modal-box flex justify-center">

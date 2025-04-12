@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { onDestroy } from "svelte";
-    import { gameState, appState } from "../state.svelte";
+    import { gameState, appState, fogState, Tools } from "../state.svelte";
     import { connect } from "../connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
@@ -9,6 +9,7 @@
     import Map from "$lib/components/Map.svelte";
     import DiceChooser from "$lib/components/DiceChooser.svelte";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
+    import Toolbar from "$lib/components/Toolbar.svelte";
 
     let roller: DiceRoller | null = $state(null);
     let url: string | null = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
@@ -21,7 +22,7 @@
 
     $effect(() => {
         if (!appState.ws && appState.store) {
-            appState.store.get('token').then((tmp_token) => {
+            appState.store.get('token').then((tmp_token: {value: string} | null) => {
                 if (!tmp_token) {
                     goto("/");
                     return;
@@ -51,16 +52,24 @@
 
 {#if gameState.scene}
 {#if gameState.scene.background}
-    <BlurredBackground file={gameState.scene.background} blur={gameState.scene.background_blur} />
+<BlurredBackground file={gameState.scene.background} blur={gameState.scene.background_blur} />
 {/if}
 <Map 
     file={gameState.scene.map} 
     columns={gameState.scene.columns} 
     x_offset={gameState.scene.x_offset} 
     y_offset={gameState.scene.y_offset} 
-    fog_squares={gameState.scene.state?.fog_squares[gameState.name] || [] as [number, number][]}
+    fog_squares={
+        gameState.scene.state?.fog_squares[
+            (appState.selected_tool === Tools.AddFog || appState.selected_tool === Tools.RemoveFog) && fogState.selected_player != "all"
+            ? (fogState.selected_player)
+            : gameState.name] as [number, number][]}
+    editable={true}
 />
 {/if}
+<div class="fixed top-10 left-2">
+    <Toolbar />
+</div>
 <div class="fixed bottom-2 left-2 z-10">
     <DiceChooser roll_callback={roll} />
 </div>

@@ -46,6 +46,7 @@ export interface SceneState {
 
 export interface SceneData extends BaseServerMessage {
     "type": "scene",
+    "name": string,
     "map": string,
     "background": string,
     "background_blur": number,
@@ -79,7 +80,17 @@ export interface TogglePressure extends BaseServerMessage {
     "active": boolean
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure
+export interface User {
+    "name": string,
+    "active": boolean
+}
+
+export interface Users extends BaseServerMessage {
+    "type": "users",
+    "users": User[]
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -109,6 +120,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as PreloadResource;
         case "toggle_pressure":
             return data as TogglePressure;
+        case "users":
+            return data as Users;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

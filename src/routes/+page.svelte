@@ -5,7 +5,6 @@
     import { appState, ensureStore } from './state.svelte';
     import { connect } from './connection.svelte';
     import { invoke } from '@tauri-apps/api/core';
-    import { load, Store } from '@tauri-apps/plugin-store';
 
     let token: string = $state("");
     let loading = $state(true);
@@ -14,7 +13,7 @@
 
     async function connectLoadingWrapper() {
         await ensureStore();
-        appState.store = appState.store as Store;
+        appState.store = appState.store;
         loading = true;
         if (await connect(url)) {
             loading = false;
@@ -30,7 +29,7 @@
 
     onMount(async () => {
         await ensureStore();
-        appState.store = appState.store as Store;
+        appState.store = appState.store;
         const tmp_token = await appState.store.get('token');
         if (tmp_token) {
             token = (tmp_token as {value: string}).value;
