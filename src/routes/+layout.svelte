@@ -209,6 +209,10 @@
                             gameState.scene.state.markers[idx].x = message.x;
                             gameState.scene.state.markers[idx].y = message.y;
                             break;
+                        case "update_fog":
+                            if (!gameState.scene) return;
+                            gameState.scene.state.fog_squares = message.fog_squares
+                            break;
                     }
                 }
             });

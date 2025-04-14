@@ -61,6 +61,12 @@ export class PutScene {
             state: scene.state
         });
     }
+    static update_fog(fog_squares: Record<string, [number, number][]>): string {
+        return JSON.stringify({
+            type: "update_fog",
+            fog_squares: fog_squares
+        });
+    }
 }
 
 export class ActivateScene {

@@ -13,7 +13,7 @@
 
     function saveSceneFog() {
         if (!appState.ws || !gameState.scene) return;
-        appState.ws.send(PutScene.update(gameState.scene))
+        appState.ws.send(PutScene.update_fog(gameState.scene.state.fog_squares))
     }
 
     $effect(() => {

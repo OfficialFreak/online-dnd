@@ -125,7 +125,12 @@ export interface MarkerFreed extends BaseServerMessage {
     "marker_name": string
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed
+export interface UpdateFog extends BaseServerMessage {
+    "type": "update_fog",
+    "fog_squares": Record<string, [number, number][]>
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -165,6 +170,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MarkerLocked;
         case "marker_freed":
             return data as MarkerFreed;
+        case "update_fog":
+            return data as UpdateFog;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

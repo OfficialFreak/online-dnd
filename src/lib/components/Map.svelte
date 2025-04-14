@@ -4,10 +4,8 @@
     // @ts-ignore
     import throttle from 'just-throttle';
     import { fade } from "svelte/transition";
-    import { MarkerFreed, MarkerLocked, MarkerPosition, MousePosition, PutScene } from "$lib/types/messaging/client_messages";
+    import { MarkerFreed, MarkerLocked, MarkerPosition, MousePosition } from "$lib/types/messaging/client_messages";
     import { draggable, type DragOptions } from "@neodrag/svelte";
-    import { Tween } from "svelte/motion";
-    import { circOut } from "svelte/easing";
 
     let { file, columns, x_offset, y_offset, fog_squares, markers, editable = false } = $props();
     let gridCanvas: any = $state();
@@ -163,12 +161,12 @@
         onmousemove={(evt) => {clickHandler(evt, false)}}
         class="absolute top-0 left-0 w-full h-full z-0">
     </canvas>
-    <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
+    <div class="absolute top-0 left-0 w-full h-full z-0" style="pointer-events: {(appState.selected_tool === Tools.Pointer || appState.selected_tool === Tools.None) ? "auto": "none"}">
         {#each markers as marker}
         <div 
             use:draggable={{...dragOptions, position: {x: marker.x.current * w, y: marker.y.current * h}, disabled: !!gameState.locked_markers[marker.name]}}
             id={marker.name}
-            class="avatar absolute top-0 left-0" style="pointer-events: {(appState.selected_tool === Tools.Pointer || appState.selected_tool === Tools.None) ? "auto": "none"}"
+            class="avatar absolute top-0 left-0"
         >
             {#if gameState.locked_markers[marker.name]}
                 <span class="absolute top-0 right-0 badge badge-info z-10" transition:fade={{duration: 100}}>
