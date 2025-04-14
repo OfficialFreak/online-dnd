@@ -6,6 +6,7 @@
     import { fade } from "svelte/transition";
     import { MarkerFreed, MarkerLocked, MarkerPosition, MousePosition } from "$lib/types/messaging/client_messages";
     import { draggable, type DragOptions } from "@neodrag/svelte";
+    import Marker from "./Marker.svelte";
 
     let { file, columns, x_offset, y_offset, fog_squares, markers, editable = false } = $props();
     let gridCanvas: any = $state();
@@ -101,7 +102,7 @@
         // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
         let y = Math.floor((event.pageY - y_offset - 30) / size);
 
-        if (!click && editable && appState.selected_tool === Tools.Pointer && gameState.dm) {
+        if (!click && editable && appState.selected_tool === Tools.Pointer && gameState.dm && !appState.dragging) {
             throttled(currentMouseX, currentMouseY);
         }
 
@@ -155,33 +156,15 @@
         bind:this={gridCanvas}
         bind:clientWidth={w}
         bind:clientHeight={h}
-        width={w as number}
-        height={h as number}
         onmousedown={(evt) => {clickHandler(evt, true)}}
         onmousemove={(evt) => {clickHandler(evt, false)}}
+        width={w as number}
+        height={h as number}
         class="absolute top-0 left-0 w-full h-full z-0">
     </canvas>
-    <div class="absolute top-0 left-0 w-full h-full z-0" style="pointer-events: {(appState.selected_tool === Tools.Pointer || appState.selected_tool === Tools.None) ? "auto": "none"}">
+    <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
         {#each markers as marker}
-        <div 
-            use:draggable={{...dragOptions, position: {x: marker.x.current * w, y: marker.y.current * h}, disabled: !!gameState.locked_markers[marker.name]}}
-            id={marker.name}
-            class="avatar absolute top-0 left-0"
-        >
-            {#if gameState.locked_markers[marker.name]}
-                <span class="absolute top-0 right-0 badge badge-info z-10" transition:fade={{duration: 100}}>
-                    <i class="fa-solid fa-up-down-left-right"></i>
-                    {gameState.locked_markers[marker.name]}
-            </span>
-            {/if}
-            <div class="mask mask-hexagon p-1 pointer-events-none" style="width: {marker.size}vw">
-                <img
-                    alt="Marker"
-                    src={getAssetUrl(marker.file)}
-                    class="mask mask-hexagon"
-                />
-            </div>
-        </div>
+            <Marker marker={marker} dragOptions={{...dragOptions, position: {x: marker.x.current * w, y: marker.y.current * h}, disabled: !!gameState.locked_markers[marker.name]}} columnCount={columns} />
         {/each}
     </div>
     <canvas 

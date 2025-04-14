@@ -145,3 +145,14 @@ export class MarkerFreed {
         });
     }
 }
+
+export class PutMarker {
+    static create(name: string, file: string, size: number): string {
+        return JSON.stringify({
+            type: "put_marker",
+            name: name,
+            file: file,
+            size: size
+        });
+    }
+}

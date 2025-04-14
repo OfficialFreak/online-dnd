@@ -1,4 +1,4 @@
-import type { SceneData, Scene, User } from "$lib/types/messaging/server_messages";
+import type { SceneData, Scene, User, MarkerTemplate } from "$lib/types/messaging/server_messages";
 import { load } from "@tauri-apps/plugin-store";
 import type WebSocket from "@tauri-apps/plugin-websocket";
 import { circOut } from "svelte/easing";
@@ -32,7 +32,8 @@ export const gameState = $state({
     resources: new SvelteSet() as SvelteSet<string>,
     pressure: false,
     users: [] as User[],
-    locked_markers: {} as Record<string, string>
+    locked_markers: {} as Record<string, string>,
+    marker_lib: [] as MarkerTemplate[]
 });
 
 export const fogState = $state({

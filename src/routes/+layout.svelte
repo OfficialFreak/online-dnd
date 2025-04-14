@@ -11,8 +11,8 @@
     import { fetch } from "@tauri-apps/plugin-http";
     import { onMount } from "svelte";
     import Map from "$lib/components/Map.svelte";
-    import { ActivateScene, DeleteScene, InitialMessage, PreloadResource, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
-    import { parseServerMessage } from "$lib/types/messaging/server_messages";
+    import { ActivateScene, DeleteScene, InitialMessage, PreloadResource, PutMarker, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
+    import { parseServerMessage, type MarkerTemplate, type User } from "$lib/types/messaging/server_messages";
     import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
     import confetti from "canvas-confetti";
@@ -20,6 +20,7 @@
     import { listen } from "@tauri-apps/api/event";
     import { Tween } from "svelte/motion";
     import { circOut } from "svelte/easing";
+    import Marker from "$lib/components/Marker.svelte";
 
     const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
     const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
@@ -81,7 +82,9 @@
         await upload_file(selectedFilePath, selectedFileName);
         if (image_use === "scene") {
             scene_file = selectedFileName;
-        } else {
+        } else if (image_use === "marker") {
+            marker_file = selectedFileName;
+        } else{
             background_file = selectedFileName;
         }
     }
@@ -95,6 +98,12 @@
         scene_x_offset = 0;
         scene_y_offset = 0;
     }
+    
+    function reset_marker_vars() {
+        marker_name = "";
+        marker_size = 1;
+        marker_file = "";
+    }
 
     async function create_scene() {
         // TODO: Feedback
@@ -105,6 +114,17 @@
 
         // Reset variables after
         reset_scene_vars();
+    }
+    
+    async function create_marker() {
+        // TODO: Feedback
+        if (!appState.ws) return;
+
+        // @ts-ignore
+        await appState.ws.send(PutMarker.create(marker_name, marker_file, marker_size));
+
+        // Reset variables after
+        reset_marker_vars();
     }
 
     async function reconnect(){
@@ -156,8 +176,20 @@
                         case "event":
                             switch (message.event_type) {
                                 case 'joined':
+                                    let joined_person = gameState.users.find((user) => user.name === message.person);
+                                    if (!joined_person) {
+                                        gameState.users.push({
+                                            name: message.person,
+                                            active: true
+                                        });
+                                        return;
+                                    };
+                                    joined_person.active = true;
                                     break;
                                 case 'left':
+                                    let left_person = gameState.users.find((user) => user.name === message.person);
+                                    if (!left_person) return;
+                                    left_person.active = false;
                                     break;
                             }
                             break;
@@ -206,12 +238,15 @@
                         case "marker_position":
                             if (!gameState.scene) return;
                             let idx = gameState.scene.state.markers.findIndex((marker) => marker.name === message.marker_name);
-                            gameState.scene.state.markers[idx].x = message.x;
-                            gameState.scene.state.markers[idx].y = message.y;
+                            gameState.scene.state.markers[idx].x.target = message.x;
+                            gameState.scene.state.markers[idx].y.target = message.y;
                             break;
                         case "update_fog":
                             if (!gameState.scene) return;
                             gameState.scene.state.fog_squares = message.fog_squares
+                            break;
+                        case "marker_lib":
+                            gameState.marker_lib = message.markers;
                             break;
                     }
                 }
@@ -229,6 +264,23 @@
     async function delete_scene(name: string) {
         if (!appState.ws) return;
         await appState.ws.send(DeleteScene.create(name));
+    }
+
+    async function add_marker(marker: MarkerTemplate) {
+        if (!appState.ws || !gameState.scene) return;
+        let new_marker = {...marker,
+            x: new Tween(0.5, {
+                duration: 200,
+                easing: circOut
+            }),
+            y: new Tween(0.5, {
+                duration: 200,
+                easing: circOut
+            }),
+            status_effects: []
+        }
+        gameState.scene.state.markers.push(new_marker);
+        await appState.ws.send(PutScene.update(gameState.scene));
     }
 
     const preloadCooldownMap: SvelteMap<string, number> = $state(new SvelteMap());
@@ -269,8 +321,14 @@
     let scene_x_offset: number = $state(0);
     let scene_y_offset: number = $state(0);
 
+    let marker_name = $state("");
+    let marker_size = $state(1);
+    let marker_file = $state("");
+
     let scene_modal: HTMLDialogElement | null = $state(null);
     let scene_chooser_modal: HTMLDialogElement | null = $state(null);
+    let marker_modal: HTMLDialogElement | null = $state(null);
+    let marker_creation_modal: HTMLDialogElement | null = $state(null);
 
     let audio: HTMLAudioElement | null = $state(null);
 
@@ -377,6 +435,7 @@
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
             <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
                 <li><button class="btn btn-ghost justify-start" onclick={() => {scene_chooser_modal?.showModal()}}>Szenen</button></li>
+                <li><button class="btn btn-ghost justify-start" onclick={() => {marker_modal?.showModal()}}>Marker</button></li>
                 <li><button class="btn btn-ghost justify-start" onclick={toggle_pressure}>
                     {#if pressure}
                     Chill Pill
@@ -477,6 +536,59 @@
                 <button class="btn btn-ghost w-full" onclick={() => {scene_modal?.showModal()}}>Szene erstellen</button>
             </li>
         </ul>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button class="outline-0">close</button>
+    </form>
+</dialog>
+<dialog bind:this={marker_modal} class="modal">
+    <div class="modal-box">
+        <h3 class="text-lg font-bold">Marker Bibliothek</h3>
+        <ul class="list bg-base-100 rounded-box shadow-md">
+            {#each gameState.marker_lib as marker}
+                <li class="list-row flex flex-row items-center justify-between">
+                    <div class="relative flex flex-col gap-1 items-center w-20">
+                        <Marker columnCount="100%" dragOptions={{disabled: true}} marker={marker} absolute={false} />
+                        <span>{marker.name}</span>
+                        <span class="badge absolute top-0 -right-1/2 -translate-x-1/2">
+                            <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            {marker.size}
+                        </span>
+                    </div>
+                    <button class="btn btn-ghost" onclick={() => {add_marker(marker)}}>Hinzufügen</button>
+                </li>
+            {/each}
+            <li>
+                <button class="btn btn-ghost w-full" onclick={() => {marker_creation_modal?.showModal()}}>Marker erstellen</button>
+            </li>
+        </ul>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button class="outline-0">close</button>
+    </form>
+</dialog>
+<dialog bind:this={marker_creation_modal} class="modal">
+    <div class="modal-box">
+        <h3 class="text-lg font-bold">Marker erstellen</h3>
+        <fieldset class="fieldset">
+            <legend class="fieldset-legend">Markername</legend>
+            <input type="text" bind:value={marker_name} class="input" placeholder="Grom" />
+            <legend class="fieldset-legend">Größe</legend>
+            <input type="number" bind:value={marker_size} class="input" placeholder="1" />
+            <p class="fieldset-label">Die Größe gibt an, wie viele Spalten (und somit auch Zeilen) der Marker einnimmt.</p>
+        
+            {#if !marker_file}
+                <button class="btn btn-neutral mt-4" onclick={() => {user_upload("marker")}}>Marker-Bild</button>
+            {:else}
+                <Marker columnCount={"100%"} dragOptions={{disabled: true}} marker={{
+                    name: marker_name,
+                    size: marker_size,
+                    file: marker_file
+                }} absolute={false} />
+                <button class="btn btn-neutral mt-4" onclick={create_marker}>Marker erstellen</button>
+                <p class="fieldset-label">Du kannst Marker überschreiben indem du einen neuen Marker mit gleichem Namen erstellst.</p>
+            {/if}
+        </fieldset>
     </div>
     <form method="dialog" class="modal-backdrop">
         <button class="outline-0">close</button>

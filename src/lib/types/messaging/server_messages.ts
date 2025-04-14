@@ -40,6 +40,12 @@ export interface RollResult extends BaseServerMessage {
     "dm_only": boolean,
 }
 
+export interface MarkerTemplate {
+    name: string,
+    size: number,
+    file: string,
+}
+
 export interface Marker {
     name: string,
     x: any,
@@ -130,7 +136,12 @@ export interface UpdateFog extends BaseServerMessage {
     "fog_squares": Record<string, [number, number][]>
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog
+export interface MarkerLib extends BaseServerMessage {
+    "type": "marker_lib",
+    "markers": MarkerTemplate[]
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -172,6 +183,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MarkerFreed;
         case "update_fog":
             return data as UpdateFog;
+        case "marker_lib":
+            return data as MarkerLib;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

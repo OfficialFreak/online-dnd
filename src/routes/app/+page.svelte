@@ -10,7 +10,6 @@
     import DiceChooser from "$lib/components/DiceChooser.svelte";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
     import Toolbar from "$lib/components/Toolbar.svelte";
-    import { fade } from "svelte/transition";
 
     let roller: DiceRoller | null = $state(null);
     let url: string | null = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
@@ -29,6 +28,7 @@
                     return;
                 }
                 appState.token = (tmp_token as {value: string}).value;
+
                 connect(url as string).then((val) => {
                     if (!val) {
                         return;
