@@ -4,7 +4,7 @@
     import '@fortawesome/fontawesome-free/css/all.min.css';
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState, ensureStore, mouseDown } from "./state.svelte";
+    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse } from "./state.svelte";
     import { connect } from "./connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
@@ -18,6 +18,8 @@
     import confetti from "canvas-confetti";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
     import { listen } from "@tauri-apps/api/event";
+    import { Tween } from "svelte/motion";
+    import { circOut } from "svelte/easing";
 
     const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
     const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
@@ -99,7 +101,7 @@
         if (!appState.ws) return;
 
         // @ts-ignore
-        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset, {"fog_squares": {}}));
+        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset, {"fog_squares": {}, "markers": []}));
 
         // Reset variables after
         reset_scene_vars();
@@ -138,6 +140,7 @@
         confetti_function = confetti.create(confetti_canvas, { resize: true });
     });
 
+    let mouse_timeout: any = $state(null);
     $effect(() => {
         if (appState.ws) {
             appState.ws.addListener((msg) => {
@@ -159,6 +162,16 @@
                             }
                             break;
                         case "scene":
+                            message.state.markers.forEach((marker) => {
+                                marker.x = new Tween(marker.x, {
+                                    duration: 200,
+                                    easing: circOut
+                                });
+                                marker.y = new Tween(marker.y, {
+                                    duration: 200,
+                                    easing: circOut
+                                });
+                            })
                             gameState.scene = message;
                             break;
                         case "scene_list":
@@ -172,6 +185,29 @@
                             break;
                         case "users":
                             gameState.users = message.users;
+                            break;
+                        case "mouse_position":
+                            if (gameState.dm) break;
+                            mouseX.target = message.x;
+                            mouseY.target = message.y;
+                            DMName.value = message.user;
+                            showMouse.value = true;
+                            clearTimeout(mouse_timeout);
+                            mouse_timeout = setTimeout(() => {
+                                showMouse.value = false
+                            }, 500);
+                            break;
+                        case "marker_locked":
+                            gameState.locked_markers[message.marker_name] = message.locked_by;
+                            break;
+                        case "marker_freed":
+                            delete gameState.locked_markers[message.marker_name];
+                            break;
+                        case "marker_position":
+                            if (!gameState.scene) return;
+                            let idx = gameState.scene.state.markers.findIndex((marker) => marker.name === message.marker_name);
+                            gameState.scene.state.markers[idx].x = message.x;
+                            gameState.scene.state.markers[idx].y = message.y;
                             break;
                     }
                 }
@@ -388,7 +424,7 @@
                 <input type="number" bind:value={scene_y_offset} class="input" placeholder="10" />
 
                 <div class="w-full mt-4">
-                    <Map file={scene_file} columns={scene_columns} x_offset={scene_x_offset} y_offset={scene_y_offset} fog_squares={[]} />
+                    <Map file={scene_file} columns={scene_columns} x_offset={scene_x_offset} y_offset={scene_y_offset} fog_squares={[]} markers={[]} />
                 </div>
 
                 {#if !background_file}
@@ -418,7 +454,7 @@
             {#each gameState.scenes as previewScene}
             <li class="list-row flex flex-row items-center justify-between" onmouseenter={() => {send_preload(previewScene.map_file)}}>
                 <div class="w-20">
-                    <Map file={previewScene.map_file} columns={previewScene.columns} x_offset={previewScene.x_offset} y_offset={previewScene.y_offset} fog_squares={[]} />
+                    <Map file={previewScene.map_file} columns={previewScene.columns} x_offset={previewScene.x_offset} y_offset={previewScene.y_offset} fog_squares={[]}  markers={[]} />
                 </div>
                 <div class="flex-1">
                     <h3 class="text-base font-bold">{previewScene.name}</h3>

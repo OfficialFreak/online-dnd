@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { fade } from "svelte/transition";
+
     const { roll_callback } = $props();
     type Dice = 'd4' | 'd6' | 'd8' | 'd100' | 'd10' | 'd12' | 'd20';
 
@@ -23,7 +25,7 @@
     }
 </script>
 
-<div class="dropdown dropdown-top dropdown-hover">
+<div class="dropdown dropdown-top dropdown-hover" transition:fade={{duration: 200}}>
     <div class="flex flex-row gap-1">
         <button class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center" aria-label="D20">
             <span class="dice-icon d20 !bg-gray-500"></span>

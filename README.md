@@ -3,3 +3,5 @@ This is an app to help our friend group play Dungeons and Dragons Online togethe
 The server it requires is also private.
 
 "DND Online" is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.
+
+Fog Texture: <a href="http://www.freepik.com">Designed by rawpixel.com / Freepik</a>

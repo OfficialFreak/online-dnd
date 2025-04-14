@@ -1,9 +1,14 @@
 <script lang="ts">
     import { PutScene } from "$lib/types/messaging/client_messages";
+    import { fade } from "svelte/transition";
     import { appState, fogState, gameState, Tools } from "../../routes/state.svelte";
 
     function selectTool(tool: Tools) {
-        appState.selected_tool = tool
+        if (appState.selected_tool === tool) {
+            appState.selected_tool = Tools.None;
+        } else {
+            appState.selected_tool = tool
+        }
     }
 
     function saveSceneFog() {
@@ -35,8 +40,8 @@
     let fog_active = $derived(appState.selected_tool === Tools.AddFog || appState.selected_tool === Tools.RemoveFog);
 </script>
 
-<div class="flex flex-col gap-1 p-0.5 frosted rounded-md">
-    <button tabindex="0" class="btn btn-square btn-sm {appState.selected_tool === Tools.None && 'btn-info'}" aria-label="Fog" onclick={() => {selectTool(Tools.None)}}><i class="fa-solid fa-arrow-pointer"></i></button>
+<div class="flex flex-col gap-1 p-0.5 frosted rounded-md" transition:fade|global={{duration: 100}}>
+    <button tabindex="0" class="btn btn-square btn-sm {appState.selected_tool === Tools.Pointer && 'btn-info'}" aria-label="Fog" onclick={() => {selectTool(Tools.Pointer)}}><i class="fa-solid fa-arrow-pointer"></i></button>
     {#if gameState.dm}
     <div class="dropdown dropdown-right dropdown-hover">
         <button tabindex="0" class="btn btn-square btn-sm {fog_active && 'btn-info'}" aria-label="Fog"><i class="fa-solid fa-cloud"></i></button>

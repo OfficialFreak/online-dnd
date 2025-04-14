@@ -40,8 +40,18 @@ export interface RollResult extends BaseServerMessage {
     "dm_only": boolean,
 }
 
+export interface Marker {
+    name: string,
+    x: any,
+    y: any,
+    size: number,
+    file: string,
+    status_effects: string[]
+}
+
 export interface SceneState {
-    fog_squares: Record<string, [number, number][]>
+    fog_squares: Record<string, [number, number][]>,
+    markers: Marker[]
 }
 
 export interface SceneData extends BaseServerMessage {
@@ -90,7 +100,32 @@ export interface Users extends BaseServerMessage {
     "users": User[]
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users
+export interface MousePosition extends BaseServerMessage {
+    "type": "mouse_position",
+    "user": string,
+    "x": number,
+    "y": number
+}
+
+export interface MarkerPosition extends BaseServerMessage {
+    "type": "marker_position",
+    "marker_name": string,
+    "x": number,
+    "y": number
+}
+
+export interface MarkerLocked extends BaseServerMessage {
+    "type": "marker_locked",
+    "locked_by": string,
+    "marker_name": string
+}
+
+export interface MarkerFreed extends BaseServerMessage {
+    "type": "marker_freed",
+    "marker_name": string
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -122,6 +157,14 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as TogglePressure;
         case "users":
             return data as Users;
+        case "mouse_position":
+            return data as MousePosition;
+        case "marker_position":
+            return data as MarkerPosition;
+        case "marker_locked":
+            return data as MarkerLocked;
+        case "marker_freed":
+            return data as MarkerFreed;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

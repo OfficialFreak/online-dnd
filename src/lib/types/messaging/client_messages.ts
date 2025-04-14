@@ -44,6 +44,11 @@ export class PutScene {
         });
     }
     static update(scene: SceneData): string {
+        let scene_state = scene.state;
+        scene_state.markers.forEach((marker) => {
+            marker.x = marker.x.target;
+            marker.y = marker.y.target;
+        });
         return JSON.stringify({
             type: "put_scene",
             name: scene.name,
@@ -90,6 +95,47 @@ export class TogglePressure {
         return JSON.stringify({
             type: "toggle_pressure",
             active: active
+        });
+    }
+}
+
+export class MousePosition {
+    static create(x: number, y: number): string {
+        return JSON.stringify({
+            type: "mouse_position",
+            x: x,
+            y: y
+        });
+    }
+}
+
+export class MarkerPosition {
+    static create(marker_name: string, x: number, y: number): string {
+        return JSON.stringify({
+            type: "marker_position",
+            marker_name: marker_name,
+            x: x,
+            y: y,
+        });
+    }
+}
+
+export class MarkerLocked {
+    static create(marker_name: string): string {
+        return JSON.stringify({
+            type: "marker_locked",
+            marker_name: marker_name
+        });
+    }
+}
+
+export class MarkerFreed {
+    static create(marker_name: string, x: number, y: number): string {
+        return JSON.stringify({
+            type: "marker_freed",
+            marker_name: marker_name,
+            x: x,
+            y: y
         });
     }
 }

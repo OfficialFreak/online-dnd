@@ -1,10 +1,13 @@
 import type { SceneData, Scene, User } from "$lib/types/messaging/server_messages";
 import { load } from "@tauri-apps/plugin-store";
 import type WebSocket from "@tauri-apps/plugin-websocket";
+import { circOut } from "svelte/easing";
+import { Tween } from "svelte/motion";
 import {SvelteSet} from "svelte/reactivity";	
 
 export enum Tools {
     None,
+    Pointer,
     AddFog,
     RemoveFog
 }
@@ -17,7 +20,8 @@ export const appState = $state({
     store: null as any,
     secure: true,
     base_url: "dnd.wiegraebe.dev",
-    selected_tool: Tools.None
+    selected_tool: Tools.None,
+    dragging: false,
 });
 
 export const gameState = $state({
@@ -27,7 +31,8 @@ export const gameState = $state({
     scenes: [] as Scene[],
     resources: new SvelteSet() as SvelteSet<string>,
     pressure: false,
-    users: [] as User[]
+    users: [] as User[],
+    locked_markers: {} as Record<string, string>
 });
 
 export const fogState = $state({
@@ -39,3 +44,14 @@ export async function ensureStore() {
         appState.store = await load('store.json', { autoSave: false });
     }
 }
+
+export const mouseX = new Tween(0, {
+    duration: 200,
+    easing: circOut
+});
+export const mouseY = new Tween(0, {
+    duration: 200,
+    easing: circOut
+});
+export const DMName = $state({value: ""});
+export const showMouse = $state({value: false});

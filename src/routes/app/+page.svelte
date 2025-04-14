@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { onDestroy } from "svelte";
-    import { gameState, appState, fogState, Tools } from "../state.svelte";
+    import { gameState, appState, fogState, Tools, mouseDown } from "../state.svelte";
     import { connect } from "../connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
@@ -10,6 +10,7 @@
     import DiceChooser from "$lib/components/DiceChooser.svelte";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
     import Toolbar from "$lib/components/Toolbar.svelte";
+    import { fade } from "svelte/transition";
 
     let roller: DiceRoller | null = $state(null);
     let url: string | null = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
@@ -64,13 +65,18 @@
             (appState.selected_tool === Tools.AddFog || appState.selected_tool === Tools.RemoveFog) && fogState.selected_player != "all"
             ? (fogState.selected_player)
             : gameState.name] as [number, number][]}
+    markers={gameState.scene.state.markers}
     editable={true}
 />
 {/if}
-<div class="fixed top-10 left-2">
-    <Toolbar />
-</div>
-<div class="fixed bottom-2 left-2 z-10">
-    <DiceChooser roll_callback={roll} />
-</div>
+{#if !appState.dragging}
+    {#if gameState.dm}
+    <div class="fixed top-10 left-2">
+        <Toolbar />
+    </div>
+    {/if}
+    <div class="fixed bottom-2 left-2 z-10">
+        <DiceChooser roll_callback={roll} />
+    </div>
+{/if}
 <DiceRoller bind:this={roller} />
