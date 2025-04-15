@@ -44,11 +44,13 @@ export class PutScene {
         });
     }
     static update(scene: SceneData): string {
-        let scene_state = scene.state;
-        scene_state.markers.forEach((marker) => {
-            marker.x = marker.x.target;
-            marker.y = marker.y.target;
-        });
+        let new_markers = scene.state.markers.map((marker) => {
+            return {
+                ...marker,
+                x: marker.x.target,
+                y: marker.y.target
+            };
+        })
         return JSON.stringify({
             type: "put_scene",
             name: scene.name,
@@ -58,7 +60,7 @@ export class PutScene {
             columns: scene.columns,
             x_offset: scene.x_offset,
             y_offset: scene.y_offset,
-            state: scene.state
+            state: {...scene.state, markers: new_markers}
         });
     }
     static update_fog(fog_squares: Record<string, [number, number][]>): string {

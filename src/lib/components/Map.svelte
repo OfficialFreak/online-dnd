@@ -18,9 +18,10 @@
     
     let size = $derived(w / columns);
     let rows = $derived(Math.ceil(h / size) + 1);
-    let map_url = $derived(getAssetUrl(file));
+    let map_url = $derived(getAssetUrl(file) || "");
     function getAssetUrl(asset: string) {
-        return `${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets/${asset}?key=${encodeURIComponent(appState.token || "")}`;
+        if (!appState.token) return;
+        return `${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets/${asset}?key=${encodeURIComponent(appState.token)}`;
     }
 
     let fogImg = new Image(0, 0);
@@ -90,7 +91,11 @@
     }, 30, {leading: false, trailing: true});
 
     let throttledMarkerDrag = throttle(({ offsetX, offsetY, currentNode }) => {
-        if (!appState.ws || !gameState.scene) return;
+        if (!gameState.scene) return;
+        let marker = gameState.scene.state.markers.find((marker) => marker.name === currentNode.id);
+        if (!appState.ws || !marker) return;
+        marker.x.set(offsetX / w, {duration: 0});
+        marker.y.set(offsetY / h, {duration: 0});
         appState.ws.send(MarkerPosition.create(currentNode.id, offsetX / w, offsetY / h));
     }, 30, {leading: false, trailing: true});
 

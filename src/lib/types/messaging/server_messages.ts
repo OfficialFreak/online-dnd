@@ -146,7 +146,12 @@ export interface MouseLarge extends BaseServerMessage {
     "type": "mouse_large",
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib | MouseLarge
+export interface Characters extends BaseServerMessage {
+    "type": "characters",
+    "characters": any
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib | MouseLarge | Characters
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -192,6 +197,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MarkerLib;
         case "mouse_large":
             return data as MouseLarge;
+        case "characters":
+            return data as Characters;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

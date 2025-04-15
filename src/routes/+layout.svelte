@@ -1,10 +1,11 @@
 <script lang="ts">
     let { children } = $props();
+    import { getVersion } from '@tauri-apps/api/app';
     import "../app.css";
     import '@fortawesome/fontawesome-free/css/all.min.css';
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse } from "./state.svelte";
+    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse, markerModal } from "./state.svelte";
     import { connect } from "./connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
@@ -12,7 +13,7 @@
     import { onMount } from "svelte";
     import Map from "$lib/components/Map.svelte";
     import { ActivateScene, DeleteMarker, DeleteScene, InitialMessage, PreloadResource, PutMarker, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
-    import { parseServerMessage, type MarkerTemplate, type User } from "$lib/types/messaging/server_messages";
+    import { parseServerMessage, type MarkerTemplate } from "$lib/types/messaging/server_messages";
     import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
     import confetti from "canvas-confetti";
@@ -23,6 +24,7 @@
     import Marker from "$lib/components/Marker.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "./notifications.svelte";
+    import { goto } from '$app/navigation';
 
     const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
     const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
@@ -34,7 +36,7 @@
 
     async function upload_file(selectedFilePath: string, selectedFileName: string) {
         if (!selectedFilePath || !appState.token) {
-            // TODO: Notification -> please select a file
+            notify("Es ist ein Bild notwendig", MessageTypes.Error, 3000);
             throw new Error(`Upload failed: no file selected`);
         }
         
@@ -53,6 +55,7 @@
         });
         
         if (!response.ok) {
+            notify("Hochladen fehlgeschlagen", MessageTypes.Error, 3000);
             throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
         }
     }
@@ -70,6 +73,7 @@
         
         if (selected === null) {
             // User canceled the selection
+            notify("Es ist ein Bild notwendig", MessageTypes.Error, 3000);
             throw new Error(`Upload failed: no file selected`);
         }
         
@@ -78,6 +82,7 @@
         // Extract file name from path
         let selectedFileName = selectedFilePath.split(/[/\\]/).pop();
         if (!selectedFileName) {
+            notify("Ungültiger Dateiname", MessageTypes.Error, 3000);
             throw new Error("Invalid file name");
         }
 
@@ -108,18 +113,17 @@
     }
 
     async function create_scene() {
-        // TODO: Feedback
-        if (!appState.ws) return;
+        if (!appState.ws) {return};
 
         // @ts-ignore
         await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset, {"fog_squares": {}, "markers": []}));
 
         // Reset variables after
         reset_scene_vars();
+        notify("Szene erstellt", MessageTypes.Success, 3000);
     }
     
     async function create_marker() {
-        // TODO: Feedback
         if (!appState.ws) return;
 
         // @ts-ignore
@@ -127,11 +131,30 @@
 
         // Reset variables after
         reset_marker_vars();
+        notify("Marker erstellt", MessageTypes.Success, 3000);
     }
 
-    async function reconnect(){
+    async function reconnect () {
         if (!url) return;
-        await connect(url);
+        if (!appState.ws) {
+            let result = await connect(url);
+            if (result) {
+                notify("Verbunden 3", MessageTypes.Success, 1000);
+            } else {
+                notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
+            }
+        } else {
+            appState.ws.disconnect();
+        }
+    }
+
+    async function disconnect(evt: any) {
+        evt.preventDefault();
+        appState.ws?.disconnect();
+        appState.token = "";
+        await ensureStore();
+        appState.store.set("token", {value: ""});
+        goto("/");
     }
 
     $effect(() => {
@@ -140,12 +163,14 @@
                 console.log(msg);
                 // Assume the worst, kill ourselves xD
                 if (typeof msg === "string") {
+                    notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
                     console.log("Closed connection :o")
                     try {
                         appState.ws?.disconnect();
                     } catch {}
                     appState.ws = null;
                 } else if (msg.type == "Close") {
+                    notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
                     console.log("Closed connection :o")
                     try {
                         appState.ws?.disconnect();
@@ -213,17 +238,21 @@
                             notify(`${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? 'eine' : message.dices + ' ='} ${message.result} gewürfelt${message.dm_only ? ' [DM Only]' : ''}`, MessageTypes.Info, 10_000);
                             break;
                         case "scene":
-                            message.state.markers.forEach((marker) => {
-                                marker.x = new Tween(marker.x, {
-                                    duration: 200,
-                                    easing: circOut
-                                });
-                                marker.y = new Tween(marker.y, {
-                                    duration: 200,
-                                    easing: circOut
-                                });
+                            let new_markers = message.state.markers.map((marker) => {
+                                return {
+                                    ...marker,
+                                    x: new Tween(marker.x, {
+                                            duration: 200,
+                                            easing: circOut
+                                        }),
+                                    y: new Tween(marker.y, {
+                                            duration: 200,
+                                            easing: circOut
+                                        })
+                                };
                             })
                             gameState.scene = message;
+                            gameState.scene.state.markers = new_markers;
                             break;
                         case "scene_list":
                             gameState.scenes = message.scenes;
@@ -279,6 +308,9 @@
                                 showMouse.value = false
                             }, 500);
                             break;
+                        case "characters":
+                            console.log(message.characters);
+                            break;
                     }
                 }
             });
@@ -290,11 +322,13 @@
     async function select_scene(name: string) {
         if (!appState.ws) return;
         await appState.ws.send(ActivateScene.create(name));
+        notify("Szene ausgewählt", MessageTypes.Success, 1000);
     }
     
     async function delete_scene(name: string) {
         if (!appState.ws) return;
         await appState.ws.send(DeleteScene.create(name));
+        notify("Szene gelöscht", MessageTypes.Success, 3000);
     }
 
     async function add_marker(marker: MarkerTemplate) {
@@ -312,11 +346,13 @@
         }
         gameState.scene.state.markers.push(new_marker);
         await appState.ws.send(PutScene.update(gameState.scene));
+        notify("Marker in die Szene eingefügt", MessageTypes.Success, 3000);
     }
 
     async function remove_marker(marker: MarkerTemplate) {
         if (!appState.ws) return;
         await appState.ws.send(DeleteMarker.create(marker.name));
+        notify("Marker entfernt", MessageTypes.Success, 3000);
     }
 
     const preloadCooldownMap: SvelteMap<string, number> = $state(new SvelteMap());
@@ -363,7 +399,6 @@
 
     let scene_modal: HTMLDialogElement | null = $state(null);
     let scene_chooser_modal: HTMLDialogElement | null = $state(null);
-    let marker_modal: HTMLDialogElement | null = $state(null);
     let marker_creation_modal: HTMLDialogElement | null = $state(null);
 
     let audio: HTMLAudioElement | null = $state(null);
@@ -467,7 +502,7 @@
 
 <div data-tauri-drag-region class="titlebar z-10">
     <div class="flex justify-center transition-opacity">
-        <button onclick={reconnect} aria-label="Reconnect" class="cursor-pointer">
+        <button onclick={reconnect} oncontextmenu={disconnect} aria-label="Reconnect" class="cursor-pointer peer">
             <div class="h-[30px] w-[30px] flex justify-center items-center">
                 {#if appState.ws}
                     <div aria-label="success" class="status status-success"></div>
@@ -484,7 +519,6 @@
             <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
             <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
                 <li><button class="btn btn-ghost justify-start" onclick={() => {scene_chooser_modal?.showModal()}}>Szenen</button></li>
-                <li><button class="btn btn-ghost justify-start" onclick={() => {marker_modal?.showModal()}}>Marker</button></li>
                 <li><button class="btn btn-ghost justify-start" onclick={toggle_pressure}>
                     {#if pressure}
                     Chill Pill
@@ -502,6 +536,9 @@
             </div>
         </div>
         {/if}
+        {#await getVersion() then version}
+            <span class="self-center text-gray-500 opacity-0 peer-hover:opacity-100 transition-opacity ml-2">{version}</span>
+        {/await}
     </div>
 
     <div class="flex justify-center transition-opacity">
@@ -590,7 +627,7 @@
         <button class="outline-0">close</button>
     </form>
 </dialog>
-<dialog bind:this={marker_modal} class="modal">
+<dialog bind:this={markerModal.value} class="modal">
     <div class="modal-box">
         <h3 class="text-lg font-bold">Marker Bibliothek</h3>
         <ul class="list bg-base-100 rounded-box shadow-md">
@@ -647,7 +684,7 @@
     </form>
 </dialog>
 <canvas bind:this={confetti_canvas} class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"></canvas>
-<div class="fixed bottom-0 left-0 w-screen z-10 overflow-hidden scrollbar-gutter-affected flex justify-end">
+<div class="fixed bottom-0 left-0 w-screen z-80 overflow-hidden scrollbar-gutter-affected flex justify-end">
     <div class="w-80 p-2">
         <Notifications />
     </div>

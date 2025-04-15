@@ -5,6 +5,7 @@
     import { appState, ensureStore } from './state.svelte';
     import { connect } from './connection.svelte';
     import { invoke } from '@tauri-apps/api/core';
+    import { MessageTypes, notify } from './notifications.svelte';
 
     let token: string = $state("");
     let loading = $state(true);
@@ -15,13 +16,16 @@
         await ensureStore();
         appState.store = appState.store;
         loading = true;
+        await appState.store.set('token', { value: token });
         if (await connect(url)) {
+            notify("Verbunden", MessageTypes.Success, 1000);
             loading = false;
             error = false;
-            await appState.store.set('token', { value: token });
+            appState.token = token;
             await appState.store.save();
             goto("/app");
         } else {
+            notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
             error = true;
             loading = false;
         }
@@ -53,18 +57,6 @@
             
             <button class="btn btn-neutral mt-4" onclick={connectLoadingWrapper}>Verbinden</button>
         </fieldset>
-        <div class="toast toast-end">   
-            {#if error}
-            <button onclick={() => {error=false}} transition:fade>
-                <div role="alert" class="alert alert-error">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Verbindung fehlgeschlagen</span>
-                </div>
-            </button>
-            {/if}
-        </div>
     {/if}
 </main>
 

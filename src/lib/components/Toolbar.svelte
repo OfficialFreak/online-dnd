@@ -1,7 +1,8 @@
 <script lang="ts">
     import { PutScene } from "$lib/types/messaging/client_messages";
     import { fade } from "svelte/transition";
-    import { appState, fogState, gameState, Tools } from "../../routes/state.svelte";
+    import { appState, fogState, gameState, markerModal, Tools } from "../../routes/state.svelte";
+    import { MessageTypes, notify } from "../../routes/notifications.svelte";
 
     function selectTool(tool: Tools) {
         if (appState.selected_tool === tool) {
@@ -13,7 +14,8 @@
 
     function saveSceneFog() {
         if (!appState.ws || !gameState.scene) return;
-        appState.ws.send(PutScene.update_fog(gameState.scene.state.fog_squares))
+        appState.ws.send(PutScene.update_fog(gameState.scene.state.fog_squares));
+        notify("Nebel aktualisiert", MessageTypes.Success, 1000);
     }
 
     $effect(() => {
@@ -65,6 +67,9 @@
             </li>
         </ul>
     </div>
+    <button tabindex="0" class="btn btn-square btn-sm" aria-label="Marker" onclick={() => {markerModal.value?.showModal();}}>
+        <i class="fa-solid fa-user"></i>
+    </button>
     {/if}
 </div>
 

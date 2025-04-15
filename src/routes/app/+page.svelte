@@ -10,6 +10,7 @@
     import DiceChooser from "$lib/components/DiceChooser.svelte";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
     import Toolbar from "$lib/components/Toolbar.svelte";
+    import { MessageTypes, notify } from "../notifications.svelte";
 
     let roller: DiceRoller | null = $state(null);
     let url: string | null = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
@@ -24,7 +25,10 @@
         if (!appState.ws && appState.store && appState.token) {
             connect(url as string).then((val) => {
                 if (!val) {
+                    notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
                     return;
+                } else {
+                    notify("Verbunden", MessageTypes.Success, 1000);
                 }
             })
         } else if (!appState.store) {
@@ -32,6 +36,7 @@
             appState.store = store;
             appState.store.get('token').then((tmp_token: {value: string} | null) => {
             if (!tmp_token) {
+                notify("Keine Zugangsdaten gefunden", MessageTypes.Error, 3000);
                 goto("/");
                 return;
             }
