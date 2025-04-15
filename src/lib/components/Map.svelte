@@ -169,7 +169,7 @@
         class="absolute top-0 left-0 w-full h-full z-0">
     </canvas>
     <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
-        {#each markers as marker (marker.name)}
+        {#each markers as marker}
             <Marker marker={marker} dragOptions={{...dragOptions, position: {
                 x: marker.x.current * w, 
                 y: marker.y.current * h

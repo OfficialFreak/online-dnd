@@ -21,6 +21,8 @@
     import { Tween } from "svelte/motion";
     import { circOut } from "svelte/easing";
     import Marker from "$lib/components/Marker.svelte";
+    import Notifications from "$lib/components/Notifications.svelte";
+    import { MessageTypes, notify } from "./notifications.svelte";
 
     const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
     const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
@@ -139,9 +141,15 @@
                 // Assume the worst, kill ourselves xD
                 if (typeof msg === "string") {
                     console.log("Closed connection :o")
+                    try {
+                        appState.ws?.disconnect();
+                    } catch {}
                     appState.ws = null;
                 } else if (msg.type == "Close") {
                     console.log("Closed connection :o")
+                    try {
+                        appState.ws?.disconnect();
+                    } catch {}
                     appState.ws = null;
                 }
             })
@@ -169,6 +177,7 @@
                     let message = parseServerMessage(msg.data)
                     switch (message.type) {
                         case "message":
+                            notify({msg: message.message, sender: `${message.sender}${message.sender_dm ? " 👑" : ""}`}, MessageTypes.Message, 2000);
                             break;
                         case "initial":
                             gameState.name = message.display_name;
@@ -186,13 +195,22 @@
                                         return;
                                     };
                                     joined_person.active = true;
+                                    if (message.person_dm) {
+                                        notify(`${message.person} ist aus seinem uralten Schlummer erwacht`, MessageTypes.Scawy);
+                                    } else {
+                                        notify(`${message.person} schließt sich dem Abenteuer an`, MessageTypes.Neutral);
+                                    }
                                     break;
                                 case 'left':
                                     let left_person = gameState.users.find((user) => user.name === message.person);
                                     if (!left_person) return;
                                     left_person.active = false;
+                                    notify(`${message.person} hat sich zurückgezogen`, MessageTypes.Neutral);
                                     break;
                             }
+                            break;
+                        case "roll_result":
+                            notify(`${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? 'eine' : message.dices + ' ='} ${message.result} gewürfelt${message.dm_only ? ' [DM Only]' : ''}`, MessageTypes.Info, 10_000);
                             break;
                         case "scene":
                             message.state.markers.forEach((marker) => {
@@ -402,6 +420,10 @@
     });
     let scrollbar_visible = $state(false);
 </script>
+
+<svelte:window onbeforeunload={() => {
+    appState.ws?.disconnect();
+}} />
 
 <svelte:body 
     bind:clientWidth={cw} 
@@ -625,6 +647,11 @@
     </form>
 </dialog>
 <canvas bind:this={confetti_canvas} class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"></canvas>
+<div class="fixed bottom-0 left-0 w-screen z-10 overflow-hidden scrollbar-gutter-affected flex justify-end">
+    <div class="w-80 p-2">
+        <Notifications />
+    </div>
+</div>
 {@render children()}
 
 <style>

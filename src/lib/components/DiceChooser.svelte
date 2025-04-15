@@ -33,7 +33,11 @@
         {#if chosen_dice}
         <div class="join h-12 justify-center">
             <button class="btn join-item rounded-l-full h-full" onclick={() => {
-                roll_callback(entries.filter(([_, value]) => value > 0).map(([key, value]) => {return value.toString() + key}));
+                roll_callback(
+                    entries.filter(([_, value]) => value > 0)
+                        .map(([key, value]) => {return value.toString() + key}),
+                    privacy_level
+                    );
                 reset();
             }}>
                 Würfeln

@@ -21,23 +21,22 @@
     });
 
     $effect(() => {
-        if (!appState.ws && appState.store) {
-            appState.store.get('token').then((tmp_token: {value: string} | null) => {
-                if (!tmp_token) {
-                    goto("/");
+        if (!appState.ws && appState.store && appState.token) {
+            connect(url as string).then((val) => {
+                if (!val) {
                     return;
                 }
-                appState.token = (tmp_token as {value: string}).value;
-
-                connect(url as string).then((val) => {
-                    if (!val) {
-                        return;
-                    }
-                })
-            });
+            })
         } else if (!appState.store) {
             load('store.json', { autoSave: false }).then((store) => {
-                appState.store = store
+            appState.store = store;
+            appState.store.get('token').then((tmp_token: {value: string} | null) => {
+            if (!tmp_token) {
+                goto("/");
+                return;
+            }
+            appState.token = (tmp_token as {value: string}).value;
+        });
             });
         }
     });

@@ -22,7 +22,8 @@ export interface Event extends BaseServerMessage {
 
 export interface JoinEvent extends Event {
     "event_type": "joined",
-    "person": string
+    "person": string,
+    "person_dm": boolean
 }
 
 export interface LeaveEvent extends Event {
