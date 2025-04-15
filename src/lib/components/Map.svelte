@@ -1,11 +1,11 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { appState, DMName, fogState, gameState, mouseDown, mouseX, mouseY, showMouse, Tools } from "../../routes/state.svelte";
+    import { appState, DMName, fogState, gameState, largeMouse, mouseDown, mouseX, mouseY, showMouse, Tools } from "../../routes/state.svelte";
     // @ts-ignore
     import throttle from 'just-throttle';
     import { fade } from "svelte/transition";
-    import { MarkerFreed, MarkerLocked, MarkerPosition, MousePosition } from "$lib/types/messaging/client_messages";
-    import { draggable, type DragOptions } from "@neodrag/svelte";
+    import { MarkerFreed, MarkerLocked, MarkerPosition, MouseLarge, MousePosition } from "$lib/types/messaging/client_messages";
+    import { type DragOptions } from "@neodrag/svelte";
     import Marker from "./Marker.svelte";
 
     let { file, columns, x_offset, y_offset, fog_squares, markers, editable = false } = $props();
@@ -158,13 +158,22 @@
         bind:clientHeight={h}
         onmousedown={(evt) => {clickHandler(evt, true)}}
         onmousemove={(evt) => {clickHandler(evt, false)}}
+        onclick={(evt) => {
+            if (!appState.ws) return;
+            if(evt.button === 0 && appState.selected_tool === Tools.Pointer) {
+                appState.ws.send(MouseLarge.create()) ;
+            }
+        }}
         width={w as number}
         height={h as number}
         class="absolute top-0 left-0 w-full h-full z-0">
     </canvas>
     <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
-        {#each markers as marker}
-            <Marker marker={marker} dragOptions={{...dragOptions, position: {x: marker.x.current * w, y: marker.y.current * h}, disabled: !!gameState.locked_markers[marker.name]}} columnCount={columns} />
+        {#each markers as marker (marker.name)}
+            <Marker marker={marker} dragOptions={{...dragOptions, position: {
+                x: marker.x.current * w, 
+                y: marker.y.current * h
+            }, disabled: !!gameState.locked_markers[marker.name]}} columnCount={columns} />
         {/each}
     </div>
     <canvas 
@@ -175,7 +184,7 @@
         style="opacity: {gameState.dm ? '80' : '100'}%">
     </canvas>
     {#if showMouse.value && !mouse_in_fog && !gameState.dm}
-    <div transition:fade class="absolute pointer-events-none top-0 left-0" style="transform: translate({mouseX.current * w}px, {mouseY.current * h}px);">
+    <div transition:fade class="absolute pointer-events-none top-0 left-0 origin-top-left" style="transform: translate({mouseX.current * w}px, {mouseY.current * h}px) scale({largeMouse.value ? '2' : '1'});">
         <i class="fa-solid fa-arrow-pointer"></i>
         <span class="badge badge-xs">{DMName.value}</span>
     </div>

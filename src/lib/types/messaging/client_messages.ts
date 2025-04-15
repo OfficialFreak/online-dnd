@@ -87,6 +87,15 @@ export class DeleteScene {
     }
 }
 
+export class DeleteMarker {
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "delete_marker",
+            name: name
+        });
+    }
+}
+
 export class PreloadResource {
     static create(file: string): string {
         return JSON.stringify({
@@ -111,6 +120,14 @@ export class MousePosition {
             type: "mouse_position",
             x: x,
             y: y
+        });
+    }
+}
+
+export class MouseLarge {
+    static create(): string {
+        return JSON.stringify({
+            type: "mouse_large",
         });
     }
 }

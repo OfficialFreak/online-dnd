@@ -4,14 +4,14 @@
     import '@fortawesome/fontawesome-free/css/all.min.css';
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse } from "./state.svelte";
+    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse } from "./state.svelte";
     import { connect } from "./connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
     import { fetch } from "@tauri-apps/plugin-http";
     import { onMount } from "svelte";
     import Map from "$lib/components/Map.svelte";
-    import { ActivateScene, DeleteScene, InitialMessage, PreloadResource, PutMarker, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
+    import { ActivateScene, DeleteMarker, DeleteScene, InitialMessage, PreloadResource, PutMarker, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
     import { parseServerMessage, type MarkerTemplate, type User } from "$lib/types/messaging/server_messages";
     import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
@@ -161,6 +161,7 @@
     });
 
     let mouse_timeout: any = $state(null);
+    let large_mouse_timeout: any = $state(null);
     $effect(() => {
         if (appState.ws) {
             appState.ws.addListener((msg) => {
@@ -248,6 +249,18 @@
                         case "marker_lib":
                             gameState.marker_lib = message.markers;
                             break;
+                        case "mouse_large":
+                            largeMouse.value = true;
+                            clearTimeout(large_mouse_timeout);
+                            large_mouse_timeout = setTimeout(() => {
+                                largeMouse.value = false
+                            }, 1000);
+                            showMouse.value = true;
+                            clearTimeout(mouse_timeout);
+                            mouse_timeout = setTimeout(() => {
+                                showMouse.value = false
+                            }, 500);
+                            break;
                     }
                 }
             });
@@ -269,11 +282,11 @@
     async function add_marker(marker: MarkerTemplate) {
         if (!appState.ws || !gameState.scene) return;
         let new_marker = {...marker,
-            x: new Tween(0.5, {
+            x: new Tween(0, {
                 duration: 200,
                 easing: circOut
             }),
-            y: new Tween(0.5, {
+            y: new Tween(0, {
                 duration: 200,
                 easing: circOut
             }),
@@ -281,6 +294,11 @@
         }
         gameState.scene.state.markers.push(new_marker);
         await appState.ws.send(PutScene.update(gameState.scene));
+    }
+
+    async function remove_marker(marker: MarkerTemplate) {
+        if (!appState.ws) return;
+        await appState.ws.send(DeleteMarker.create(marker.name));
     }
 
     const preloadCooldownMap: SvelteMap<string, number> = $state(new SvelteMap());
@@ -414,6 +432,15 @@
             }
         </style>
     {/if}
+    <style>
+        .modal {
+            width: 100vw !important;
+        }
+        div.multiselect > ul.selected > li {
+            display: flex;
+            flex-direction: row;
+        }
+    </style>
 </svelte:head>
 
 <div data-tauri-drag-region class="titlebar z-10">
@@ -548,14 +575,17 @@
             {#each gameState.marker_lib as marker}
                 <li class="list-row flex flex-row items-center justify-between">
                     <div class="relative flex flex-col gap-1 items-center w-20">
-                        <Marker columnCount="100%" dragOptions={{disabled: true}} marker={marker} absolute={false} />
+                        <Marker columnCount="100%" dragOptions={{disabled: true}} marker={marker} mapUse={false} />
                         <span>{marker.name}</span>
                         <span class="badge absolute top-0 -right-1/2 -translate-x-1/2">
                             <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
                             {marker.size}
                         </span>
                     </div>
-                    <button class="btn btn-ghost" onclick={() => {add_marker(marker)}}>Hinzufügen</button>
+                    <div class="flex flex-row gap-2">
+                        <button class="btn btn-ghost" onclick={() => {add_marker(marker)}}>Hinzufügen</button>
+                        <button class="btn btn-soft btn-error" onclick={() => {remove_marker(marker)}}>Löschen</button>
+                    </div>
                 </li>
             {/each}
             <li>
@@ -580,18 +610,18 @@
             {#if !marker_file}
                 <button class="btn btn-neutral mt-4" onclick={() => {user_upload("marker")}}>Marker-Bild</button>
             {:else}
-                <Marker columnCount={"100%"} dragOptions={{disabled: true}} marker={{
+                <Marker columnCount="100%" dragOptions={{disabled: true}} marker={{
                     name: marker_name,
                     size: marker_size,
                     file: marker_file
-                }} absolute={false} />
+                }} mapUse={false} />
                 <button class="btn btn-neutral mt-4" onclick={create_marker}>Marker erstellen</button>
                 <p class="fieldset-label">Du kannst Marker überschreiben indem du einen neuen Marker mit gleichem Namen erstellst.</p>
             {/if}
         </fieldset>
     </div>
     <form method="dialog" class="modal-backdrop">
-        <button class="outline-0">close</button>
+        <button class="outline-0" onclick={reset_marker_vars}>close</button>
     </form>
 </dialog>
 <canvas bind:this={confetti_canvas} class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"></canvas>

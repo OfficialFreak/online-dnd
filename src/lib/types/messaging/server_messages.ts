@@ -141,7 +141,11 @@ export interface MarkerLib extends BaseServerMessage {
     "markers": MarkerTemplate[]
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib
+export interface MouseLarge extends BaseServerMessage {
+    "type": "mouse_large",
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib | MouseLarge
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -185,6 +189,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as UpdateFog;
         case "marker_lib":
             return data as MarkerLib;
+        case "mouse_large":
+            return data as MouseLarge;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

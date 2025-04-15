@@ -56,3 +56,4 @@ export const mouseY = new Tween(0, {
 });
 export const DMName = $state({value: ""});
 export const showMouse = $state({value: false});
+export const largeMouse = $state({value: false});
