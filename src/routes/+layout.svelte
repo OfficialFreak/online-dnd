@@ -684,8 +684,8 @@
     </form>
 </dialog>
 <canvas bind:this={confetti_canvas} class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"></canvas>
-<div class="fixed bottom-0 left-0 w-screen z-80 overflow-hidden scrollbar-gutter-affected flex justify-end">
-    <div class="w-80 p-2">
+<div class="fixed bottom-0 left-0 w-screen z-80 overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none">
+    <div class="w-80 p-2 pointer-events-none">
         <Notifications />
     </div>
 </div>
