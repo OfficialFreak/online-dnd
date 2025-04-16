@@ -33,7 +33,8 @@ export const gameState = $state({
     pressure: false,
     users: [] as User[],
     locked_markers: {} as Record<string, string>,
-    marker_lib: [] as MarkerTemplate[]
+    marker_lib: [] as MarkerTemplate[],
+    characters: [] as any[]
 });
 
 export const fogState = $state({
@@ -58,3 +59,4 @@ export const DMName = $state({value: ""});
 export const showMouse = $state({value: false});
 export const largeMouse = $state({value: false});
 export const markerModal: {value: HTMLDialogElement | null} = $state({value: null});
+export const characters_open = $state({value: false});

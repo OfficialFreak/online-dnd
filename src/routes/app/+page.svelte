@@ -74,11 +74,9 @@
 />
 {/if}
 {#if !appState.dragging}
-    {#if gameState.dm}
-    <div class="fixed top-10 left-2">
+    <div class="fixed top-10 left-2 bottom-16 pointer-events-none">
         <Toolbar />
     </div>
-    {/if}
     <div class="fixed bottom-2 left-2 z-10">
         <DiceChooser roll_callback={roll} />
     </div>

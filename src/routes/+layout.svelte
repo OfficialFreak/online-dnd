@@ -309,7 +309,7 @@
                             }, 500);
                             break;
                         case "characters":
-                            console.log(message.characters);
+                            gameState.characters = message.characters;
                             break;
                     }
                 }
