@@ -1,5 +1,7 @@
 <script lang="ts">
-    let { character } = $props();
+    import { gameState } from "../../routes/state.svelte";
+
+    let { character, callback = null } = $props();
     let base_stats = {
         "strength": character.stats[0].value,
         "dexterity": character.stats[1].value,
@@ -27,7 +29,7 @@
             <img src={character.decorations.avatarUrl} alt="Character" class="mask mask-hexagon h-20 aspect-square" />
         </div>
         <div class="flex flex-col h-full w-full justify-center">
-            <span class="text-lg font-bold">{character.name}</span>
+            <span class="text-lg font-bold group">{character.name} <span class="text-gray-400 transition-opacity opacity-0 group-hover:opacity-100">({character.player_name})</span></span>
             <span class="text-gray-400 w-full">{character.gender} {character.race.fullName} {character.classes.map((c_class: any) => `${c_class.definition.name} ${c_class.level}`).join(', ')}</span>
             <span>Level {character.classes.reduce((acc: any, c_class: any) => acc + c_class.level, 0)}</span>
         </div>
@@ -35,4 +37,9 @@
     <div class="tooltip tooltip-bottom -my-[5px]" data-tip={`${current_health} / ${max_health}`}>
         <progress class="progress progress-error w-full" value={current_health} max={max_health}></progress>
     </div>
+    {#if (gameState.dm || character.player_name === gameState.name) && callback !== null}
+    <button class="btn btn-ghost btn-square absolute top-1 right-1 btn-sm" aria-label="View Character" onclick={callback}>
+        <i class="fa-solid fa-circle-info"></i>
+    </button>
+    {/if}
 </div>
