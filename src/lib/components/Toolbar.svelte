@@ -1,9 +1,8 @@
 <script lang="ts">
     import { PutScene } from "$lib/types/messaging/client_messages";
     import { fade, fly } from "svelte/transition";
-    import { appState, character_open, characters_open, fogState, gameState, markerModal, Tools } from "../../routes/state.svelte";
+    import { appState, character_open, characters_open, fogState, gameState, getCharacter, markerModal, Tools } from "../../routes/state.svelte";
     import { MessageTypes, notify } from "../../routes/notifications.svelte";
-    import { flip } from "svelte/animate";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
 
@@ -58,10 +57,16 @@
                 </div>
             </div>
         {:else}
-            <button class="absolute z-10 top-1 left-1 btn btn-square btn-ghost btn-sm" aria-label="Zurück" onclick={() => {character_open.value = ""}}>
-                <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <CharacterSheet character={gameState.characters.find((char) => char.name === character_open.value)}/>
+            <div class="flex flex-row gap-1 items-center frosted dark-frosted py-2 rounded-box rounded-b-none">
+                <button class="btn btn-square btn-ghost btn-sm" aria-label="Zurück" onclick={() => {character_open.value = ""}}>
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="flex flex-col">
+                    <span class="text-sm">{getCharacter(character_open.value).name}</span>
+                    <span class="text-xs font-bold text-gray-400">{getCharacter(character_open.value).detailedDescription}</span>
+                </div>
+            </div>
+            <CharacterSheet character={getCharacter(character_open.value)}/>
         {/if}
     </div>
     {/if}
@@ -100,12 +105,12 @@
             </button>
         </div>
         {/if}
-        <div class="tooltip tooltip-right" data-tip="Charaktere (Coming Soon-ish)">
-            <button tabindex="0" disabled class="btn btn-square btn-sm {characters_open.value && 'btn-info'}" aria-label="Marker" onclick={() => {characters_open.value = !characters_open.value}}>
+        <div class="tooltip tooltip-right" data-tip="Charaktere (Wildly unfertig)">
+            <button tabindex="0" class="btn btn-square btn-sm {characters_open.value && 'btn-info'}" aria-label="Marker" onclick={() => {characters_open.value = !characters_open.value}}>
                 <i class="fa-solid fa-user"></i>
             </button>
         </div>
-        <div class="tooltip tooltip-right" data-tip="Lineal (Coming Soon-ish too)">
+        <div class="tooltip tooltip-right" data-tip="Lineal (Coming Soon-ish)">
             <button tabindex="0" disabled class="btn btn-square btn-sm {characters_open.value && 'btn-info'}" aria-label="Marker" onclick={() => {characters_open.value = !characters_open.value}}>
                 <i class="fa-solid fa-ruler"></i>
             </button>

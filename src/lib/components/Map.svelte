@@ -43,7 +43,7 @@
     });
 
     $effect(() => {
-        if (fogCtx) {
+        if (fogCtx && fog_squares) {
             fogCtx.globalCompositeOperation = "source-over";
             fogCtx.clearRect(0, 0, w, h);
             // Draw Fog

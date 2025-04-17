@@ -61,3 +61,7 @@ export const largeMouse = $state({value: false});
 export const markerModal: {value: HTMLDialogElement | null} = $state({value: null});
 export const characters_open = $state({value: false});
 export const character_open = $state({value: ""});
+
+export function getCharacter(character: string) {
+    return gameState.characters.find((char) => char.name === character);
+}

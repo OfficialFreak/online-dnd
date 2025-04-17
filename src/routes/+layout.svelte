@@ -25,6 +25,7 @@
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "./notifications.svelte";
     import { goto } from '$app/navigation';
+    import { Character } from '$lib/types/character';
 
     const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
     const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
@@ -309,7 +310,7 @@
                             }, 500);
                             break;
                         case "characters":
-                            gameState.characters = message.characters;
+                            gameState.characters = message.characters.map((character: any) => new Character(character));
                             break;
                     }
                 }
