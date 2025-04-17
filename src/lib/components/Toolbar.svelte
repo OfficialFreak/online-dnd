@@ -46,7 +46,7 @@
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
     {#if characters_open.value}
-    <div class="h-full w-96 rounded-box frosted pointer-events-auto" transition:fly|global={{x:-50, duration: 200}}>
+    <div class="relative h-full w-96 rounded-box frosted pointer-events-auto" transition:fly|global={{x:-50, duration: 200}}>
         {#if !character_open.value}
             <div class="p-2 px-4">
                 <h1 class="text-3xl font-bold">Charaktere</h1>
