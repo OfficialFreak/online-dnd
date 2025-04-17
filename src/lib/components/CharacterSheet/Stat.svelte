@@ -1,7 +1,7 @@
 <script lang="ts">
     let { stat, character } = $props();
 
-    let color = $derived(character.decorations.themeColor.themeColor);
+    let color = $derived(character.decorations.themeColor?.themeColor || "black");
     let stat_name = $derived(Object.keys(character.actualStats)[stat]);
     let modifier: number = $derived(Object.values(character.statModifiers)[stat] as number);
     let stat_value = $derived(Object.values(character.actualStats)[stat]);

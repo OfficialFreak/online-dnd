@@ -79,7 +79,7 @@ export class Character {
     }
     
     get detailedDescription(): string {
-        return `${this.gender} ${this.race.fullName} ${this.classes.map((c_class: any) => `${c_class.definition.name} ${c_class.level}`).join(', ')}`
+        return `${this.gender || "Non-Binary"} ${this.race.fullName} ${this.classes.map((c_class: any) => `${c_class.definition.name} ${c_class.level}`).join(', ')}`
     }
 
     get armorClass(): number {

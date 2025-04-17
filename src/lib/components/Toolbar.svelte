@@ -1,7 +1,7 @@
 <script lang="ts">
     import { PutScene } from "$lib/types/messaging/client_messages";
     import { fade, fly } from "svelte/transition";
-    import { appState, character_open, characters_open, fogState, gameState, getCharacter, markerModal, Tools } from "../../routes/state.svelte";
+    import { appState, character_open, characterImportModal, characters_open, fogState, gameState, getCharacter, markerModal, Tools } from "../../routes/state.svelte";
     import { MessageTypes, notify } from "../../routes/notifications.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
@@ -46,7 +46,7 @@
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
     {#if characters_open.value}
-    <div class="relative h-full w-96 rounded-box frosted pointer-events-auto" transition:fly|global={{x:-50, duration: 200}}>
+    <div class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain" transition:fly|global={{x:-50, duration: 200}}>
         {#if !character_open.value}
             <div class="p-2 px-4">
                 <h1 class="text-3xl font-bold">Charaktere</h1>
@@ -54,6 +54,9 @@
                     {#each gameState.characters as character}
                         <CharacterPreview character={character} callback={() => {character_open.value = character.name}}></CharacterPreview>
                     {/each}
+                    {#if gameState.dm}
+                    <button class="btn" onclick={() => {characterImportModal.value?.showModal()}}>Charakter Importieren</button>
+                    {/if}
                 </div>
             </div>
         {:else}

@@ -59,6 +59,7 @@ export const DMName = $state({value: ""});
 export const showMouse = $state({value: false});
 export const largeMouse = $state({value: false});
 export const markerModal: {value: HTMLDialogElement | null} = $state({value: null});
+export const characterImportModal: {value: HTMLDialogElement | null} = $state({value: null});
 export const characters_open = $state({value: false});
 export const character_open = $state({value: ""});
 

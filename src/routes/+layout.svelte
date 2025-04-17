@@ -5,14 +5,14 @@
     import '@fortawesome/fontawesome-free/css/all.min.css';
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse, markerModal } from "./state.svelte";
+    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse, markerModal, characterImportModal } from "./state.svelte";
     import { connect } from "./connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
     import { fetch } from "@tauri-apps/plugin-http";
     import { onMount } from "svelte";
     import Map from "$lib/components/Map.svelte";
-    import { ActivateScene, DeleteMarker, DeleteScene, InitialMessage, PreloadResource, PutMarker, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
+    import { ActivateScene, DeleteMarker, DeleteScene, ImportCharacter, InitialMessage, PreloadResource, PutMarker, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
     import { parseServerMessage, type MarkerTemplate } from "$lib/types/messaging/server_messages";
     import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
@@ -140,7 +140,7 @@
         if (!appState.ws) {
             let result = await connect(url);
             if (result) {
-                notify("Verbunden 3", MessageTypes.Success, 1000);
+                notify("Verbunden", MessageTypes.Success, 1000);
             } else {
                 notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
             }
@@ -385,6 +385,14 @@
         await appState.ws.send(TogglePressure.create(pressure));
     }
 
+    async function importCharacter() {
+        if (!appState.ws) return;
+
+        await appState.ws.send(ImportCharacter.create(character_url, selected_player));
+        character_url = "";
+        notify("Charakter wird importiert", MessageTypes.Success, 2000);
+    }
+
     let pressure = $state(false);
     let scene_name: string = $state("");
     let scene_file: string | null = $state(null);
@@ -393,6 +401,7 @@
     let scene_columns: number = $state(10);
     let scene_x_offset: number = $state(0);
     let scene_y_offset: number = $state(0);
+    let character_url = $state("");
 
     let marker_name = $state("");
     let marker_size = $state(1);
@@ -455,6 +464,7 @@
         scrollbar_visible = html.scrollHeight > html.clientHeight;
     });
     let scrollbar_visible = $state(false);
+    let selected_player = $state(gameState.name);
 </script>
 
 <svelte:window onbeforeunload={() => {
@@ -652,6 +662,26 @@
                 <button class="btn btn-ghost w-full" onclick={() => {marker_creation_modal?.showModal()}}>Marker erstellen</button>
             </li>
         </ul>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button class="outline-0">close</button>
+    </form>
+</dialog>
+<dialog bind:this={characterImportModal.value} class="modal">
+    <div class="modal-box">
+        <h3 class="text-lg font-bold">Charakter Importieren</h3>
+        <fieldset class="fieldset">
+            <legend class="fieldset-legend">Charakter URL</legend>
+            <input type="text" class="input" placeholder="https://www.dndbeyond.com/characters/xxxxxxxxx" bind:value={character_url} />
+            <p class="fieldset-label">Es ist wichtig, dass der Charakter öffentlich gestellt ist</p>
+            <legend class="fieldset-legend">Zugehöriger Spieler</legend>
+            <select class="select select-sm !bg-[var(--color-base-100)]" bind:value={selected_player}>
+                {#each gameState.users as player}
+                    <option value={player.name}>{#if player.active}🟢{:else}🔴{/if} {player.name}</option>
+                {/each}
+            </select>
+            <button class="btn btn-neutral mt-4" onclick={() => {importCharacter()}}>Importieren</button>
+        </fieldset>
     </div>
     <form method="dialog" class="modal-backdrop">
         <button class="outline-0">close</button>

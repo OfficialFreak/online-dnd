@@ -175,3 +175,13 @@ export class PutMarker {
         });
     }
 }
+
+export class ImportCharacter {
+    static create(character_url: string, selected_player: string): string {
+        return JSON.stringify({
+            type: "import_character",
+            character_url: character_url,
+            selected_player: selected_player
+        });
+    }
+}
