@@ -168,9 +168,11 @@
         bounds: 'parent',
         onDrag: throttledMarkerDrag,
     }
+
+    let translate_thingy = $derived(appState.zoom > 1 ? 50 * (1 - 1/appState.zoom) : 0);
 </script>
 
-<div class="w-full relative select-none overflow-hidden">
+<div class="w-full relative select-none overflow-hidden transition-transform" style="transform: scale({appState.zoom}) translate({translate_thingy}%, {translate_thingy}%)">
     <img src={map_url} alt="Map" class="w-full" />
     <canvas 
         bind:this={gridCanvas}
@@ -201,7 +203,7 @@
         width={w as number}
         height={h as number}
         class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
-        style="opacity: {gameState.dm ? '80' : '100'}%">
+        style="opacity: {gameState.dm ? '60' : '100'}%">
     </canvas>
     {#if showMouse.value && !mouse_in_fog && !gameState.dm}
     <div transition:fade class="absolute pointer-events-none top-0 left-0 origin-top-left" style="transform: translate({mouseX.current * w}px, {mouseY.current * h}px) scale({largeMouse.value ? '2' : '1'});">

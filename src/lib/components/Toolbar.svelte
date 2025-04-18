@@ -60,6 +60,16 @@
             case 'KeyC':
                 characters_open.value = !characters_open.value
                 break;
+            case 'BracketRight':
+                if (evt.ctrlKey) {
+                    appState.zoom *= 2;
+                }
+                break;
+            case 'Slash':
+                if (evt.ctrlKey && appState.zoom > 0.3) {
+                    appState.zoom /= 2;
+                }
+                break;
         }
     }
 
@@ -98,7 +108,7 @@
     }
 </script>
 
-<svelte:window onkeypress={hotkeyHandler}></svelte:window>
+<svelte:window onkeydown={hotkeyHandler}></svelte:window>
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
     {#if characters_open.value}
