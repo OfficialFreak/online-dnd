@@ -38,24 +38,32 @@
     function hotkeyHandler(evt: any) {
         switch (evt.code) {
             case 'KeyY':
-                selectTool(Tools.Pointer);
+                if (gameState.dm) {    
+                    selectTool(Tools.Pointer);
+                }
                 break;
             case 'KeyF':
-                if (evt.shiftKey) {
-                    fillAll();
-                } else {
-                    selectTool(Tools.AddFog);
+                if (gameState.dm) {
+                    if (evt.shiftKey) {
+                        fillAll();
+                    } else {
+                        selectTool(Tools.AddFog);
+                    }
                 }
                 break;
             case 'KeyG':
-                if (evt.shiftKey) {
-                    removeAll();
-                } else {
-                    selectTool(Tools.RemoveFog);
+                if (gameState.dm) {
+                    if (evt.shiftKey) {
+                        removeAll();
+                    } else {
+                        selectTool(Tools.RemoveFog);
+                    }
                 }
                 break;
             case 'KeyM':
-                markerModal.value?.showModal();
+                if (gameState.dm) {
+                    markerModal.value?.showModal();
+                }
                 break;
             case 'KeyC':
                 characters_open.value = !characters_open.value
