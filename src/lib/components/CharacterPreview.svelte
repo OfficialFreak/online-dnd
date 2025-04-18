@@ -1,7 +1,15 @@
 <script lang="ts">
-    import { gameState } from "../../routes/state.svelte";
+    import { ImportCharacter } from "$lib/types/messaging/client_messages";
+    import { MessageTypes, notify } from "../../routes/notifications.svelte";
+    import { appState, gameState } from "../../routes/state.svelte";
 
     let { character, callback = null } = $props();
+
+    async function updateCharacter() {
+        if (!appState.ws) return;
+        await appState.ws.send(ImportCharacter.create(character.readonlyUrl, character.player_name));
+        notify("Charakter wird aktualisiert", MessageTypes.Success, 2000);
+    }
 </script>
 
 <div class="relative grow border border-base-200 rounded-[4px] flex flex-col">
@@ -20,8 +28,13 @@
         <progress class="progress progress-error w-full" value={character.currentHealth} max={character.maxHealth}></progress>
     </div>
     {#if (gameState.dm || character.player_name === gameState.name) && callback !== null}
-    <button class="btn btn-ghost btn-square absolute top-1 right-1 btn-sm" aria-label="View Character" onclick={callback}>
+    <button class="btn btn-ghost btn-square absolute top-1 right-1 btn-sm" aria-label="Character ansehen" onclick={callback}>
         <i class="fa-solid fa-circle-info"></i>
     </button>
+    <div class="tooltip tooltip-left absolute bottom-4 right-1" data-tip="Charakter von DND Beyond aktualisieren">
+        <button class="btn btn-ghost btn-square btn-sm" aria-label="Aktualisiren" onclick={updateCharacter}>
+            <i class="fa-solid fa-rotate-right"></i>
+        </button>
+    </div>
     {/if}
 </div>

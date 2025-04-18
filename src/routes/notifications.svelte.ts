@@ -23,9 +23,11 @@ export function notify(msg: string | {msg: string, sender: string}, type: Messag
         removeAfter: removeAfter
     });
 
-    setTimeout(() => {
-        removeToast(id);
-    }, removeAfter);
+    if (removeAfter > 0) {
+        setTimeout(() => {
+            removeToast(id);
+        }, removeAfter);
+    }
 
     return id;
 }

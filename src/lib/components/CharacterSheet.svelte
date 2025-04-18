@@ -1,7 +1,15 @@
 <script lang="ts">
+    import { CheckResult } from "$lib/types/messaging/client_messages";
+    import { appState, roller } from "../../routes/state.svelte";
     import Stat from "./CharacterSheet/Stat.svelte";
 
     let { character } = $props();
+
+    async function roll_initiative() {
+        if (!roller.value || !appState.ws) return;
+        let result = await roller.value(["1d20"], character.actualInitiative);
+        await appState.ws.send(CheckResult.create("initiative", result.roll_result, character.actualInitiative));
+    }
 </script>
 
 <div class="w-full h-full flex flex-col">
@@ -14,37 +22,37 @@
         </div>
         <div class="flex justify-center items-center flex-col text-xs font-bold">
             <span>Initiative</span>
-            <button class="btn">
+            <button class="btn" onclick={roll_initiative}>
                 {character.actualInitiative > 0 ? '+' : ''}{character.actualInitiative}
             </button>
         </div>
         <div class="col-start-1 row-start-2 flex justify-center items-center">
             <div class="tooltip" data-tip="Kurze Rast">
-                <button class="btn w-full uppercase" aria-label="Short Rest">
+                <button class="btn w-full uppercase" aria-label="Short Rest" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 75.00001 91.37608" class="w-5 aspect-square fill-white"><path d="M58.745,34.053c-8.41376-5.41754,0-15.47864,0-15.47864C44.08877,22.05707,44.77651,32,44.77651,32c-4.07116-2.51532-3.67328-7.23413.94074-16.52136S37.032,0,37.032,0s12.21356,13.15686-8.68518,24.76587-8.68518,24.76587-8.68518,24.76587A16.47186,16.47186,0,0,1,6.63387,43.34027c0,10.289,10.45673,17.73334,21.37586,20.491a17.23033,17.23033,0,0,1-2.96533-7.19837c-.04621-.27893.12744-.6784.48211-.63293a17.25615,17.25615,0,0,1,8.43189,3.63074,21.50626,21.50626,0,0,0,1.09772-5.22364c.37316-4.59375-1.6828-8.0484-4.21137-11.65478-.27563-.39319.18073-.80023.5647-.7345a12.743,12.743,0,0,1,10.2716,10.49347c4.52625-1.53119,6.34034-7.317,6.42878-11.678.01117-.55072.86242-.697.98217-.13293,1.39893,6.59,6.35651,14.61285,2.942,21.23028C66.09347,54.97485,65.35421,38.30859,58.745,34.053Z"></path><path fill="#fff" d="M4.3,73.47608l10,2.7,18.3-5s-27.2-7.4-27.7-7.4a4.908,4.908,0,0,0-4.9,4.9A4.78148,4.78148,0,0,0,4.3,73.47608Z"></path><path fill="#fff" d="M70.1,63.77607c-.7,0-65.8,17.9-65.8,17.9a4.83787,4.83787,0,0,0-4.1,4.8,4.908,4.908,0,0,0,4.9,4.9c.6,0,65.8-17.9,65.8-17.9a4.83788,4.83788,0,0,0,4.1-4.8A4.908,4.908,0,0,0,70.1,63.77607Z"></path><path fill="#fff" d="M70.9,81.67607l-10.3-2.8-18.3,5s27.2,7.5,27.8,7.5a4.8815,4.8815,0,0,0,.8-9.7Z"></path></svg>
                 </button>
             </div>
         </div>
         <div class="col-start-2 row-start-2 flex justify-center items-center">
             <div class="tooltip" data-tip="Lange Rast">
-                <button class="btn w-full uppercase" aria-label="Long Rest">
+                <button class="btn w-full uppercase" aria-label="Long Rest" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 443.5 443.5" class="w-5 aspect-square fill-white"><path d="M221.75.25c122.33,0,221.5,99.17,221.5,221.5s-99.17,221.5-221.5,221.5S.25,344.08.25,221.75,99.42.25,221.75.25ZM370.58,353.13c69.03-39.84,83.21-144.48,31.66-233.72C350.7,30.17,252.96-9.88,183.92,29.97c-69.03,39.84-83.21,144.48-31.66,233.72C203.8,352.93,301.54,392.98,370.58,353.13Z"></path><ellipse fill="none" stroke="#fff" stroke-miterlimit="10" stroke-width="10px" cx="277.25" cy="191.55" rx="144.3145" ry="186.5974" transform="matrix(0.86569, -0.50058, 0.50058, 0.86569, -58.64876, 164.51324)"></ellipse></svg>
                 </button>
             </div>
         </div>
         <div class="row-span-2 col-start-3 row-start-1 flex flex-col gap-1 items-center">
-            <button class="cursor-pointer" onclick={() => {alert("activate heroic inspiration")}}>
+            <button> <!-- class="cursor-pointer" disabled -->
                 <img class="w-full object-center object-cover rounded-box border aspect-3/4" style="border-color: {character.decorations.themeColor?.themeColor || "black"}" src={character.decorations.avatarUrl || "https://www.dndbeyond.com/Content/Skins/Waterdeep/images/characters/default-avatar-builder.png"} alt="Avatar">
             </button>
             <span class="text-xs text-center">Heroic Inspiration</span>
         </div>
-        <button class="btn col-span-2 col-start-4 row-start-1 flex flex-col justify-center items-center gap-0.5 h-full">
+        <button class="btn col-span-2 col-start-4 row-start-1 flex flex-col justify-center items-center gap-0.5 h-full" disabled>
             <span class="text-xs uppercase font-bold">hit points</span>
             <span class="text-sm">{character.currentHealth}/{character.maxHealth}</span>
             <progress class="progress progress-error w-full" value={character.currentHealth} max={character.maxHealth}></progress>
         </button>
         <div class="col-span-2 col-start-4 row-start-2 flex justify-center items-center">
-            <button class="btn w-full uppercase">Conditions</button>
+            <button class="btn w-full uppercase" disabled>Conditions</button>
         </div>
     </div>
 

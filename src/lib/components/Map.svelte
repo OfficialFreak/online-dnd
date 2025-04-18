@@ -3,10 +3,12 @@
     import { appState, DMName, fogState, gameState, largeMouse, mouseDown, mouseX, mouseY, showMouse, Tools } from "../../routes/state.svelte";
     // @ts-ignore
     import throttle from 'just-throttle';
+    import debounce from "just-debounce-it";
     import { fade } from "svelte/transition";
-    import { MarkerFreed, MarkerLocked, MarkerPosition, MouseLarge, MousePosition } from "$lib/types/messaging/client_messages";
+    import { MarkerFreed, MarkerLocked, MarkerPosition, MouseLarge, MousePosition, PutScene } from "$lib/types/messaging/client_messages";
     import { type DragOptions } from "@neodrag/svelte";
     import Marker from "./Marker.svelte";
+    import { MessageTypes, notify } from "../../routes/notifications.svelte";
 
     let { file, columns, x_offset, y_offset, fog_squares, markers, editable = false } = $props();
     let gridCanvas: any = $state();
@@ -18,6 +20,10 @@
     
     let size = $derived(w / columns);
     let rows = $derived(Math.ceil(h / size) + 1);
+    $effect(() => {
+        // @ts-ignore
+        gameState.scene.rows = rows;
+    });
     let map_url = $derived(getAssetUrl(file) || "");
     function getAssetUrl(asset: string) {
         if (!appState.token) return;
@@ -99,6 +105,14 @@
         appState.ws.send(MarkerPosition.create(currentNode.id, offsetX / w, offsetY / h));
     }, 30, {leading: false, trailing: true});
 
+    function saveSceneFog() {
+        if (!appState.ws || !gameState.scene) return;
+        appState.ws.send(PutScene.update_fog(gameState.scene.state.fog_squares));
+        notify("Nebel aktualisiert", MessageTypes.Success, 1000);
+    }
+
+    let debounced_fog_save = debounce(saveSceneFog, 500);
+
     function clickHandler(event: MouseEvent, click: boolean) {
         let currentMouseX = event.pageX / w;
         // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
@@ -125,6 +139,7 @@
                     gameState.scene.state.fog_squares[player].splice(idx, 1);
                 }
             }
+            debounced_fog_save();
         }
     }
 

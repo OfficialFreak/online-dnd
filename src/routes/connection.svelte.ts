@@ -12,8 +12,8 @@ async function connect(url: string) {
         let originalSend = appState.ws.send.bind(appState.ws);
 
         // Override send method to log messages
-        appState.ws.send = function (data) {
-            console.log("WebSocket send:", data);
+        appState.ws.send = function (data: string) {
+            console.log("Sent:", JSON.parse(data));
             return originalSend(data);
         };
         return true;

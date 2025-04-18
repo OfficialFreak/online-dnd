@@ -161,7 +161,7 @@
     $effect(() => {
         if (appState.ws) {
             appState.ws.addListener((msg) => {
-                console.log(msg);
+                console.log("Received:", msg);
                 // Assume the worst, kill ourselves xD
                 if (typeof msg === "string") {
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
@@ -312,6 +312,10 @@
                         case "characters":
                             gameState.characters = message.characters.map((character: any) => new Character(character));
                             break;
+                        case "check_result":
+                            let bonus_string = message.bonus === 0 ? '' : message.bonus > 0 ? ` + ${message.bonus} = ${message.result + message.bonus}` : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
+                            notify(`${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)}${message.stat === 'initiative' ? '' : ' Check'}): ${message.result + bonus_string}`, MessageTypes.Info, -1);
+                            break;
                     }
                 }
             });
@@ -323,7 +327,7 @@
     async function select_scene(name: string) {
         if (!appState.ws) return;
         await appState.ws.send(ActivateScene.create(name));
-        notify("Szene ausgewählt", MessageTypes.Success, 1000);
+        notify("Szene aktiviert", MessageTypes.Success, 1500);
     }
     
     async function delete_scene(name: string) {
@@ -345,6 +349,11 @@
             }),
             status_effects: []
         }
+        let i = 0;
+        while (gameState.scene.state.markers.some((marker) => marker.name === new_marker.name + (i === 0 ? '' : ` ${i.toString()}`))) {
+            i++;
+        }
+        new_marker.name = new_marker.name + (i === 0 ? '' : ` ${i.toString()}`);
         gameState.scene.state.markers.push(new_marker);
         await appState.ws.send(PutScene.update(gameState.scene));
         notify("Marker in die Szene eingefügt", MessageTypes.Success, 3000);

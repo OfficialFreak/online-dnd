@@ -151,7 +151,15 @@ export interface Characters extends BaseServerMessage {
     "characters": any
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib | MouseLarge | Characters
+export interface CheckResult extends BaseServerMessage {
+    "type": "check_result",
+    "sender": string,
+    "stat": string,
+    "result": number,
+    "bonus": number,
+}
+
+export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib | MouseLarge | Characters | CheckResult
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -199,6 +207,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MouseLarge;
         case "characters":
             return data as Characters;
+        case "check_result":
+            return data as CheckResult;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

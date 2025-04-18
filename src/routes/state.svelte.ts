@@ -66,3 +66,5 @@ export const character_open = $state({value: ""});
 export function getCharacter(character: string) {
     return gameState.characters.find((char) => char.name === character);
 }
+
+export const roller: any = $state({value: null});

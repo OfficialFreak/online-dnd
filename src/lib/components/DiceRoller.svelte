@@ -4,6 +4,7 @@
     import DiceBox from "@3d-dice/dice-box";
     // @ts-ignore
     import confetti from "canvas-confetti";
+    import { roller } from '../../routes/state.svelte';
   
     const poop = confetti.shapeFromText({ text: '💩', scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null)
@@ -12,6 +13,7 @@
     let dice_values: string = $state("");
     let roll_result: number = $state(-1);
     let rolls: string[] = $state([]);
+    let bonus: number = $state(0);
     let single_roll = $derived(rolls.length === 1 && rolls[0].substring(0, 2) === "1d");
     onMount(() => {
         diceBox = new DiceBox({
@@ -56,7 +58,7 @@
         diceBox.init();
     });
 
-    export async function roll(new_rolls: string[]) {
+    roller.value = async function roll(new_rolls: string[], new_bonus: number) {
         const rollComplete = new Promise<void>((resolve) => {
             const originalHandler = diceBox.onRollComplete;
 
@@ -68,10 +70,13 @@
             };
         });
         rolls = new_rolls;
+        bonus = new_bonus;
         await diceBox.roll(rolls);
         await rollComplete;
         return {dice_values: dice_values, roll_result: roll_result, single_roll: single_roll};
     }
+
+    let bonus_string = $derived(bonus === 0 ? '' : bonus > 0 ? ` + ${bonus} = ${roll_result + bonus}` : ` - ${bonus * -1} = ${roll_result + bonus}`);
 </script>  
 
 <!-- This should be fine as there will only be one dice-roller -->
@@ -82,11 +87,11 @@
         <canvas bind:this={confetti_canvas} class="absolute top-0 left-0 w-full h-full"></canvas>
         {#if single_roll}
         <h3 class="text-7xl font-bold flex">
-            {roll_result}
+            {roll_result}{bonus_string}
         </h3>
         {:else}
         <h3 class="text-5xl font-bold flex flex-wrap justify-center gap-2">
-            <span class="text-gray-500">{dice_values}</span><span class="whitespace-nowrap">= {roll_result}</span>
+            <span class="text-gray-500">{dice_values}</span><span class="whitespace-nowrap">= {roll_result}{bonus_string}</span>
         </h3>
         {/if}
     </div>

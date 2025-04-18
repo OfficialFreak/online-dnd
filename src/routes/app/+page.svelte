@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { onDestroy } from "svelte";
-    import { gameState, appState, fogState, Tools, mouseDown } from "../state.svelte";
+    import { gameState, appState, fogState, Tools, mouseDown, roller } from "../state.svelte";
     import { connect } from "../connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
@@ -12,7 +12,6 @@
     import Toolbar from "$lib/components/Toolbar.svelte";
     import { MessageTypes, notify } from "../notifications.svelte";
 
-    let roller: DiceRoller | null = $state(null);
     let url: string | null = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
 
     onDestroy(() => {
@@ -47,8 +46,8 @@
     });
 
     async function roll(dice: string[], privacy_level: string) {
-        if (!roller) return;
-        let result = await roller.roll(dice);
+        if (!roller.value) return;
+        let result = await roller.value(dice, 0);
         if (appState.ws && privacy_level !== "private") {
             await appState.ws.send(RollResult.create(result.dice_values, result.roll_result, result.single_roll, privacy_level === "dm"));
         }
@@ -81,4 +80,4 @@
         <DiceChooser roll_callback={roll} />
     </div>
 {/if}
-<DiceRoller bind:this={roller} />
+<DiceRoller />

@@ -29,6 +29,17 @@ export class RollResult {
     }
 }
 
+export class CheckResult {
+    static create(stat: string, result: number, bonus: number): string {
+        return JSON.stringify({
+            type: "check_result",
+            stat: stat,
+            result: result,
+            bonus: bonus
+        });
+    }
+}
+
 export class PutScene {
     static create(name: string, map_file: string, background_file: string, background_blur: number, columns: number, x_offset: number, y_offset: number, state: SceneState): string {
         return JSON.stringify({
