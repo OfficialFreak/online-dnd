@@ -186,7 +186,7 @@
         }}
         width={w as number}
         height={h as number}
-        class="absolute top-0 left-0 w-full h-full z-0">
+        class="absolute top-0 left-0 w-full h-full z-0 opacity-50">
     </canvas>
     <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
         {#each markers as marker}
