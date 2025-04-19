@@ -316,6 +316,10 @@
                             let bonus_string = message.bonus === 0 ? '' : message.bonus > 0 ? ` + ${message.bonus} = ${message.result + message.bonus}` : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
                             notify(`${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)}${message.stat === 'initiative' ? '' : ' Check'}): ${message.result + bonus_string}`, MessageTypes.Info, -1);
                             break;
+                        case "save_result":
+                            let save_bonus_string = message.bonus === 0 ? '' : message.bonus > 0 ? ` + ${message.bonus} = ${message.result + message.bonus}` : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
+                            notify(`${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)} Save): ${message.result + save_bonus_string}`, MessageTypes.Info, -1);
+                            break;
                     }
                 }
             });

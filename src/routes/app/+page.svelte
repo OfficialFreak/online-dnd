@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { onDestroy } from "svelte";
-    import { gameState, appState, fogState, Tools, mouseDown, roller } from "../state.svelte";
+    import { gameState, appState, fogState, Tools, roller } from "../state.svelte";
     import { connect } from "../connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";

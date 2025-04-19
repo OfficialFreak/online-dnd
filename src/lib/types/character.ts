@@ -65,6 +65,34 @@ export class Character {
             "charisma": Math.floor((this.actualStats.charisma - 10) / 2),
         }
     }
+    
+    get savingModifiers() {
+        let stats = {
+            "strength": this.statModifiers.strength,
+            "dexterity": this.statModifiers.dexterity,
+            "constitution": this.statModifiers.constitution,
+            "intelligence": this.statModifiers.intelligence,
+            "wisdom": this.statModifiers.wisdom,
+            "charisma": this.statModifiers.charisma,
+        }
+
+        for (const [modifier_origin, modifiers] of Object.entries(this.modifiers)) {
+            for (const modifier of modifiers as any) {
+                let split = modifier.subType.split("-");
+                if (modifier.type === "proficiency" && split[1] === "saving" && split[2] === "throws") {
+                    try {
+                        let stat = split[0];
+                        if (Object.keys(stats).includes(stat)) {
+                            // @ts-ignore
+                            stats[stat] += this.proficiencyBonus;
+                        }
+                    } catch {}
+                }
+            }
+        }
+
+        return stats
+    }
 
     get maxHealth(): number {
         return this.baseHitPoints + this.temporaryHitPoints + this.statModifiers.constitution
@@ -75,7 +103,7 @@ export class Character {
     }
 
     get level(): number {
-        return this.classes.reduce((acc: any, c_class: any) => acc + c_class.level, 0);
+        return Math.min(this.classes.reduce((acc: any, c_class: any) => acc + c_class.level, 0), 20);
     }
     
     get detailedDescription(): string {
@@ -120,8 +148,13 @@ export class Character {
     }
 
     get actualInitiative(): number {
-        let base_initiative = this.statModifiers.dexterity;
+        let proficiency_bonus = this.modifiers.feat.some((modifier: any) => modifier.componentId === 1789101) ? this.proficiencyBonus : 0;
+        let base_initiative = this.statModifiers.dexterity + proficiency_bonus;
 
         return base_initiative;
+    }
+
+    get proficiencyBonus(): number {
+        return Math.floor((this.level - 1) / 4) + 2
     }
 }

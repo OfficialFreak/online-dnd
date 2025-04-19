@@ -1,6 +1,7 @@
 <script lang="ts">
     import { CheckResult } from "$lib/types/messaging/client_messages";
     import { appState, roller } from "../../routes/state.svelte";
+    import SavingStat from "./CharacterSheet/SavingStat.svelte";
     import Stat from "./CharacterSheet/Stat.svelte";
 
     let { character } = $props();
@@ -72,9 +73,13 @@
                 <Stat stat={stat} character={character} />
             {/each}
         </div>
-        <!-- <h1>Saving Throws</h1>
-        alle saving throws
-
+        <div class="divider">Saving Throws</div>
+        <div class="w-full flex flex-wrap gap-y-1">
+            {#each [0, 3, 1, 4, 2, 5] as stat}
+                <SavingStat stat={stat} character={character} />
+            {/each}
+        </div>
+        <!--
         <h1>Senses</h1>
         Passive zeug
         darkvision 60 ft. -->

@@ -114,13 +114,22 @@
         }
         saveSceneFog();
     }
+
+    let scroll_container: any = $state(null);
+
+    $effect(() => {
+        if (!scroll_container) return;
+
+        character_open.value;
+        scroll_container.scrollTop = 0
+    });
 </script>
 
 <svelte:window onkeydown={hotkeyHandler}></svelte:window>
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
     {#if characters_open.value}
-    <div class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain" transition:fly|global={{x:-50, duration: 200}}>
+    <div class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain" transition:fly|global={{x:-50, duration: 200}} bind:this={scroll_container}>
         {#if !character_open.value}
             <div class="p-2 px-4">
                 <h1 class="text-3xl font-bold">Charaktere</h1>
