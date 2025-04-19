@@ -167,6 +167,7 @@
         },
         bounds: 'parent',
         onDrag: throttledMarkerDrag,
+        legacyTranslate: false
     }
 
     let translate_thingy = $derived(appState.zoom > 1 ? 50 * (1 - 1/appState.zoom) : 0);
