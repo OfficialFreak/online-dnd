@@ -171,9 +171,31 @@
     }
 
     let translate_thingy = $derived(appState.zoom > 1 ? 50 * (1 - 1/appState.zoom) : 0);
+    $effect(() => {
+        if (appState.zoom !== appState.prev_zoom) {
+            // Calculate zoom ratio
+            const zoomRatio = appState.zoom / appState.prev_zoom;
+            
+            // Get current scroll position
+            const scrollTop = document.documentElement.scrollTop;
+            const scrollLeft = document.documentElement.scrollLeft;
+            
+            // Calculate viewport center point
+            const viewportCenterX = w / 2;
+            const viewportCenterY = h / 2;
+            
+            // Calculate new scroll position to maintain center point
+            const newScrollLeft = (scrollLeft + viewportCenterX) * zoomRatio - viewportCenterX;
+            const newScrollTop = (scrollTop + viewportCenterY) * zoomRatio - viewportCenterY;
+            
+            // Apply new scroll position
+            document.documentElement.scrollTop = newScrollTop;
+            document.documentElement.scrollLeft = newScrollLeft;
+        }
+    });
 </script>
 
-<div class="w-full relative select-none overflow-hidden transition-transform" style="transform: scale({appState.zoom}) translate({translate_thingy}%, {translate_thingy}%)">
+<div class="w-full relative select-none overflow-hidden" style="transform: scale({appState.zoom}) translate({translate_thingy}%, {translate_thingy}%)">
     <img src={map_url} alt="Map" class="w-full" />
     <canvas 
         bind:this={gridCanvas}

@@ -17,6 +17,7 @@
         if (!markerElement) return;
         markerElement.style.pointerEvents = (appState.selected_tool === Tools.Pointer || appState.selected_tool === Tools.None) ? "auto": "none";
         markerElement.style.setProperty('anchor-name', `--${marker.name.replaceAll(" ", "-")}`);
+        markerElement.style.setProperty('--y-translate', `${0.8 - 0.8 / appState.zoom}rem`);
     });
 
     function getAssetUrl(asset: string) {
@@ -36,13 +37,23 @@
     }
 </script>
 
+<style lang="css">
+    .tooltip::after {
+        translate: 0 var(--y-translate);
+    }
+</style>
+
 <div 
     bind:this={markerElement}
     use:draggable={dragOptions}
     id={marker.name}
     class="{!gameState.dm && mapUse ? 'tooltip' : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'}"
-    data-tip={marker.name}
 >
+    {#if !gameState.dm}
+    <span class="tooltip-content flex justify-center items-center" style="height: {2 / appState.zoom}rem; translate: 0 var(--y-translate)">
+        <span style="font-size: {1 / (appState.zoom)}rem">{marker.name}</span>
+    </span>
+    {/if}
     <button class={(gameState.dm && mapUse ? "dropdown dropdown-hover dropdown-right dropdown-center" : "") + " avatar"} popovertarget={marker.name.replaceAll(" ", "-")}>
         {#if gameState.locked_markers[marker.name]}
             <span class="absolute top-0 right-1/2 translate-x-1/2 badge badge-neutral z-10 badge-xs" transition:fade={{duration: 100}}>
@@ -59,7 +70,7 @@
             />
         </div>
         {#if gameState.dm && mapUse}
-            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm">
+            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm" style="transform: scale({1 / appState.zoom})">
                 <li>
                     <legend class="fieldset-legend pointer-events-none">Name</legend>
                     <input type="text" class="input" placeholder="Grom" bind:value={scene_marker.name} onchange={throttled_save} />

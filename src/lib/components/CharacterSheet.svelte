@@ -13,7 +13,7 @@
     }
 </script>
 
-<div class="w-full h-full flex flex-col">
+<div class="w-full grow flex flex-col relative pb-4">
     <img class="absolute top-0 left-0 -z-10 w-full h-full object-cover object-center rounded-box" src={character.decorations.backdropAvatarUrl || "https://www.dndbeyond.com/avatars/43993/228/638609652442536203.jpeg"} alt="Background">
         
     <div class="grid grid-cols-5 grid-rows-2 gap-2 frosted dark-frosted px-2 pt-2">

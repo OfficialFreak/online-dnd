@@ -70,12 +70,14 @@
                 break;
             case 'BracketRight':
                 if (evt.ctrlKey) {
-                    appState.zoom *= 2;
+                    appState.prev_zoom = appState.zoom;
+                    appState.zoom *= 1.25;
                 }
                 break;
             case 'Slash':
                 if (evt.ctrlKey && appState.zoom > 0.3) {
-                    appState.zoom /= 2;
+                    appState.prev_zoom = appState.zoom;
+                    appState.zoom /= 1.25;
                 }
                 break;
         }
@@ -129,7 +131,7 @@
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
     {#if characters_open.value}
-    <div class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain" transition:fly|global={{x:-50, duration: 200}} bind:this={scroll_container}>
+    <div class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col" transition:fly|global={{x:-50, duration: 200}} bind:this={scroll_container}>
         {#if !character_open.value}
             <div class="p-2 px-4">
                 <h1 class="text-3xl font-bold">Charaktere</h1>

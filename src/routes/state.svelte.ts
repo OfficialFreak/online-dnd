@@ -22,6 +22,7 @@ export const appState = $state({
     base_url: "dnd.wiegraebe.dev",
     selected_tool: Tools.None,
     dragging: false,
+    prev_zoom: 1,
     zoom: 1
 });
 
