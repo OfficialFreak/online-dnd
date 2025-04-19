@@ -70,7 +70,7 @@
             />
         </div>
         {#if gameState.dm && mapUse}
-            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm" style="transform: scale({1 / appState.zoom})">
+            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm !transition-none" style="transform: scale({1 / appState.zoom})">
                 <li>
                     <legend class="fieldset-legend pointer-events-none">Name</legend>
                     <input type="text" class="input" placeholder="Grom" bind:value={scene_marker.name} onchange={throttled_save} />

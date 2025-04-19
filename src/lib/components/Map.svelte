@@ -172,7 +172,7 @@
 
     let translate_thingy = $derived(appState.zoom > 1 ? 50 * (1 - 1/appState.zoom) : 0);
     $effect(() => {
-        if (appState.zoom !== appState.prev_zoom) {
+        if (editable && appState.zoom !== appState.prev_zoom) {
             // Calculate zoom ratio
             const zoomRatio = appState.zoom / appState.prev_zoom;
             
@@ -195,7 +195,7 @@
     });
 </script>
 
-<div class="w-full relative select-none overflow-hidden" style="transform: scale({appState.zoom}) translate({translate_thingy}%, {translate_thingy}%)">
+<div class="w-full relative select-none overflow-hidden" style="transform: scale({editable ? appState.zoom : 1}) translate({editable ? translate_thingy : 0}%, {editable ? translate_thingy : 0}%)">
     <img src={map_url} alt="Map" class="w-full" />
     <canvas 
         bind:this={gridCanvas}
