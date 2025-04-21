@@ -46,6 +46,9 @@
         if (isTyping) return;
 
         switch (evt.code) {
+            case 'KeyL':
+                selectTool(Tools.Ruler);
+                break;
             case 'KeyY':
                 if (gameState.dm) {    
                     selectTool(Tools.Pointer);
@@ -266,9 +269,9 @@
         </div>
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
-                Lineal <span class="text-gray-400">(Coming Soon-ish)</span>
+                Lineal <kbd class="kbd">L</kbd>
             </div>
-            <button tabindex="0" disabled class="btn btn-square btn-sm {characters_open.value && 'btn-info'}" aria-label="Marker" onclick={() => {characters_open.value = !characters_open.value}}>
+            <button tabindex="0" class="btn btn-square btn-sm {appState.selected_tool === Tools.Ruler && 'btn-info'}" aria-label="Lineal" onclick={() => {selectTool(Tools.Ruler)}}>
                 <i class="fa-solid fa-ruler"></i>
             </button>
         </div>

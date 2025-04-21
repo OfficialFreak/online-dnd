@@ -9,7 +9,8 @@ export enum Tools {
     None,
     Pointer,
     AddFog,
-    RemoveFog
+    RemoveFog,
+    Ruler
 }
 
 export const mouseDown = $state({value: false});

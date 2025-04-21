@@ -4,6 +4,7 @@
     // @ts-ignore
     import throttle from 'just-throttle';
     import debounce from "just-debounce-it";
+    import { draggable } from "@neodrag/svelte";
     import { fade } from "svelte/transition";
     import { MarkerFreed, MarkerLocked, MarkerPosition, MouseLarge, MousePosition, PutScene } from "$lib/types/messaging/client_messages";
     import { type DragOptions } from "@neodrag/svelte";
@@ -113,6 +114,8 @@
 
     let debounced_fog_save = debounce(saveSceneFog, 500);
 
+    let ruler_rotation = $state(0);
+
     function clickHandler(event: MouseEvent, click: boolean) {
         let currentMouseX = event.offsetX / w;
         // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
@@ -123,6 +126,16 @@
 
         if (!click && editable && appState.selected_tool === Tools.Pointer && gameState.dm && !appState.dragging) {
             throttled(currentMouseX, currentMouseY);
+        } else if (!click && editable && rotate_active && appState.selected_tool === Tools.Ruler && ruler) {
+            let { top, left, bottom } = ruler.getBoundingClientRect();
+            let height = bottom - top;
+            let x = left;
+            let y = top + height/2;
+
+            let x_difference = (event.offsetX - document.documentElement.scrollLeft) * appState.zoom - x + document.documentElement.scrollLeft;
+            let y_difference = (event.offsetY - document.documentElement.scrollTop) * appState.zoom - y + document.documentElement.scrollTop;
+            let alpha = Math.atan(y_difference / x_difference) * 360 / (2 * Math.PI);
+            ruler_rotation = alpha;
         }
 
         if ((!mouseDown.value && !click) || !editable || !gameState.scene) return;
@@ -193,6 +206,26 @@
             document.documentElement.scrollLeft = newScrollLeft;
         }
     });
+
+    let ruler: any = $state(null);
+    let rotate_active = $state(false);
+
+    function rulerRotate() {
+        rotate_active = true;
+    }
+
+    $effect(() => {
+        if (!mouseDown.value) {
+            rotate_active = false;
+        }
+    })
+
+    $effect(() => {
+        if (!ruler) return;
+        ruler.style.rotate = `${ruler_rotation}deg`;
+    })
+
+    let ruler_width = $state(20);
 </script>
 
 <div class="w-full relative select-none overflow-hidden" style="transform: scale({editable ? appState.zoom : 1}) translate({editable ? translate_thingy : 0}%, {editable ? translate_thingy : 0}%)">
@@ -232,6 +265,17 @@
     <div transition:fade class="absolute pointer-events-none top-0 left-0 origin-top-left" style="transform: translate({mouseX.current * w}px, {mouseY.current * h}px) scale({largeMouse.value ? '2' : '1'});">
         <i class="fa-solid fa-arrow-pointer"></i>
         <span class="badge badge-xs">{DMName.value}</span>
+    </div>
+    {/if}
+    {#if appState.selected_tool === Tools.Ruler && editable}
+    <div role="banner" class="absolute top-1/2 left-1/2" use:draggable={{handle: '.handle'}} onmousemove={(evt) => {clickHandler(evt, false)}}>
+        <div bind:this={ruler} bind:clientWidth={ruler_width} class="origin-center block h-8 w-50 bg-base-100 text-white overflow-auto resize-x">
+            <div class="absolute bottom-0 h-full w-full handle"></div>
+            <button aria-label="Rotate Handle" class="absolute top-1/2 right-0 -translate-y-1/2 w-4 h-full bg-base-300" onmousedown={rulerRotate}></button>
+            <span class="absolute top-0 left-0 w-full h-full flex justify-center items-center pointer-events-none">
+                {Math.round(ruler_width / size * 10) / 10}
+            </span>
+        </div>
     </div>
     {/if}
 </div>
