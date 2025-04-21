@@ -5,7 +5,7 @@
     import '@fortawesome/fontawesome-free/css/all.min.css';
 
     import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse, markerModal, characterImportModal } from "./state.svelte";
+    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse, markerModal, characterImportModal, Tools } from "./state.svelte";
     import { connect } from "./connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
@@ -353,11 +353,11 @@
             }),
             status_effects: []
         }
-        let i = 0;
-        while (gameState.scene.state.markers.some((marker) => marker.name === new_marker.name + (i === 0 ? '' : ` ${i.toString()}`))) {
+        let i = 1;
+        while (gameState.scene.state.markers.some((marker) => marker.name === new_marker.name + (i === 1 ? '' : ` ${i.toString()}`))) {
             i++;
         }
-        new_marker.name = new_marker.name + (i === 0 ? '' : ` ${i.toString()}`);
+        new_marker.name = new_marker.name + (i === 1 ? '' : ` ${i.toString()}`);
         gameState.scene.state.markers.push(new_marker);
         await appState.ws.send(PutScene.update(gameState.scene));
         notify("Marker in die Szene eingefügt", MessageTypes.Success, 3000);
@@ -733,6 +733,7 @@
         <Notifications />
     </div>
 </div>
+
 {@render children()}
 
 <style>

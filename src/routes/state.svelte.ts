@@ -23,7 +23,7 @@ export const appState = $state({
     selected_tool: Tools.None,
     dragging: false,
     prev_zoom: 1,
-    zoom: 1
+    zoom: 1,
 });
 
 export const gameState = $state({

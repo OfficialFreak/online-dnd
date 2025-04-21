@@ -114,12 +114,12 @@
     let debounced_fog_save = debounce(saveSceneFog, 500);
 
     function clickHandler(event: MouseEvent, click: boolean) {
-        let currentMouseX = event.pageX / w;
+        let currentMouseX = event.offsetX / w;
         // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
-        let currentMouseY = (event.pageY - 30) / h;
-        let x = Math.floor((event.pageX - x_offset) / size);
+        let currentMouseY = (event.offsetY) / h;
+        let x = Math.floor((event.offsetX - x_offset) / size);
         // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
-        let y = Math.floor((event.pageY - y_offset - 30) / size);
+        let y = Math.floor((event.offsetY - y_offset) / size);
 
         if (!click && editable && appState.selected_tool === Tools.Pointer && gameState.dm && !appState.dragging) {
             throttled(currentMouseX, currentMouseY);

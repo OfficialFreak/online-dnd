@@ -30,6 +30,7 @@
     }, 200, {leading: false, trailing: true});
 
     const effect_style_mapping = {
+        "knocked": ["background: #8e3a38", "filter: grayscale(0.8)"],
         "petrified": ["background: gray", "filter: grayscale(1)"],
         "poisoned": ["background: #36d903", "filter: blur(0.5px);"],
         "burning": ["background: #ff4300", "filter: brightness(1.5) sepia(1) hue-rotate(333deg) saturate(3)"],
@@ -70,7 +71,7 @@
             />
         </div>
         {#if gameState.dm && mapUse}
-            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm !transition-none" style="transform: scale({1 / appState.zoom})">
+            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm !transition-none" style="transform: scale({Math.min(1 / appState.zoom, 1)})">
                 <li>
                     <legend class="fieldset-legend pointer-events-none">Name</legend>
                     <input type="text" class="input" placeholder="Grom" bind:value={scene_marker.name} onchange={throttled_save} />

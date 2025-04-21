@@ -36,6 +36,15 @@
     });
 
     function hotkeyHandler(evt: any) {
+        const activeElement = document.activeElement;
+        
+        const isTyping =
+            activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA');
+        
+        if (isTyping) return;
+
         switch (evt.code) {
             case 'KeyY':
                 if (gameState.dm) {    
@@ -83,6 +92,24 @@
         }
     }
 
+    function wheelHandler(evt: any) {
+        if (evt.ctrlKey) {
+            evt.preventDefault();
+
+            const snapThreshold = 0.05;
+
+            const zoomSensitivity = 0.001;
+            const zoomChange = 1 - evt.deltaY * zoomSensitivity;
+
+            const newZoom = appState.zoom * zoomChange;
+
+            if (newZoom > 0.3) {
+                appState.prev_zoom = appState.zoom;
+                appState.zoom = Math.abs(newZoom - 1) < snapThreshold ? 1 : newZoom;
+            }
+        }
+    }
+
     let fog_active = $derived(appState.selected_tool === Tools.AddFog || appState.selected_tool === Tools.RemoveFog);
 
     function saveSceneFog() {
@@ -127,7 +154,7 @@
     });
 </script>
 
-<svelte:window onkeydown={hotkeyHandler}></svelte:window>
+<svelte:window onkeydown={hotkeyHandler} on:wheel|nonpassive={wheelHandler}></svelte:window>
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
     {#if characters_open.value}
@@ -149,12 +176,16 @@
                 <button class="btn btn-square btn-ghost btn-sm" aria-label="Zurück" onclick={() => {character_open.value = ""}}>
                     <i class="fa-solid fa-arrow-left"></i>
                 </button>
+                {#if getCharacter(character_open.value)}
                 <div class="flex flex-col">
                     <span class="text-sm">{getCharacter(character_open.value).name}</span>
                     <span class="text-xs font-bold text-gray-400">{getCharacter(character_open.value).detailedDescription}</span>
                 </div>
+                {/if}
             </div>
-            <CharacterSheet character={getCharacter(character_open.value)}/>
+            {#if getCharacter(character_open.value)}
+                <CharacterSheet character={getCharacter(character_open.value)}/>
+            {/if}
         {/if}
     </div>
     {/if}
