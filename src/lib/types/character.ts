@@ -10,6 +10,7 @@ export class Character {
     race: any;
     modifiers: any;
     inventory: any;
+    conditions: any;
 
     constructor(data: any) {
         Object.assign(this, data);
@@ -156,5 +157,26 @@ export class Character {
 
     get proficiencyBonus(): number {
         return Math.floor((this.level - 1) / 4) + 2
+    }
+
+    get activeStatusEffects(): string[] {
+        let id_effect_map = [
+            "blinded",
+            "charmed",
+            "deafened",
+            "invisible",
+            "frightened",
+            "grappled",
+            "incapacitated",
+            "invisible",
+            "paralyzed",
+            "petrified",
+            "poisoned",
+            "prone",
+            "restrained",
+            "stunned",
+            "unconscious"
+        ]
+        return this.conditions.map((condition: any) => id_effect_map[condition.id - 1]);
     }
 }

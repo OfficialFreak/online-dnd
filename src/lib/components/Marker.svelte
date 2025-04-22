@@ -15,7 +15,7 @@
 
     $effect(() => {
         if (!markerElement) return;
-        markerElement.style.pointerEvents = (appState.selected_tool === Tools.Pointer || appState.selected_tool === Tools.None) ? "auto": "none";
+        markerElement.style.pointerEvents = (appState.selected_tool === Tools.Ruler || appState.selected_tool === Tools.Pointer || appState.selected_tool === Tools.None) ? "auto": "none";
         markerElement.style.setProperty('anchor-name', `--${marker.name.replaceAll(" ", "-")}`);
         markerElement.style.setProperty('--y-translate', `${0.8 - 0.8 / appState.zoom}rem`);
     });

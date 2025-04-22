@@ -26,6 +26,7 @@
     import { MessageTypes, notify } from "./notifications.svelte";
     import { goto } from '$app/navigation';
     import { Character } from '$lib/types/character';
+    import StatusEffectBar from '$lib/components/StatusEffectBar.svelte';
 
     const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
     const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
@@ -478,6 +479,8 @@
     });
     let scrollbar_visible = $state(false);
     let selected_player = $state(gameState.name);
+
+    let own_character = $derived(gameState.characters.find((character) => character.player_name === gameState.name))
 </script>
 
 <svelte:window onbeforeunload={() => {
@@ -729,8 +732,13 @@
 </dialog>
 <canvas bind:this={confetti_canvas} class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"></canvas>
 <div class="fixed bottom-0 left-0 w-screen z-80 overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none">
-    <div class="w-80 p-2 pointer-events-none">
+    <div class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1">
         <Notifications />
+        {#if own_character?.activeStatusEffects?.length || 0 > 0}
+        <div class="flex justify-end items-end pointer-events-auto -mt-4">
+            <StatusEffectBar effects={own_character.activeStatusEffects}/>
+        </div>
+        {/if}
     </div>
 </div>
 

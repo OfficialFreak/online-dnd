@@ -259,7 +259,7 @@
             </button>
         </div>
         {/if}
-        <div class="tooltip tooltip-right" data-tip="Charaktere (Wildly unfertig)">
+        <div class="tooltip tooltip-right">
             <div class="tooltip-content">
                 Charaktere <kbd class="kbd">C</kbd> <span class="text-gray-400">(wildly unfertig)</span>
             </div>
