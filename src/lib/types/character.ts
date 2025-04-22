@@ -96,7 +96,7 @@ export class Character {
     }
 
     get maxHealth(): number {
-        return this.baseHitPoints + this.temporaryHitPoints + this.statModifiers.constitution
+        return this.baseHitPoints + this.temporaryHitPoints + this.statModifiers.constitution * this.level;
     }
 
     get currentHealth(): number {

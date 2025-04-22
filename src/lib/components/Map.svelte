@@ -20,6 +20,7 @@
     let h = $state(0);
     
     let size = $derived(w / columns);
+    let grid: [number, number] = $derived([size, size]);
     let rows = $derived(Math.ceil(h / size) + 1);
     $effect(() => {
         // @ts-ignore
@@ -47,6 +48,10 @@
         if (pattern) {
             fogPattern = pattern;
         }
+    });
+
+    $effect(() => {
+        appState.verticalSnapPoint = window.innerHeight / h;
     });
 
     $effect(() => {
@@ -161,7 +166,7 @@
         fogCtx = fogCanvas.getContext("2d");
     });
 
-    let dragOptions: DragOptions = {
+    let dragOptions: DragOptions = $derived({
         onDragStart: ({currentNode}) => {
             appState.dragging = true;
             if (!appState.ws) return;
@@ -180,8 +185,9 @@
         },
         bounds: 'parent',
         onDrag: throttledMarkerDrag,
-        legacyTranslate: false
-    }
+        legacyTranslate: false,
+        grid: appState.ctrlPressed ? grid : null
+    });
 
     let translate_thingy = $derived(appState.zoom > 1 ? 50 * (1 - 1/appState.zoom) : 0);
     $effect(() => {
@@ -273,7 +279,7 @@
             <div class="absolute bottom-0 h-full w-full handle"></div>
             <button aria-label="Rotate Handle" class="absolute top-1/2 right-0 -translate-y-1/2 w-4 h-full bg-base-300" onmousedown={rulerRotate}></button>
             <span class="absolute top-0 left-0 w-full h-full flex justify-center items-center pointer-events-none">
-                {Math.round(ruler_width / size * 10) / 10}
+                {Math.round(ruler_width / size * 50) / 10} <i class="ml-2 fa-solid fa-shoe-prints text-xs"></i>
             </span>
         </div>
     </div>

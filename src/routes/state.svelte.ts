@@ -25,6 +25,8 @@ export const appState = $state({
     dragging: false,
     prev_zoom: 1,
     zoom: 1,
+    ctrlPressed: false,
+    verticalSnapPoint: 1,
 });
 
 export const gameState = $state({

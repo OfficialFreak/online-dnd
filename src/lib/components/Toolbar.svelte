@@ -45,6 +45,10 @@
         
         if (isTyping) return;
 
+        if(evt.ctrlKey) {
+            appState.ctrlPressed = true;
+        }
+
         switch (evt.code) {
             case 'KeyL':
                 selectTool(Tools.Ruler);
@@ -108,7 +112,8 @@
 
             if (newZoom > 0.3) {
                 appState.prev_zoom = appState.zoom;
-                appState.zoom = Math.abs(newZoom - 1) < snapThreshold ? 1 : newZoom;
+                appState.zoom = Math.abs(newZoom - 1) < snapThreshold ? 1 : 
+                    Math.abs(newZoom - appState.verticalSnapPoint) < snapThreshold ? appState.verticalSnapPoint : newZoom;
             }
         }
     }
@@ -157,7 +162,7 @@
     });
 </script>
 
-<svelte:window onkeydown={hotkeyHandler} on:wheel|nonpassive={wheelHandler}></svelte:window>
+<svelte:window onkeydown={hotkeyHandler} onkeyup={(e) => {if (!e.ctrlKey) appState.ctrlPressed = false}} on:wheel|nonpassive={wheelHandler}></svelte:window>
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
     {#if characters_open.value}
