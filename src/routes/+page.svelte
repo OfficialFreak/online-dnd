@@ -1,22 +1,24 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { fade } from 'svelte/transition';
-    import { goto } from '$app/navigation';
-    import { appState, ensureStore } from './state.svelte';
-    import { connect } from './connection.svelte';
-    import { invoke } from '@tauri-apps/api/core';
-    import { MessageTypes, notify } from './notifications.svelte';
+    import { onMount } from "svelte";
+    import { fade } from "svelte/transition";
+    import { goto } from "$app/navigation";
+    import { appState, ensureStore } from "./state.svelte";
+    import { connect } from "./connection.svelte";
+    import { invoke } from "@tauri-apps/api/core";
+    import { MessageTypes, notify } from "./notifications.svelte";
 
     let token: string = $state("");
     let loading = $state(true);
     let error = $state(false);
-    let url = $derived(`${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(token)}`);
+    let url = $derived(
+        `${appState.secure ? "wss://" : "ws://"}${appState.base_url}/ws?key=${encodeURIComponent(token)}`,
+    );
 
     async function connectLoadingWrapper() {
         await ensureStore();
         appState.store = appState.store;
         loading = true;
-        await appState.store.set('token', { value: token });
+        await appState.store.set("token", { value: token });
         if (await connect(url)) {
             notify("Verbunden", MessageTypes.Success, 1000);
             loading = false;
@@ -34,28 +36,40 @@
     onMount(async () => {
         await ensureStore();
         appState.store = appState.store;
-        const tmp_token = await appState.store.get('token');
+        const tmp_token = await appState.store.get("token");
         if (tmp_token) {
-            token = (tmp_token as {value: string}).value;
+            token = (tmp_token as { value: string }).value;
             await connectLoadingWrapper();
         } else {
             loading = false;
         }
         invoke("close_splashscreen");
-    })
+    });
 </script>
 
-<main class="h-[calc(100vh-30px)] flex justify-center items-center flex-col colored-bg">
+<main
+    class="h-[calc(100vh-30px)] flex justify-center items-center flex-col colored-bg"
+>
     {#if loading}
         <span class="loading loading-infinity w-30"></span>
     {:else}
-        <fieldset class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
+        <fieldset
+            class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box"
+        >
             <legend class="fieldset-legend">Login</legend>
-            
+
             <label class="fieldset-label" for="token">Passwort</label>
-            <input type="password" class="input" placeholder="Passwort eingeben" name="token" bind:value={token} />
-            
-            <button class="btn btn-neutral mt-4" onclick={connectLoadingWrapper}>Verbinden</button>
+            <input
+                type="password"
+                class="input"
+                placeholder="Passwort eingeben"
+                name="token"
+                bind:value={token}
+            />
+
+            <button class="btn btn-neutral mt-4" onclick={connectLoadingWrapper}
+                >Verbinden</button
+            >
         </fieldset>
     {/if}
 </main>

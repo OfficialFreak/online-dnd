@@ -2,20 +2,22 @@
     import { fade } from "svelte/transition";
 
     const { roll_callback } = $props();
-    type Dice = 'd4' | 'd6' | 'd8' | 'd100' | 'd10' | 'd12' | 'd20';
+    type Dice = "d4" | "d6" | "d8" | "d100" | "d10" | "d12" | "d20";
 
     let dice_count: Record<Dice, number> = $state({
-        "d20": 0,
-        "d12": 0,
-        "d10": 0,
-        "d100": 0,
-        "d8": 0,
-        "d6": 0,
-        "d4": 0,
+        d20: 0,
+        d12: 0,
+        d10: 0,
+        d100: 0,
+        d8: 0,
+        d6: 0,
+        d4: 0,
     });
 
     let entries = $derived(Object.entries(dice_count)) as [Dice, number][];
-    let chosen_dice = $derived(Object.values(dice_count).some((val) => val > 0));
+    let chosen_dice = $derived(
+        Object.values(dice_count).some((val) => val > 0),
+    );
     let privacy_level = $state("public");
 
     function reset() {
@@ -25,33 +27,48 @@
     }
 </script>
 
-<div class="dropdown dropdown-top dropdown-hover" transition:fade={{duration: 200}}>
+<div
+    class="dropdown dropdown-top dropdown-hover"
+    transition:fade={{ duration: 200 }}
+>
     <div class="flex flex-row gap-1">
-        <button class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center" aria-label="D20">
+        <button
+            class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center"
+            aria-label="D20"
+        >
             <span class="dice-icon d20 !bg-gray-500"></span>
         </button>
         {#if chosen_dice}
-        <div class="join h-12 justify-center">
-            <button class="btn join-item rounded-l-full h-full" onclick={() => {
-                roll_callback(
-                    entries.filter(([_, value]) => value > 0)
-                        .map(([key, value]) => {return value.toString() + key}),
-                    privacy_level
-                    );
-                reset();
-            }}>
-                Würfeln
+            <div class="join h-12 justify-center">
+                <button
+                    class="btn join-item rounded-l-full h-full"
+                    onclick={() => {
+                        roll_callback(
+                            entries
+                                .filter(([_, value]) => value > 0)
+                                .map(([key, value]) => {
+                                    return value.toString() + key;
+                                }),
+                            privacy_level,
+                        );
+                        reset();
+                    }}
+                >
+                    Würfeln
+                </button>
+                <select
+                    class="select join-item rounded-r-full h-full"
+                    bind:value={privacy_level}
+                >
+                    <option disabled selected>Sichtbarkeit</option>
+                    <option value="public">Alle</option>
+                    <option value="dm">Nur der DM</option>
+                    <option value="private">Privat</option>
+                </select>
+            </div>
+            <button class="btn rounded-full h-12" onclick={reset}>
+                Zurücksetzen
             </button>
-            <select class="select join-item rounded-r-full h-full" bind:value={privacy_level}>
-                <option disabled selected>Sichtbarkeit</option>
-                <option value="public">Alle</option>
-                <option value="dm">Nur der DM</option>
-                <option value="private">Privat</option>
-            </select>
-        </div>
-        <button class="btn rounded-full h-12" onclick={reset}>
-            Zurücksetzen
-        </button>
         {/if}
     </div>
     <ul class="dropdown-content z-1 flex flex-col !gap-2 pb-2">
@@ -61,7 +78,17 @@
                     <span class="indicator-item badge">{count}</span>
                 {/if}
                 <div class="tooltip" data-tip={dice.toUpperCase()}>
-                    <button class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center" aria-label={dice.toUpperCase()} onclick={() => {dice_count[dice]++}} oncontextmenu={(evt) => {evt.preventDefault(); (count > 0) && dice_count[dice]--}}>
+                    <button
+                        class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center"
+                        aria-label={dice.toUpperCase()}
+                        onclick={() => {
+                            dice_count[dice]++;
+                        }}
+                        oncontextmenu={(evt) => {
+                            evt.preventDefault();
+                            count > 0 && dice_count[dice]--;
+                        }}
+                    >
                         <span class="dice-icon {dice}"></span>
                     </button>
                 </div>

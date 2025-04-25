@@ -1,19 +1,47 @@
 <script lang="ts">
     let { children } = $props();
-    import { getVersion } from '@tauri-apps/api/app';
+    import { getVersion } from "@tauri-apps/api/app";
     import "../app.css";
-    import '@fortawesome/fontawesome-free/css/all.min.css';
+    import "@fortawesome/fontawesome-free/css/all.min.css";
 
-    import { getCurrentWindow } from '@tauri-apps/api/window';
-    import { gameState, appState, ensureStore, mouseDown, mouseX, mouseY, DMName, showMouse, largeMouse, markerModal, characterImportModal, Tools } from "./state.svelte";
+    import { getCurrentWindow } from "@tauri-apps/api/window";
+    import {
+        gameState,
+        appState,
+        ensureStore,
+        mouseDown,
+        mouseX,
+        mouseY,
+        DMName,
+        showMouse,
+        largeMouse,
+        markerModal,
+        characterImportModal,
+        Tools,
+    } from "./state.svelte";
     import { connect } from "./connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
     import { fetch } from "@tauri-apps/plugin-http";
     import { onMount } from "svelte";
     import Map from "$lib/components/Map.svelte";
-    import { ActivateScene, DeleteMarker, DeleteScene, ImportCharacter, InitialMessage, PreloadResource, PutMarker, PutScene, TogglePressure } from "$lib/types/messaging/client_messages";
-    import { parseServerMessage, type MarkerTemplate } from "$lib/types/messaging/server_messages";
+    import {
+        ActivateScene,
+        DeleteMarker,
+        DeleteScene,
+        ImportCharacter,
+        InitialMessage,
+        PreloadResource,
+        PutMarker,
+        PutScene,
+        TogglePressure,
+    } from "$lib/types/messaging/client_messages";
+    import {
+        EventType,
+        MessageType,
+        parseServerMessage,
+        type MarkerTemplate,
+    } from "$lib/types/messaging/server_messages";
     import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
     import confetti from "canvas-confetti";
@@ -24,41 +52,53 @@
     import Marker from "$lib/components/Marker.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "./notifications.svelte";
-    import { goto } from '$app/navigation';
-    import { Character } from '$lib/types/character';
-    import StatusEffectBar from '$lib/components/StatusEffectBar.svelte';
+    import { goto } from "$app/navigation";
+    import { Character } from "$lib/types/character";
+    import StatusEffectBar from "$lib/components/StatusEffectBar.svelte";
 
-    const stopwatch = confetti.shapeFromText({ text: '⏱️', scalar: 8 });
-    const time = confetti.shapeFromText({ text: '⌚', scalar: 8 });
-    let confetti_canvas: HTMLCanvasElement | null = $state(null)
+    const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
+    const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
+    let confetti_canvas: HTMLCanvasElement | null = $state(null);
     let confetti_function: any = $state();
 
     const appWindow = getCurrentWindow();
-    let url = $derived(appState.token ? `${appState.secure ? 'wss://' : 'ws://'}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}` : null);
+    let url = $derived(
+        appState.token
+            ? `${appState.secure ? "wss://" : "ws://"}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}`
+            : null,
+    );
 
-    async function upload_file(selectedFilePath: string, selectedFileName: string) {
+    async function upload_file(
+        selectedFilePath: string,
+        selectedFileName: string,
+    ) {
         if (!selectedFilePath || !appState.token) {
             notify("Es ist ein Bild notwendig", MessageTypes.Error, 3000);
             throw new Error(`Upload failed: no file selected`);
         }
-        
+
         // Read the file as binary
         const fileContent = await readFile(selectedFilePath);
-        
+
         // Create form data using Tauri's HTTP client
         const formData = new FormData();
         const blob = new Blob([fileContent]);
-        formData.append('file', blob, selectedFileName);
-        
+        formData.append("file", blob, selectedFileName);
+
         // Make the request using Tauri's fetch
-        const response = await fetch(`${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets?key=${encodeURIComponent(appState.token)}`, {
-            method: 'POST',
-            body: formData,
-        });
-        
+        const response = await fetch(
+            `${appState.secure ? "https://" : "http://"}${appState.base_url}/assets?key=${encodeURIComponent(appState.token)}`,
+            {
+                method: "POST",
+                body: formData,
+            },
+        );
+
         if (!response.ok) {
             notify("Hochladen fehlgeschlagen", MessageTypes.Error, 3000);
-            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+            throw new Error(
+                `Upload failed: ${response.status} ${response.statusText}`,
+            );
         }
     }
 
@@ -67,20 +107,20 @@
         const selected = await open({
             multiple: false,
             filters: [
-            { name: 'All Files', extensions: ['*'] }
-            // You can add specific filters if needed:
-            // { name: 'Images', extensions: ['png', 'jpg'] }
-            ]
+                { name: "All Files", extensions: ["*"] },
+                // You can add specific filters if needed:
+                // { name: 'Images', extensions: ['png', 'jpg'] }
+            ],
         });
-        
+
         if (selected === null) {
             // User canceled the selection
             notify("Es ist ein Bild notwendig", MessageTypes.Error, 3000);
             throw new Error(`Upload failed: no file selected`);
         }
-        
+
         let selectedFilePath = selected;
-        
+
         // Extract file name from path
         let selectedFileName = selectedFilePath.split(/[/\\]/).pop();
         if (!selectedFileName) {
@@ -93,7 +133,7 @@
             scene_file = selectedFileName;
         } else if (image_use === "marker") {
             marker_file = selectedFileName;
-        } else{
+        } else {
             background_file = selectedFileName;
         }
     }
@@ -107,7 +147,7 @@
         scene_x_offset = 0;
         scene_y_offset = 0;
     }
-    
+
     function reset_marker_vars() {
         marker_name = "";
         marker_size = 1;
@@ -115,28 +155,43 @@
     }
 
     async function create_scene() {
-        if (!appState.ws) {return};
+        if (!appState.ws) {
+            return;
+        }
 
         // @ts-ignore
-        await appState.ws.send(PutScene.create(scene_name, scene_file as string, background_file as string, background_blur, scene_columns, scene_x_offset, scene_y_offset, {"fog_squares": {}, "markers": []}));
+        await appState.ws.send(
+            PutScene.create(
+                scene_name,
+                scene_file as string,
+                background_file as string,
+                background_blur,
+                scene_columns,
+                scene_x_offset,
+                scene_y_offset,
+                { fog_squares: {}, markers: [] },
+            ),
+        );
 
         // Reset variables after
         reset_scene_vars();
         notify("Szene erstellt", MessageTypes.Success, 3000);
     }
-    
+
     async function create_marker() {
         if (!appState.ws) return;
 
         // @ts-ignore
-        await appState.ws.send(PutMarker.create(marker_name, marker_file, marker_size));
+        await appState.ws.send(
+            PutMarker.create(marker_name, marker_file, marker_size),
+        );
 
         // Reset variables after
         reset_marker_vars();
         notify("Marker erstellt", MessageTypes.Success, 3000);
     }
 
-    async function reconnect () {
+    async function reconnect() {
         if (!url) return;
         if (!appState.ws) {
             let result = await connect(url);
@@ -155,7 +210,7 @@
         appState.ws?.disconnect();
         appState.token = "";
         await ensureStore();
-        appState.store.set("token", {value: ""});
+        appState.store.set("token", { value: "" });
         goto("/");
     }
 
@@ -166,20 +221,20 @@
                 // Assume the worst, kill ourselves xD
                 if (typeof msg === "string") {
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
-                    console.log("Closed connection :o")
+                    console.log("Closed connection :o");
                     try {
                         appState.ws?.disconnect();
                     } catch {}
                     appState.ws = null;
                 } else if (msg.type == "Close") {
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
-                    console.log("Closed connection :o")
+                    console.log("Closed connection :o");
                     try {
                         appState.ws?.disconnect();
                     } catch {}
                     appState.ws = null;
                 }
-            })
+            });
         }
     });
 
@@ -187,7 +242,9 @@
         html = document.getElementsByTagName("html")[0];
         await ensureStore();
         appState.store = appState.store;
-        appState.token = ((await appState.store.get('token')) as {value: string}).value as string;
+        appState.token = (
+            (await appState.store.get("token")) as { value: string }
+        ).value as string;
 
         audio = new Audio("speed.mp3");
         audio.loop = true;
@@ -198,135 +255,180 @@
     let mouse_timeout: any = $state(null);
     let large_mouse_timeout: any = $state(null);
     $effect(() => {
-        if (appState.ws) {
-            appState.ws.addListener((msg) => {
-                if (msg.type == "Text") {
-                    let message = parseServerMessage(msg.data)
-                    switch (message.type) {
-                        case "message":
-                            notify({msg: message.message, sender: `${message.sender}${message.sender_dm ? " 👑" : ""}`}, MessageTypes.Message, 2000);
-                            break;
-                        case "initial":
-                            gameState.name = message.display_name;
-                            gameState.dm = message.dm_status;
-                            break;
-                        case "event":
-                            switch (message.event_type) {
-                                case 'joined':
-                                    let joined_person = gameState.users.find((user) => user.name === message.person);
-                                    if (!joined_person) {
-                                        gameState.users.push({
-                                            name: message.person,
-                                            active: true
-                                        });
-                                        return;
-                                    };
-                                    joined_person.active = true;
-                                    if (message.person_dm) {
-                                        notify(`${message.person} ist aus seinem uralten Schlummer erwacht`, MessageTypes.Scawy);
-                                    } else {
-                                        notify(`${message.person} schließt sich dem Abenteuer an`, MessageTypes.Neutral);
-                                    }
-                                    break;
-                                case 'left':
-                                    let left_person = gameState.users.find((user) => user.name === message.person);
-                                    if (!left_person) return;
-                                    left_person.active = false;
-                                    notify(`${message.person} hat sich zurückgezogen`, MessageTypes.Neutral);
-                                    break;
+        if (!appState.ws) return;
+        appState.ws.addListener((msg) => {
+            if (msg.type != "Text") return;
+            let message = parseServerMessage(msg.data);
+            switch (message.type) {
+                case MessageType.MESSAGE:
+                    notify(
+                        {
+                            msg: message.message,
+                            sender: `${message.sender}${message.sender_dm ? " 👑" : ""}`,
+                        },
+                        MessageTypes.Message,
+                        2000,
+                    );
+                    break;
+                case MessageType.INITIAL:
+                    gameState.name = message.display_name;
+                    gameState.dm = message.dm_status;
+                    break;
+                case MessageType.EVENT:
+                    switch (message.event_type) {
+                        case EventType.JOINED:
+                            let joined_person = gameState.users.find(
+                                (user) => user.name === message.person,
+                            );
+                            if (!joined_person) {
+                                gameState.users.push({
+                                    name: message.person,
+                                    active: true,
+                                });
+                                return;
+                            }
+                            joined_person.active = true;
+                            if (message.person_dm) {
+                                notify(
+                                    `${message.person} ist aus seinem uralten Schlummer erwacht`,
+                                    MessageTypes.Scawy,
+                                );
+                            } else {
+                                notify(
+                                    `${message.person} schließt sich dem Abenteuer an`,
+                                    MessageTypes.Neutral,
+                                );
                             }
                             break;
-                        case "roll_result":
-                            notify(`${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? 'eine' : message.dices + ' ='} ${message.result} gewürfelt${message.dm_only ? ' [DM Only]' : ''}`, MessageTypes.Info, 10_000);
-                            break;
-                        case "scene":
-                            let new_markers = message.state.markers.map((marker) => {
-                                return {
-                                    ...marker,
-                                    x: new Tween(marker.x, {
-                                            duration: 200,
-                                            easing: circOut
-                                        }),
-                                    y: new Tween(marker.y, {
-                                            duration: 200,
-                                            easing: circOut
-                                        })
-                                };
-                            })
-                            gameState.scene = message;
-                            gameState.scene.state.markers = new_markers;
-                            break;
-                        case "scene_list":
-                            gameState.scenes = message.scenes;
-                            break;
-                        case "preload_resource":
-                            gameState.resources.add(message.file);
-                            break;
-                        case "toggle_pressure":
-                            gameState.pressure = message.active;
-                            break;
-                        case "users":
-                            gameState.users = message.users;
-                            break;
-                        case "mouse_position":
-                            if (gameState.dm) break;
-                            mouseX.target = message.x;
-                            mouseY.target = message.y;
-                            DMName.value = message.user;
-                            showMouse.value = true;
-                            clearTimeout(mouse_timeout);
-                            mouse_timeout = setTimeout(() => {
-                                showMouse.value = false
-                            }, 500);
-                            break;
-                        case "marker_locked":
-                            gameState.locked_markers[message.marker_name] = message.locked_by;
-                            break;
-                        case "marker_freed":
-                            delete gameState.locked_markers[message.marker_name];
-                            break;
-                        case "marker_position":
-                            if (!gameState.scene) return;
-                            let idx = gameState.scene.state.markers.findIndex((marker) => marker.name === message.marker_name);
-                            gameState.scene.state.markers[idx].x.target = message.x;
-                            gameState.scene.state.markers[idx].y.target = message.y;
-                            break;
-                        case "update_fog":
-                            if (!gameState.scene) return;
-                            gameState.scene.state.fog_squares = message.fog_squares
-                            break;
-                        case "marker_lib":
-                            gameState.marker_lib = message.markers;
-                            break;
-                        case "mouse_large":
-                            largeMouse.value = true;
-                            clearTimeout(large_mouse_timeout);
-                            large_mouse_timeout = setTimeout(() => {
-                                largeMouse.value = false
-                            }, 1000);
-                            showMouse.value = true;
-                            clearTimeout(mouse_timeout);
-                            mouse_timeout = setTimeout(() => {
-                                showMouse.value = false
-                            }, 500);
-                            break;
-                        case "characters":
-                            gameState.characters = message.characters.map((character: any) => new Character(character));
-                            break;
-                        case "check_result":
-                            let bonus_string = message.bonus === 0 ? '' : message.bonus > 0 ? ` + ${message.bonus} = ${message.result + message.bonus}` : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
-                            notify(`${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)}${message.stat === 'initiative' ? '' : ' Check'}): ${message.result + bonus_string}`, MessageTypes.Info, -1);
-                            break;
-                        case "save_result":
-                            let save_bonus_string = message.bonus === 0 ? '' : message.bonus > 0 ? ` + ${message.bonus} = ${message.result + message.bonus}` : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
-                            notify(`${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)} Save): ${message.result + save_bonus_string}`, MessageTypes.Info, -1);
+                        case EventType.LEFT:
+                            let left_person = gameState.users.find(
+                                (user) => user.name === message.person,
+                            );
+                            if (!left_person) return;
+                            left_person.active = false;
+                            notify(
+                                `${message.person} hat sich zurückgezogen`,
+                                MessageTypes.Neutral,
+                            );
                             break;
                     }
-                }
-            });
-            // Request initial
-            appState.ws.send(InitialMessage.create());
-        }
+                    break;
+                case MessageType.ROLL_RESULT:
+                    notify(
+                        `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${message.dm_only ? " [DM Only]" : ""}`,
+                        MessageTypes.Info,
+                        10_000,
+                    );
+                    break;
+                case MessageType.SCENE:
+                    let new_markers = message.state.markers.map((marker) => {
+                        return {
+                            ...marker,
+                            x: new Tween(marker.x, {
+                                duration: 200,
+                                easing: circOut,
+                            }),
+                            y: new Tween(marker.y, {
+                                duration: 200,
+                                easing: circOut,
+                            }),
+                        };
+                    });
+                    gameState.scene = message;
+                    gameState.scene.state.markers = new_markers;
+                    break;
+                case MessageType.SCENE_LIST:
+                    gameState.scenes = message.scenes;
+                    break;
+                case MessageType.PRELOAD_RESOURCE:
+                    gameState.resources.add(message.file);
+                    break;
+                case MessageType.TOGGLE_PRESSURE:
+                    gameState.pressure = message.active;
+                    break;
+                case MessageType.USERS:
+                    gameState.users = message.users;
+                    break;
+                case MessageType.MOUSE_POSITION:
+                    if (gameState.dm) break;
+                    mouseX.target = message.x;
+                    mouseY.target = message.y;
+                    DMName.value = message.user;
+                    showMouse.value = true;
+                    clearTimeout(mouse_timeout);
+                    mouse_timeout = setTimeout(() => {
+                        showMouse.value = false;
+                    }, 500);
+                    break;
+                case MessageType.MARKER_LOCKED:
+                    gameState.locked_markers[message.marker_name] =
+                        message.locked_by;
+                    break;
+                case MessageType.MARKER_FREED:
+                    delete gameState.locked_markers[message.marker_name];
+                    break;
+                case MessageType.MARKER_POSITION:
+                    if (!gameState.scene) return;
+                    let idx = gameState.scene.state.markers.findIndex(
+                        (marker) => marker.name === message.marker_name,
+                    );
+                    gameState.scene.state.markers[idx].x.target = message.x;
+                    gameState.scene.state.markers[idx].y.target = message.y;
+                    break;
+                case MessageType.UPDATE_FOG:
+                    if (!gameState.scene) return;
+                    gameState.scene.state.fog_squares = message.fog_squares;
+                    break;
+                case MessageType.MARKER_LIB:
+                    gameState.marker_lib = message.markers;
+                    break;
+                case MessageType.MOUSE_LARGE:
+                    largeMouse.value = true;
+                    clearTimeout(large_mouse_timeout);
+                    large_mouse_timeout = setTimeout(() => {
+                        largeMouse.value = false;
+                    }, 1000);
+                    showMouse.value = true;
+                    clearTimeout(mouse_timeout);
+                    mouse_timeout = setTimeout(() => {
+                        showMouse.value = false;
+                    }, 500);
+                    break;
+                case MessageType.CHARACTERS:
+                    gameState.characters = message.characters.map(
+                        (character: any) => new Character(character),
+                    );
+                    break;
+                case MessageType.CHECK_RESULT:
+                    let bonus_string =
+                        message.bonus === 0
+                            ? ""
+                            : message.bonus > 0
+                              ? ` + ${message.bonus} = ${message.result + message.bonus}`
+                              : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
+                    notify(
+                        `${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)}${message.stat === "initiative" ? "" : " Check"}): ${message.result + bonus_string}`,
+                        MessageTypes.Info,
+                        -1,
+                    );
+                    break;
+                case MessageType.SAVE_RESULT:
+                    let save_bonus_string =
+                        message.bonus === 0
+                            ? ""
+                            : message.bonus > 0
+                              ? ` + ${message.bonus} = ${message.result + message.bonus}`
+                              : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
+                    notify(
+                        `${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)} Save): ${message.result + save_bonus_string}`,
+                        MessageTypes.Info,
+                        -1,
+                    );
+                    break;
+            }
+        });
+        // Request initial
+        appState.ws.send(InitialMessage.create());
     });
 
     async function select_scene(name: string) {
@@ -334,7 +436,7 @@
         await appState.ws.send(ActivateScene.create(name));
         notify("Szene aktiviert", MessageTypes.Success, 1500);
     }
-    
+
     async function delete_scene(name: string) {
         if (!appState.ws) return;
         await appState.ws.send(DeleteScene.create(name));
@@ -343,22 +445,29 @@
 
     async function add_marker(marker: MarkerTemplate) {
         if (!appState.ws || !gameState.scene) return;
-        let new_marker = {...marker,
+        let new_marker = {
+            ...marker,
             x: new Tween(0, {
                 duration: 200,
-                easing: circOut
+                easing: circOut,
             }),
             y: new Tween(0, {
                 duration: 200,
-                easing: circOut
+                easing: circOut,
             }),
-            status_effects: []
-        }
+            status_effects: [],
+        };
         let i = 1;
-        while (gameState.scene.state.markers.some((marker) => marker.name === new_marker.name + (i === 1 ? '' : ` ${i.toString()}`))) {
+        while (
+            gameState.scene.state.markers.some(
+                (marker) =>
+                    marker.name ===
+                    new_marker.name + (i === 1 ? "" : ` ${i.toString()}`),
+            )
+        ) {
             i++;
         }
-        new_marker.name = new_marker.name + (i === 1 ? '' : ` ${i.toString()}`);
+        new_marker.name = new_marker.name + (i === 1 ? "" : ` ${i.toString()}`);
         gameState.scene.state.markers.push(new_marker);
         await appState.ws.send(PutScene.update(gameState.scene));
         notify("Marker in die Szene eingefügt", MessageTypes.Success, 3000);
@@ -370,7 +479,9 @@
         notify("Marker entfernt", MessageTypes.Success, 3000);
     }
 
-    const preloadCooldownMap: SvelteMap<string, number> = $state(new SvelteMap());
+    const preloadCooldownMap: SvelteMap<string, number> = $state(
+        new SvelteMap(),
+    );
     const COOLDOWN_MS = 10_000;
 
     export function shouldPreload(url: string): boolean {
@@ -388,13 +499,13 @@
     async function send_preload(file: string) {
         if (!appState.ws) return;
         if (!shouldPreload(file)) return;
-        
+
         await appState.ws.send(PreloadResource.create(file));
     }
-    
+
     async function toggle_pressure() {
         if (!appState.ws) return;
-        
+
         pressure = !pressure;
         await appState.ws.send(TogglePressure.create(pressure));
     }
@@ -402,7 +513,9 @@
     async function importCharacter() {
         if (!appState.ws) return;
 
-        await appState.ws.send(ImportCharacter.create(character_url, selected_player));
+        await appState.ws.send(
+            ImportCharacter.create(character_url, selected_player),
+        );
         character_url = "";
         notify("Charakter wird importiert", MessageTypes.Success, 2000);
     }
@@ -433,7 +546,7 @@
             audio.play();
             let duration = 15 * 1000;
             let end = Date.now() + duration;
-            
+
             (function frame() {
                 confetti_function({
                     particleCount: 2,
@@ -441,7 +554,7 @@
                     spread: 55,
                     scalar: 4,
                     origin: { x: 0 },
-                    shapes: [stopwatch, time]
+                    shapes: [stopwatch, time],
                 });
                 confetti_function({
                     particleCount: 2,
@@ -449,13 +562,13 @@
                     spread: 55,
                     scalar: 4,
                     origin: { x: 1 },
-                    shapes: [stopwatch, time]
+                    shapes: [stopwatch, time],
                 });
 
                 if (Date.now() < end && gameState.pressure) {
                     requestAnimationFrame(frame);
                 }
-                }());
+            })();
         } else {
             audio.pause();
         }
@@ -465,7 +578,7 @@
 
     listen("update-started", () => {
         updating = true;
-    })
+    });
 
     let cw = $state();
     let ch = $state();
@@ -480,29 +593,44 @@
     let scrollbar_visible = $state(false);
     let selected_player = $state(gameState.name);
 
-    let own_character = $derived(gameState.characters.find((character) => character.player_name === gameState.name))
+    let own_character = $derived(
+        gameState.characters.find(
+            (character) => character.player_name === gameState.name,
+        ),
+    );
 </script>
 
-<svelte:window onbeforeunload={() => {
-    appState.ws?.disconnect();
-}} />
+<svelte:window
+    onbeforeunload={() => {
+        appState.ws?.disconnect();
+    }}
+/>
 
-<svelte:body 
-    bind:clientWidth={cw} 
-    bind:clientHeight={ch} 
-    onmousedown={() => {mouseDown.value = true}} 
-    onmouseup={() => {mouseDown.value = false}}
-></svelte:body>
+<svelte:body
+    bind:clientWidth={cw}
+    bind:clientHeight={ch}
+    onmousedown={() => {
+        mouseDown.value = true;
+    }}
+    onmouseup={() => {
+        mouseDown.value = false;
+    }}
+/>
 
 <svelte:head>
     {#if appState.token}
         {#each Array.from(gameState.resources) as resource}
-            <link rel="preload" as="image" href={`${appState.secure ? 'https://' : 'http://'}${appState.base_url}/assets/${resource}?key=${encodeURIComponent(appState.token)}`}>
+            <link
+                rel="preload"
+                as="image"
+                href={`${appState.secure ? "https://" : "http://"}${appState.base_url}/assets/${resource}?key=${encodeURIComponent(appState.token)}`}
+            />
         {/each}
     {/if}
     {#if !scrollbar_visible}
         <style>
-            html, body {
+            html,
+            body {
                 scrollbar-gutter: unset !important;
             }
             .scrollbar-gutter-affected {
@@ -529,10 +657,18 @@
 
 <div data-tauri-drag-region class="titlebar z-10">
     <div class="flex justify-center transition-opacity">
-        <button onclick={reconnect} oncontextmenu={disconnect} aria-label="Reconnect" class="cursor-pointer peer">
+        <button
+            onclick={reconnect}
+            oncontextmenu={disconnect}
+            aria-label="Reconnect"
+            class="cursor-pointer peer"
+        >
             <div class="h-[30px] w-[30px] flex justify-center items-center">
                 {#if appState.ws}
-                    <div aria-label="success" class="status status-success"></div>
+                    <div
+                        aria-label="success"
+                        class="status status-success"
+                    ></div>
                 {:else}
                     <div class="inline-grid *:[grid-area:1/1]">
                         <div class="status status-error animate-ping"></div>
@@ -542,41 +678,110 @@
             </div>
         </button>
         {#if gameState.dm}
-        <div class="dropdown dropdown-hover">
-            <div tabindex="0" role="button" class="btn btn-soft btn-info !text-xs px-2 my-auto h-6">DM</div>
-            <ul class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-                <li><button class="btn btn-ghost justify-start" onclick={() => {scene_chooser_modal?.showModal()}}>Szenen</button></li>
-                <li><button class="btn btn-ghost justify-start" onclick={toggle_pressure}>
-                    {#if pressure}
-                    Chill Pill
-                    {:else}
-                    Pressure
-                    {/if}
-                </button></li>
-            </ul>
-        </div>
+            <div class="dropdown dropdown-hover">
+                <div
+                    tabindex="0"
+                    role="button"
+                    class="btn btn-soft btn-info !text-xs px-2 my-auto h-6"
+                >
+                    DM
+                </div>
+                <ul
+                    class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm"
+                >
+                    <li>
+                        <button
+                            class="btn btn-ghost justify-start"
+                            onclick={() => {
+                                scene_chooser_modal?.showModal();
+                            }}>Szenen</button
+                        >
+                    </li>
+                    <li>
+                        <button
+                            class="btn btn-ghost justify-start"
+                            onclick={toggle_pressure}
+                        >
+                            {#if pressure}
+                                Chill Pill
+                            {:else}
+                                Pressure
+                            {/if}
+                        </button>
+                    </li>
+                </ul>
+            </div>
         {/if}
         {#if updating}
-        <div class="tooltip tooltip-bottom" data-tip="Die App wird sich gleich neustarten">
-            <div tabindex="0" role="button" class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-events-none ml-2">
-                Updatevorgang...
+            <div
+                class="tooltip tooltip-bottom"
+                data-tip="Die App wird sich gleich neustarten"
+            >
+                <div
+                    tabindex="0"
+                    role="button"
+                    class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-events-none ml-2"
+                >
+                    Updatevorgang...
+                </div>
             </div>
-        </div>
         {/if}
         {#await getVersion() then version}
-            <span class="self-center text-gray-500 opacity-0 peer-hover:opacity-100 transition-opacity ml-2">{version}</span>
+            <span
+                class="self-center text-gray-500 opacity-0 peer-hover:opacity-100 transition-opacity ml-2"
+                >{version}</span
+            >
         {/await}
     </div>
 
     <div class="flex justify-center transition-opacity">
-        <button class="titlebar-button" id="titlebar-minimize" onclick={appWindow.minimize} aria-label="Minimize">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="currentColor" d="M19 13H5v-2h14z"/></svg>
+        <button
+            class="titlebar-button"
+            id="titlebar-minimize"
+            onclick={appWindow.minimize}
+            aria-label="Minimize"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                ><path fill="currentColor" d="M19 13H5v-2h14z" /></svg
+            >
         </button>
-        <button class="titlebar-button" id="titlebar-maximize" onclick={appWindow.toggleMaximize} aria-label="Maximize">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 2v14H5V5z"/></svg>
+        <button
+            class="titlebar-button"
+            id="titlebar-maximize"
+            onclick={appWindow.toggleMaximize}
+            aria-label="Maximize"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                ><path
+                    fill="currentColor"
+                    d="M19 3H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 2v14H5V5z"
+                /></svg
+            >
         </button>
-        <button class="titlebar-button" id="titlebar-close" onclick={appWindow.close} aria-label="Close">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg>
+        <button
+            class="titlebar-button"
+            id="titlebar-close"
+            onclick={appWindow.close}
+            aria-label="Close"
+        >
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                ><path
+                    fill="currentColor"
+                    d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
+                /></svg
+            >
         </button>
     </div>
 </div>
@@ -585,37 +790,90 @@
         <h3 class="text-lg font-bold">Szene erstellen</h3>
         <fieldset class="fieldset">
             <legend class="fieldset-legend">Szenenname</legend>
-            <input type="text" bind:value={scene_name} class="input" placeholder="Goblinlager" />
-        
+            <input
+                type="text"
+                bind:value={scene_name}
+                class="input"
+                placeholder="Goblinlager"
+            />
+
             {#if !scene_file}
-                <button class="btn btn-neutral mt-4" onclick={() => {user_upload("scene")}}>Map hochladen</button>
+                <button
+                    class="btn btn-neutral mt-4"
+                    onclick={() => {
+                        user_upload("scene");
+                    }}>Map hochladen</button
+                >
             {:else}
                 <legend class="fieldset-legend">Spalten</legend>
-                <input type="number" bind:value={scene_columns} class="input" placeholder="10" />
-                
+                <input
+                    type="number"
+                    bind:value={scene_columns}
+                    class="input"
+                    placeholder="10"
+                />
+
                 <legend class="fieldset-legend">X-Offset</legend>
-                <input type="number" bind:value={scene_x_offset} class="input" placeholder="10" />
-                
+                <input
+                    type="number"
+                    bind:value={scene_x_offset}
+                    class="input"
+                    placeholder="10"
+                />
+
                 <legend class="fieldset-legend">Y-Offset</legend>
-                <input type="number" bind:value={scene_y_offset} class="input" placeholder="10" />
+                <input
+                    type="number"
+                    bind:value={scene_y_offset}
+                    class="input"
+                    placeholder="10"
+                />
 
                 <div class="w-full mt-4">
-                    <Map file={scene_file} columns={scene_columns} x_offset={scene_x_offset} y_offset={scene_y_offset} fog_squares={[]} markers={[]} />
+                    <Map
+                        file={scene_file}
+                        columns={scene_columns}
+                        x_offset={scene_x_offset}
+                        y_offset={scene_y_offset}
+                        fog_squares={[]}
+                        markers={[]}
+                    />
                 </div>
 
                 {#if !background_file}
-                    <button class="btn btn-neutral mt-4" onclick={() => {user_upload("background")}}>Hintergrundbild hochladen</button>
-                    <p class="fieldset-label">Hintergrundbilder sind optional</p>
+                    <button
+                        class="btn btn-neutral mt-4"
+                        onclick={() => {
+                            user_upload("background");
+                        }}>Hintergrundbild hochladen</button
+                    >
+                    <p class="fieldset-label">
+                        Hintergrundbilder sind optional
+                    </p>
                 {:else}
                     <legend class="fieldset-legend">Menge an Blur</legend>
-                    <input bind:value={background_blur} type="range" min="0" max="30" class="range" />
+                    <input
+                        bind:value={background_blur}
+                        type="range"
+                        min="0"
+                        max="30"
+                        class="range"
+                    />
                     <div class="relative w-full h-30 pt-[30px] mt-4">
-                        <BlurredBackground file={background_file} blur={background_blur} />
+                        <BlurredBackground
+                            file={background_file}
+                            blur={background_blur}
+                        />
                     </div>
                 {/if}
 
-                <button class="btn btn-neutral mt-4" onclick={create_scene}>Scene erstellen</button>
-                <p class="fieldset-label">Du kannst Szenen überschreiben indem du eine Neue Szene mit gleichem Namen erstellst.</p>
+                <button class="btn btn-neutral mt-4" onclick={create_scene}
+                    >Scene erstellen</button
+                >
+                <p class="fieldset-label">
+                    Du kannst Szenen überschreiben indem du eine Neue Szene mit
+                    gleichem Namen erstellst.
+                </p>
             {/if}
         </fieldset>
     </div>
@@ -628,25 +886,52 @@
         <h3 class="text-lg font-bold">Szenen</h3>
         <ul class="list bg-base-100 rounded-box shadow-md">
             {#each gameState.scenes as previewScene}
-            <li class="list-row flex flex-row items-center justify-between" onmouseenter={() => {send_preload(previewScene.map_file)}}>
-                <div class="w-20">
-                    <Map file={previewScene.map_file} columns={previewScene.columns} x_offset={previewScene.x_offset} y_offset={previewScene.y_offset} fog_squares={[]}  markers={[]} />
-                </div>
-                <div class="flex-1">
-                    <h3 class="text-base font-bold">{previewScene.name}</h3>
-                </div>
-                <div>
-                    <button class="btn btn-ghost" onclick={() => {select_scene(previewScene.name)}}>
-                        Aktivieren
-                    </button>
-                    <button class="btn btn-soft btn-error" onclick={() => {delete_scene(previewScene.name)}}>
-                        Löschen
-                    </button>
-                </div>
-            </li>
+                <li
+                    class="list-row flex flex-row items-center justify-between"
+                    onmouseenter={() => {
+                        send_preload(previewScene.map_file);
+                    }}
+                >
+                    <div class="w-20">
+                        <Map
+                            file={previewScene.map_file}
+                            columns={previewScene.columns}
+                            x_offset={previewScene.x_offset}
+                            y_offset={previewScene.y_offset}
+                            fog_squares={[]}
+                            markers={[]}
+                        />
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold">{previewScene.name}</h3>
+                    </div>
+                    <div>
+                        <button
+                            class="btn btn-ghost"
+                            onclick={() => {
+                                select_scene(previewScene.name);
+                            }}
+                        >
+                            Aktivieren
+                        </button>
+                        <button
+                            class="btn btn-soft btn-error"
+                            onclick={() => {
+                                delete_scene(previewScene.name);
+                            }}
+                        >
+                            Löschen
+                        </button>
+                    </div>
+                </li>
             {/each}
             <li>
-                <button class="btn btn-ghost w-full" onclick={() => {scene_modal?.showModal()}}>Szene erstellen</button>
+                <button
+                    class="btn btn-ghost w-full"
+                    onclick={() => {
+                        scene_modal?.showModal();
+                    }}>Szene erstellen</button
+                >
             </li>
         </ul>
     </div>
@@ -661,21 +946,45 @@
             {#each gameState.marker_lib as marker}
                 <li class="list-row flex flex-row items-center justify-between">
                     <div class="relative flex flex-col gap-1 items-center w-20">
-                        <Marker columnCount="100%" dragOptions={{disabled: true}} marker={marker} mapUse={false} />
+                        <Marker
+                            columnCount="100%"
+                            dragOptions={{ disabled: true }}
+                            {marker}
+                            mapUse={false}
+                        />
                         <span>{marker.name}</span>
-                        <span class="badge absolute top-0 -right-1/2 -translate-x-1/2">
-                            <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                        <span
+                            class="badge absolute top-0 -right-1/2 -translate-x-1/2"
+                        >
+                            <i
+                                class="fa-solid fa-up-right-and-down-left-from-center"
+                            ></i>
                             {marker.size}
                         </span>
                     </div>
                     <div class="flex flex-row gap-2">
-                        <button class="btn btn-ghost" onclick={() => {add_marker(marker)}}>Hinzufügen</button>
-                        <button class="btn btn-soft btn-error" onclick={() => {remove_marker(marker)}}>Löschen</button>
+                        <button
+                            class="btn btn-ghost"
+                            onclick={() => {
+                                add_marker(marker);
+                            }}>Hinzufügen</button
+                        >
+                        <button
+                            class="btn btn-soft btn-error"
+                            onclick={() => {
+                                remove_marker(marker);
+                            }}>Löschen</button
+                        >
                     </div>
                 </li>
             {/each}
             <li>
-                <button class="btn btn-ghost w-full" onclick={() => {marker_creation_modal?.showModal()}}>Marker erstellen</button>
+                <button
+                    class="btn btn-ghost w-full"
+                    onclick={() => {
+                        marker_creation_modal?.showModal();
+                    }}>Marker erstellen</button
+                >
             </li>
         </ul>
     </div>
@@ -688,15 +997,33 @@
         <h3 class="text-lg font-bold">Charakter Importieren</h3>
         <fieldset class="fieldset">
             <legend class="fieldset-legend">Charakter URL</legend>
-            <input type="text" class="input" placeholder="https://www.dndbeyond.com/characters/xxxxxxxxx" bind:value={character_url} />
-            <p class="fieldset-label">Es ist wichtig, dass der Charakter öffentlich gestellt ist</p>
+            <input
+                type="text"
+                class="input"
+                placeholder="https://www.dndbeyond.com/characters/xxxxxxxxx"
+                bind:value={character_url}
+            />
+            <p class="fieldset-label">
+                Es ist wichtig, dass der Charakter öffentlich gestellt ist
+            </p>
             <legend class="fieldset-legend">Zugehöriger Spieler</legend>
-            <select class="select select-sm !bg-[var(--color-base-100)]" bind:value={selected_player}>
+            <select
+                class="select select-sm !bg-[var(--color-base-100)]"
+                bind:value={selected_player}
+            >
                 {#each gameState.users as player}
-                    <option value={player.name}>{#if player.active}🟢{:else}🔴{/if} {player.name}</option>
+                    <option value={player.name}
+                        >{#if player.active}🟢{:else}🔴{/if}
+                        {player.name}</option
+                    >
                 {/each}
             </select>
-            <button class="btn btn-neutral mt-4" onclick={() => {importCharacter()}}>Importieren</button>
+            <button
+                class="btn btn-neutral mt-4"
+                onclick={() => {
+                    importCharacter();
+                }}>Importieren</button
+            >
         </fieldset>
     </div>
     <form method="dialog" class="modal-backdrop">
@@ -708,21 +1035,49 @@
         <h3 class="text-lg font-bold">Marker erstellen</h3>
         <fieldset class="fieldset">
             <legend class="fieldset-legend">Markername</legend>
-            <input type="text" bind:value={marker_name} class="input" placeholder="Grom" />
+            <input
+                type="text"
+                bind:value={marker_name}
+                class="input"
+                placeholder="Grom"
+            />
             <legend class="fieldset-legend">Größe</legend>
-            <input type="number" bind:value={marker_size} class="input" placeholder="1" />
-            <p class="fieldset-label">Die Größe gibt an, wie viele Spalten (und somit auch Zeilen) der Marker einnimmt.</p>
-        
+            <input
+                type="number"
+                bind:value={marker_size}
+                class="input"
+                placeholder="1"
+            />
+            <p class="fieldset-label">
+                Die Größe gibt an, wie viele Spalten (und somit auch Zeilen) der
+                Marker einnimmt.
+            </p>
+
             {#if !marker_file}
-                <button class="btn btn-neutral mt-4" onclick={() => {user_upload("marker")}}>Marker-Bild</button>
+                <button
+                    class="btn btn-neutral mt-4"
+                    onclick={() => {
+                        user_upload("marker");
+                    }}>Marker-Bild</button
+                >
             {:else}
-                <Marker columnCount="100%" dragOptions={{disabled: true}} marker={{
-                    name: marker_name,
-                    size: marker_size,
-                    file: marker_file
-                }} mapUse={false} />
-                <button class="btn btn-neutral mt-4" onclick={create_marker}>Marker erstellen</button>
-                <p class="fieldset-label">Du kannst Marker überschreiben indem du einen neuen Marker mit gleichem Namen erstellst.</p>
+                <Marker
+                    columnCount="100%"
+                    dragOptions={{ disabled: true }}
+                    marker={{
+                        name: marker_name,
+                        size: marker_size,
+                        file: marker_file,
+                    }}
+                    mapUse={false}
+                />
+                <button class="btn btn-neutral mt-4" onclick={create_marker}
+                    >Marker erstellen</button
+                >
+                <p class="fieldset-label">
+                    Du kannst Marker überschreiben indem du einen neuen Marker
+                    mit gleichem Namen erstellst.
+                </p>
             {/if}
         </fieldset>
     </div>
@@ -730,14 +1085,21 @@
         <button class="outline-0" onclick={reset_marker_vars}>close</button>
     </form>
 </dialog>
-<canvas bind:this={confetti_canvas} class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"></canvas>
-<div class="fixed bottom-0 left-0 w-screen z-80 overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none">
-    <div class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1">
+<canvas
+    bind:this={confetti_canvas}
+    class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"
+></canvas>
+<div
+    class="fixed bottom-0 left-0 w-screen z-80 overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
+>
+    <div
+        class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"
+    >
         <Notifications />
         {#if own_character?.activeStatusEffects?.length || 0 > 0}
-        <div class="flex justify-end items-end pointer-events-auto -mt-4">
-            <StatusEffectBar effects={own_character.activeStatusEffects}/>
-        </div>
+            <div class="flex justify-end items-end pointer-events-auto -mt-4">
+                <StatusEffectBar effects={own_character.activeStatusEffects} />
+            </div>
         {/if}
     </div>
 </div>
@@ -745,10 +1107,21 @@
 {@render children()}
 
 <style>
-    :global(html), :global(body) {
+    :global(html),
+    :global(body) {
         overscroll-behavior: none;
     }
-    :global(:root:has( .modal-open, .modal[open], .modal:target, .modal-toggle:checked, .drawer:not(.drawer-open) > .drawer-toggle:checked ) .titlebar > div) {
+    :global(
+        :root:has(
+                .modal-open,
+                .modal[open],
+                .modal:target,
+                .modal-toggle:checked,
+                .drawer:not(.drawer-open) > .drawer-toggle:checked
+            )
+            .titlebar
+            > div
+    ) {
         opacity: 0;
     }
     .titlebar {

@@ -1,223 +1,271 @@
+// Define enums for message types and event types
+export enum MessageType {
+    MESSAGE = "message",
+    INITIAL = "initial",
+    EVENT = "event",
+    ROLL_RESULT = "roll_result",
+    SCENE = "scene",
+    SCENE_LIST = "scene_list",
+    PRELOAD_RESOURCE = "preload_resource",
+    TOGGLE_PRESSURE = "toggle_pressure",
+    USERS = "users",
+    MOUSE_POSITION = "mouse_position",
+    MARKER_POSITION = "marker_position",
+    MARKER_LOCKED = "marker_locked",
+    MARKER_FREED = "marker_freed",
+    UPDATE_FOG = "update_fog",
+    MARKER_LIB = "marker_lib",
+    MOUSE_LARGE = "mouse_large",
+    CHARACTERS = "characters",
+    CHECK_RESULT = "check_result",
+    SAVE_RESULT = "save_result"
+}
+
+export enum EventType {
+    JOINED = "joined",
+    LEFT = "left"
+}
+
 export interface BaseServerMessage {
-    type: string
+    type: MessageType;
 }
 
 export interface PlayerMessage extends BaseServerMessage {
-    "type": "message",
-    "sender": string,
-    "sender_dm": boolean,
-    "message": string
+    type: MessageType.MESSAGE;
+    sender: string;
+    sender_dm: boolean;
+    message: string;
 }
 
 export interface InitialData extends BaseServerMessage {
-    "type": "initial",
-    "display_name": string,
-    "dm_status": boolean
+    type: MessageType.INITIAL;
+    display_name: string;
+    dm_status: boolean;
 }
 
 export interface Event extends BaseServerMessage {
-    "type": "event",
-    "event_type": string
+    type: MessageType.EVENT;
+    event_type: EventType;
 }
 
 export interface JoinEvent extends Event {
-    "event_type": "joined",
-    "person": string,
-    "person_dm": boolean
+    event_type: EventType.JOINED;
+    person: string;
+    person_dm: boolean;
 }
 
 export interface LeaveEvent extends Event {
-    "event_type": "left",
-    "person": string
+    event_type: EventType.LEFT;
+    person: string;
 }
 
 export interface RollResult extends BaseServerMessage {
-    "type": "roll_result",
-    "sender": string,
-    "sender_dm": boolean
-    "dices": string,
-    "result": number,
-    "single_dice": boolean,
-    "dm_only": boolean,
+    type: MessageType.ROLL_RESULT;
+    sender: string;
+    sender_dm: boolean;
+    dices: string;
+    result: number;
+    single_dice: boolean;
+    dm_only: boolean;
 }
 
 export interface MarkerTemplate {
-    name: string,
-    size: number,
-    file: string,
+    name: string;
+    size: number;
+    file: string;
 }
 
 export interface Marker {
-    name: string,
-    x: any,
-    y: any,
-    size: number,
-    file: string,
-    status_effects: string[]
+    name: string;
+    x: any;
+    y: any;
+    size: number;
+    file: string;
+    status_effects: string[];
 }
 
 export interface SceneState {
-    fog_squares: Record<string, [number, number][]>,
-    markers: Marker[]
+    fog_squares: Record<string, [number, number][]>;
+    markers: Marker[];
 }
 
 export interface SceneData extends BaseServerMessage {
-    "type": "scene",
-    "name": string,
-    "map": string,
-    "background": string,
-    "background_blur": number,
-    "columns": number,
-    "x_offset": number,
-    "y_offset": number,
-    "state": SceneState,
+    type: MessageType.SCENE;
+    name: string;
+    map: string;
+    background: string;
+    background_blur: number;
+    columns: number;
+    x_offset: number;
+    y_offset: number;
+    state: SceneState;
 }
 
 export interface Scene {
-    _id: string,
-    name: string,
-    map_file: string,
-    columns: number,
-    x_offset: number,
-    y_offset: number,
+    _id: string;
+    name: string;
+    map_file: string;
+    columns: number;
+    x_offset: number;
+    y_offset: number;
 }
 
 export interface SceneList extends BaseServerMessage {
-    "type": "scene_list",
-    "scenes": Scene[]
+    type: MessageType.SCENE_LIST;
+    scenes: Scene[];
 }
 
 export interface PreloadResource extends BaseServerMessage {
-    "type": "preload_resource",
-    "file": string
+    type: MessageType.PRELOAD_RESOURCE;
+    file: string;
 }
 
 export interface TogglePressure extends BaseServerMessage {
-    "type": "toggle_pressure",
-    "active": boolean
+    type: MessageType.TOGGLE_PRESSURE;
+    active: boolean;
 }
 
 export interface User {
-    "name": string,
-    "active": boolean
+    name: string;
+    active: boolean;
 }
 
 export interface Users extends BaseServerMessage {
-    "type": "users",
-    "users": User[]
+    type: MessageType.USERS;
+    users: User[];
 }
 
 export interface MousePosition extends BaseServerMessage {
-    "type": "mouse_position",
-    "user": string,
-    "x": number,
-    "y": number
+    type: MessageType.MOUSE_POSITION;
+    user: string;
+    x: number;
+    y: number;
 }
 
 export interface MarkerPosition extends BaseServerMessage {
-    "type": "marker_position",
-    "marker_name": string,
-    "x": number,
-    "y": number
+    type: MessageType.MARKER_POSITION;
+    marker_name: string;
+    x: number;
+    y: number;
 }
 
 export interface MarkerLocked extends BaseServerMessage {
-    "type": "marker_locked",
-    "locked_by": string,
-    "marker_name": string
+    type: MessageType.MARKER_LOCKED;
+    locked_by: string;
+    marker_name: string;
 }
 
 export interface MarkerFreed extends BaseServerMessage {
-    "type": "marker_freed",
-    "marker_name": string
+    type: MessageType.MARKER_FREED;
+    marker_name: string;
 }
 
 export interface UpdateFog extends BaseServerMessage {
-    "type": "update_fog",
-    "fog_squares": Record<string, [number, number][]>
+    type: MessageType.UPDATE_FOG;
+    fog_squares: Record<string, [number, number][]>;
 }
 
 export interface MarkerLib extends BaseServerMessage {
-    "type": "marker_lib",
-    "markers": MarkerTemplate[]
+    type: MessageType.MARKER_LIB;
+    markers: MarkerTemplate[];
 }
 
 export interface MouseLarge extends BaseServerMessage {
-    "type": "mouse_large",
+    type: MessageType.MOUSE_LARGE;
 }
 
 export interface Characters extends BaseServerMessage {
-    "type": "characters",
-    "characters": any
+    type: MessageType.CHARACTERS;
+    characters: any;
 }
 
 export interface CheckResult extends BaseServerMessage {
-    "type": "check_result",
-    "sender": string,
-    "stat": string,
-    "result": number,
-    "bonus": number,
+    type: MessageType.CHECK_RESULT;
+    sender: string;
+    stat: string;
+    result: number;
+    bonus: number;
 }
 
 export interface SaveResult extends BaseServerMessage {
-    "type": "save_result",
-    "sender": string,
-    "stat": string,
-    "result": number,
-    "bonus": number,
+    type: MessageType.SAVE_RESULT;
+    sender: string;
+    stat: string;
+    result: number;
+    bonus: number;
 }
 
-export type ServerMessage = PlayerMessage | InitialData | JoinEvent | LeaveEvent | RollResult | SceneData | SceneList | PreloadResource | TogglePressure | Users | MousePosition | MarkerPosition | MarkerLocked | MarkerFreed | UpdateFog | MarkerLib | MouseLarge | Characters | CheckResult | SaveResult
+export type ServerMessage = 
+    | PlayerMessage 
+    | InitialData 
+    | JoinEvent 
+    | LeaveEvent 
+    | RollResult 
+    | SceneData 
+    | SceneList 
+    | PreloadResource 
+    | TogglePressure 
+    | Users 
+    | MousePosition 
+    | MarkerPosition 
+    | MarkerLocked 
+    | MarkerFreed 
+    | UpdateFog 
+    | MarkerLib 
+    | MouseLarge 
+    | Characters 
+    | CheckResult 
+    | SaveResult;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
     const data = JSON.parse(json);
     
     switch (data.type) {
-        case "message":
+        case MessageType.MESSAGE:
             return data as PlayerMessage;
-        case "initial":
+        case MessageType.INITIAL:
             return data as InitialData;
-        case "event":
+        case MessageType.EVENT:
             switch (data.event_type) {
-                case 'joined':
+                case EventType.JOINED:
                     return data as JoinEvent;
-                case 'left':
+                case EventType.LEFT:
                     return data as LeaveEvent;
                 default:
                     throw new Error(`Unknown event type: ${data.event_type}`);
             }
-        case "roll_result":
+        case MessageType.ROLL_RESULT:
             return data as RollResult;
-        case "scene":
+        case MessageType.SCENE:
             return data as SceneData;
-        case "scene_list":
+        case MessageType.SCENE_LIST:
             return data as SceneList;
-        case "preload_resource":
+        case MessageType.PRELOAD_RESOURCE:
             return data as PreloadResource;
-        case "toggle_pressure":
+        case MessageType.TOGGLE_PRESSURE:
             return data as TogglePressure;
-        case "users":
+        case MessageType.USERS:
             return data as Users;
-        case "mouse_position":
+        case MessageType.MOUSE_POSITION:
             return data as MousePosition;
-        case "marker_position":
+        case MessageType.MARKER_POSITION:
             return data as MarkerPosition;
-        case "marker_locked":
+        case MessageType.MARKER_LOCKED:
             return data as MarkerLocked;
-        case "marker_freed":
+        case MessageType.MARKER_FREED:
             return data as MarkerFreed;
-        case "update_fog":
+        case MessageType.UPDATE_FOG:
             return data as UpdateFog;
-        case "marker_lib":
+        case MessageType.MARKER_LIB:
             return data as MarkerLib;
-        case "mouse_large":
+        case MessageType.MOUSE_LARGE:
             return data as MouseLarge;
-        case "characters":
+        case MessageType.CHARACTERS:
             return data as Characters;
-        case "check_result":
+        case MessageType.CHECK_RESULT:
             return data as CheckResult;
-        case "save_result":
+        case MessageType.SAVE_RESULT:
             return data as SaveResult;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
