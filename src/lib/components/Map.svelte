@@ -2,16 +2,12 @@
     import { onMount } from "svelte";
     import {
         appState,
-        DMName,
         fogState,
         gameState,
-        largeMouse,
-        mouseDown,
         mouseX,
         mouseY,
-        showMouse,
         Tools,
-    } from "../../routes/state.svelte";
+    } from "../state.svelte";
     // @ts-ignore
     import throttle from "just-throttle";
     import debounce from "just-debounce-it";
@@ -27,7 +23,7 @@
     } from "$lib/types/messaging/client_messages";
     import { type DragOptions } from "@neodrag/svelte";
     import Marker from "./Marker.svelte";
-    import { MessageTypes, notify } from "../../routes/notifications.svelte";
+    import { MessageTypes, notify } from "../notifications.svelte";
 
     let {
         file,
@@ -55,7 +51,7 @@
     let map_url = $derived(getAssetUrl(file) || "");
     function getAssetUrl(asset: string) {
         if (!appState.token) return;
-        return `${appState.secure ? "https://" : "http://"}${appState.base_url}/assets/${asset}?key=${encodeURIComponent(appState.token)}`;
+        return `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${asset}?key=${encodeURIComponent(appState.token)}`;
     }
 
     let fogImg = new Image(0, 0);
@@ -101,9 +97,9 @@
             if (
                 fogPattern &&
                 !(
-                    mouseDown.value &&
-                    (appState.selected_tool === Tools.AddFog ||
-                        appState.selected_tool === Tools.RemoveFog)
+                    appState.mouseDown &&
+                    (appState.selectedTool === Tools.AddFog ||
+                        appState.selectedTool === Tools.RemoveFog)
                 )
             ) {
                 fogCtx.globalCompositeOperation = "source-in";
@@ -194,7 +190,7 @@
         if (
             !click &&
             editable &&
-            appState.selected_tool === Tools.Pointer &&
+            appState.selectedTool === Tools.Pointer &&
             gameState.dm &&
             !appState.dragging
         ) {
@@ -203,7 +199,7 @@
             !click &&
             editable &&
             rotate_active &&
-            appState.selected_tool === Tools.Ruler &&
+            appState.selectedTool === Tools.Ruler &&
             ruler
         ) {
             let { top, left, bottom } = ruler.getBoundingClientRect();
@@ -226,12 +222,12 @@
             ruler_rotation = alpha;
         }
 
-        if ((!mouseDown.value && !click) || !editable || !gameState.scene)
+        if ((!appState.mouseDown && !click) || !editable || !gameState.scene)
             return;
 
         if (
-            appState.selected_tool === Tools.AddFog ||
-            appState.selected_tool === Tools.RemoveFog
+            appState.selectedTool === Tools.AddFog ||
+            appState.selectedTool === Tools.RemoveFog
         ) {
             let edit_players =
                 fogState.selected_player === "all"
@@ -240,13 +236,13 @@
             for (const player of edit_players) {
                 gameState.scene.state.fog_squares[player] ??= [];
                 if (
-                    appState.selected_tool === Tools.AddFog &&
+                    appState.selectedTool === Tools.AddFog &&
                     !gameState.scene.state.fog_squares[player].some(
                         ([sx, sy]) => sx === x && sy === y,
                     )
                 ) {
                     gameState.scene.state.fog_squares[player].push([x, y]);
-                } else if (appState.selected_tool === Tools.RemoveFog) {
+                } else if (appState.selectedTool === Tools.RemoveFog) {
                     let idx = gameState.scene.state.fog_squares[
                         player
                     ].findIndex(([sx, sy]) => sx === x && sy === y);
@@ -287,16 +283,16 @@
         bounds: "parent",
         onDrag: throttledMarkerDrag,
         legacyTranslate: false,
-        grid: appState.ctrlPressed ? grid : null,
+        grid: appState.ctrlPressed ? grid : undefined,
     });
 
     let translate_thingy = $derived(
         appState.zoom > 1 ? 50 * (1 - 1 / appState.zoom) : 0,
     );
     $effect(() => {
-        if (editable && appState.zoom !== appState.prev_zoom) {
+        if (editable && appState.zoom !== appState.prevZoom) {
             // Calculate zoom ratio
-            const zoomRatio = appState.zoom / appState.prev_zoom;
+            const zoomRatio = appState.zoom / appState.prevZoom;
 
             // Get current scroll position
             const scrollTop = document.documentElement.scrollTop;
@@ -326,7 +322,7 @@
     }
 
     $effect(() => {
-        if (!mouseDown.value) {
+        if (!appState.mouseDown) {
             rotate_active = false;
         }
     });
@@ -358,7 +354,7 @@
         }}
         onclick={(evt) => {
             if (!appState.ws) return;
-            if (evt.button === 0 && appState.selected_tool === Tools.Pointer) {
+            if (evt.button === 0 && appState.selectedTool === Tools.Pointer) {
                 appState.ws.send(MouseLarge.create());
             }
         }}
@@ -377,7 +373,7 @@
                         x: marker.x.current * w,
                         y: marker.y.current * h,
                     },
-                    disabled: !!gameState.locked_markers[marker.name],
+                    disabled: !!gameState.lockedMarkers[marker.name],
                 }}
                 columnCount={columns}
             />
@@ -391,20 +387,20 @@
         style="opacity: {gameState.dm ? '60' : '100'}%"
     >
     </canvas>
-    {#if showMouse.value && !mouse_in_fog && !gameState.dm}
+    {#if gameState.showMouse && !mouse_in_fog && !gameState.dm}
         <div
             transition:fade
             class="absolute pointer-events-none top-0 left-0 origin-top-left"
             style="transform: translate({mouseX.current *
-                w}px, {mouseY.current * h}px) scale({largeMouse.value
+                w}px, {mouseY.current * h}px) scale({gameState.largeMouse
                 ? '2'
                 : '1'});"
         >
             <i class="fa-solid fa-arrow-pointer"></i>
-            <span class="badge badge-xs">{DMName.value}</span>
+            <span class="badge badge-xs">{gameState.DMName}</span>
         </div>
     {/if}
-    {#if appState.selected_tool === Tools.Ruler && editable}
+    {#if appState.selectedTool === Tools.Ruler && editable}
         <div
             role="banner"
             class="absolute top-1/2 left-1/2"

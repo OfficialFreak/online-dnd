@@ -9,17 +9,11 @@
         gameState,
         appState,
         ensureStore,
-        mouseDown,
         mouseX,
         mouseY,
-        DMName,
-        showMouse,
-        largeMouse,
-        markerModal,
-        characterImportModal,
-        Tools,
-    } from "./state.svelte";
-    import { connect } from "./connection.svelte";
+        modals,
+    } from "../lib/state.svelte";
+    import { connect } from "../lib/connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
     import { readFile } from "@tauri-apps/plugin-fs";
     import { fetch } from "@tauri-apps/plugin-http";
@@ -51,7 +45,7 @@
     import { circOut } from "svelte/easing";
     import Marker from "$lib/components/Marker.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
-    import { MessageTypes, notify } from "./notifications.svelte";
+    import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
     import StatusEffectBar from "$lib/components/StatusEffectBar.svelte";
@@ -64,7 +58,7 @@
     const appWindow = getCurrentWindow();
     let url = $derived(
         appState.token
-            ? `${appState.secure ? "wss://" : "ws://"}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}`
+            ? `${appState.secure ? "wss://" : "ws://"}${appState.baseUrl}/ws?key=${encodeURIComponent(appState.token)}`
             : null,
     );
 
@@ -87,7 +81,7 @@
 
         // Make the request using Tauri's fetch
         const response = await fetch(
-            `${appState.secure ? "https://" : "http://"}${appState.base_url}/assets?key=${encodeURIComponent(appState.token)}`,
+            `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets?key=${encodeURIComponent(appState.token)}`,
             {
                 method: "POST",
                 body: formData,
@@ -353,19 +347,19 @@
                     if (gameState.dm) break;
                     mouseX.target = message.x;
                     mouseY.target = message.y;
-                    DMName.value = message.user;
-                    showMouse.value = true;
+                    gameState.DMName = message.user;
+                    gameState.showMouse = true;
                     clearTimeout(mouse_timeout);
                     mouse_timeout = setTimeout(() => {
-                        showMouse.value = false;
+                        gameState.showMouse = false;
                     }, 500);
                     break;
                 case MessageType.MARKER_LOCKED:
-                    gameState.locked_markers[message.marker_name] =
+                    gameState.lockedMarkers[message.marker_name] =
                         message.locked_by;
                     break;
                 case MessageType.MARKER_FREED:
-                    delete gameState.locked_markers[message.marker_name];
+                    delete gameState.lockedMarkers[message.marker_name];
                     break;
                 case MessageType.MARKER_POSITION:
                     if (!gameState.scene) return;
@@ -380,18 +374,18 @@
                     gameState.scene.state.fog_squares = message.fog_squares;
                     break;
                 case MessageType.MARKER_LIB:
-                    gameState.marker_lib = message.markers;
+                    gameState.markerLib = message.markers;
                     break;
                 case MessageType.MOUSE_LARGE:
-                    largeMouse.value = true;
+                    gameState.largeMouse = true;
                     clearTimeout(large_mouse_timeout);
                     large_mouse_timeout = setTimeout(() => {
-                        largeMouse.value = false;
+                        gameState.largeMouse = false;
                     }, 1000);
-                    showMouse.value = true;
+                    gameState.showMouse = true;
                     clearTimeout(mouse_timeout);
                     mouse_timeout = setTimeout(() => {
-                        showMouse.value = false;
+                        gameState.showMouse = false;
                     }, 500);
                     break;
                 case MessageType.CHARACTERS:
@@ -610,10 +604,10 @@
     bind:clientWidth={cw}
     bind:clientHeight={ch}
     onmousedown={() => {
-        mouseDown.value = true;
+        appState.mouseDown = true;
     }}
     onmouseup={() => {
-        mouseDown.value = false;
+        appState.mouseDown = false;
     }}
 />
 
@@ -623,7 +617,7 @@
             <link
                 rel="preload"
                 as="image"
-                href={`${appState.secure ? "https://" : "http://"}${appState.base_url}/assets/${resource}?key=${encodeURIComponent(appState.token)}`}
+                href={`${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${resource}?key=${encodeURIComponent(appState.token)}`}
             />
         {/each}
     {/if}
@@ -939,11 +933,11 @@
         <button class="outline-0">close</button>
     </form>
 </dialog>
-<dialog bind:this={markerModal.value} class="modal">
+<dialog bind:this={modals.markerModal} class="modal">
     <div class="modal-box">
         <h3 class="text-lg font-bold">Marker Bibliothek</h3>
         <ul class="list bg-base-100 rounded-box shadow-md">
-            {#each gameState.marker_lib as marker}
+            {#each gameState.markerLib as marker}
                 <li class="list-row flex flex-row items-center justify-between">
                     <div class="relative flex flex-col gap-1 items-center w-20">
                         <Marker
@@ -992,7 +986,7 @@
         <button class="outline-0">close</button>
     </form>
 </dialog>
-<dialog bind:this={characterImportModal.value} class="modal">
+<dialog bind:this={modals.characterImportModal} class="modal">
     <div class="modal-box">
         <h3 class="text-lg font-bold">Charakter Importieren</h3>
         <fieldset class="fieldset">
@@ -1107,23 +1101,6 @@
 {@render children()}
 
 <style>
-    :global(html),
-    :global(body) {
-        overscroll-behavior: none;
-    }
-    :global(
-        :root:has(
-                .modal-open,
-                .modal[open],
-                .modal:target,
-                .modal-toggle:checked,
-                .drawer:not(.drawer-open) > .drawer-toggle:checked
-            )
-            .titlebar
-            > div
-    ) {
-        opacity: 0;
-    }
     .titlebar {
         height: 30px;
         user-select: none;
@@ -1152,9 +1129,5 @@
     }
     .titlebar-button:hover {
         background: rgba(0, 0, 0, 0.2);
-    }
-
-    :global(body) {
-        margin-top: 30px;
     }
 </style>

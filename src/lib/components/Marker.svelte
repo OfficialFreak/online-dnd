@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
-    import { appState, gameState, Tools } from "../../routes/state.svelte";
+    import { appState, gameState, Tools } from "../state.svelte";
     import { draggable } from "@neodrag/svelte";
     // @ts-ignore
     import MultiSelect from "svelte-multiselect";
@@ -24,9 +24,9 @@
     $effect(() => {
         if (!markerElement) return;
         markerElement.style.pointerEvents =
-            appState.selected_tool === Tools.Ruler ||
-            appState.selected_tool === Tools.Pointer ||
-            appState.selected_tool === Tools.None
+            appState.selectedTool === Tools.Ruler ||
+            appState.selectedTool === Tools.Pointer ||
+            appState.selectedTool === Tools.None
                 ? "auto"
                 : "none";
         markerElement.style.setProperty(
@@ -40,7 +40,7 @@
     });
 
     function getAssetUrl(asset: string) {
-        return `${appState.secure ? "https://" : "http://"}${appState.base_url}/assets/${asset}?key=${encodeURIComponent(appState.token || "")}`;
+        return `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${asset}?key=${encodeURIComponent(appState.token || "")}`;
     }
 
     let throttled_save = throttle(
@@ -87,13 +87,13 @@
             : "") + " avatar"}
         popovertarget={marker.name.replaceAll(" ", "-")}
     >
-        {#if gameState.locked_markers[marker.name]}
+        {#if gameState.lockedMarkers[marker.name]}
             <span
                 class="absolute top-0 right-1/2 translate-x-1/2 badge badge-neutral z-10 badge-xs"
                 transition:fade={{ duration: 100 }}
             >
                 <i class="fa-solid fa-up-down-left-right"></i>
-                {gameState.locked_markers[marker.name]}
+                {gameState.lockedMarkers[marker.name]}
             </span>
         {/if}
         <div

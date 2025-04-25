@@ -4,7 +4,7 @@
         MessageTypes,
         notifications,
         removeToast,
-    } from "../../routes/notifications.svelte";
+    } from "../notifications.svelte";
 </script>
 
 <div class="flex flex-col items-end gap-2 pointer-events-none">

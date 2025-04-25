@@ -7,8 +7,8 @@
         fogState,
         Tools,
         roller,
-    } from "../state.svelte";
-    import { connect } from "../connection.svelte";
+    } from "../../lib/state.svelte";
+    import { connect } from "../../lib/connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
     import { load } from "@tauri-apps/plugin-store";
@@ -16,11 +16,11 @@
     import DiceChooser from "$lib/components/DiceChooser.svelte";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
     import Toolbar from "$lib/components/Toolbar.svelte";
-    import { MessageTypes, notify } from "../notifications.svelte";
+    import { MessageTypes, notify } from "../../lib/notifications.svelte";
 
     let url: string | null = $derived(
         appState.token
-            ? `${appState.secure ? "wss://" : "ws://"}${appState.base_url}/ws?key=${encodeURIComponent(appState.token)}`
+            ? `${appState.secure ? "wss://" : "ws://"}${appState.baseUrl}/ws?key=${encodeURIComponent(appState.token)}`
             : null,
     );
 
@@ -94,8 +94,8 @@
         x_offset={gameState.scene.x_offset}
         y_offset={gameState.scene.y_offset}
         fog_squares={gameState.scene.state?.fog_squares[
-            (appState.selected_tool === Tools.AddFog ||
-                appState.selected_tool === Tools.RemoveFog) &&
+            (appState.selectedTool === Tools.AddFog ||
+                appState.selectedTool === Tools.RemoveFog) &&
             fogState.selected_player != "all"
                 ? fogState.selected_player
                 : gameState.name

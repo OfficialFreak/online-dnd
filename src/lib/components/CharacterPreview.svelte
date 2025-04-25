@@ -1,7 +1,7 @@
 <script lang="ts">
     import { ImportCharacter } from "$lib/types/messaging/client_messages";
-    import { MessageTypes, notify } from "../../routes/notifications.svelte";
-    import { appState, gameState } from "../../routes/state.svelte";
+    import { MessageTypes, notify } from "../notifications.svelte";
+    import { appState, gameState } from "../state.svelte";
 
     let { character, callback = null } = $props();
 

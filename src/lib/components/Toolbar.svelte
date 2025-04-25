@@ -2,25 +2,23 @@
     import { fade, fly } from "svelte/transition";
     import {
         appState,
-        character_open,
-        characterImportModal,
-        characters_open,
+        toolbarState,
         fogState,
         gameState,
         getCharacter,
-        markerModal,
+        modals,
         Tools,
-    } from "../../routes/state.svelte";
+    } from "../state.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
     import { PutScene } from "$lib/types/messaging/client_messages";
-    import { MessageTypes, notify } from "../../routes/notifications.svelte";
+    import { MessageTypes, notify } from "../notifications.svelte";
 
     function selectTool(tool: Tools) {
-        if (appState.selected_tool === tool) {
-            appState.selected_tool = Tools.None;
+        if (appState.selectedTool === tool) {
+            appState.selectedTool = Tools.None;
         } else {
-            appState.selected_tool = tool;
+            appState.selectedTool = tool;
         }
     }
 
@@ -99,21 +97,21 @@
                 break;
             case "KeyM":
                 if (gameState.dm) {
-                    markerModal.value?.showModal();
+                    modals.markerModal?.showModal();
                 }
                 break;
             case "KeyC":
-                characters_open.value = !characters_open.value;
+                toolbarState.charactersOpen = !toolbarState.charactersOpen;
                 break;
             case "BracketRight":
                 if (evt.ctrlKey) {
-                    appState.prev_zoom = appState.zoom;
+                    appState.prevZoom = appState.zoom;
                     appState.zoom *= 1.25;
                 }
                 break;
             case "Slash":
                 if (evt.ctrlKey && appState.zoom > 0.3) {
-                    appState.prev_zoom = appState.zoom;
+                    appState.prevZoom = appState.zoom;
                     appState.zoom /= 1.25;
                 }
                 break;
@@ -132,7 +130,7 @@
             const newZoom = appState.zoom * zoomChange;
 
             if (newZoom > 0.3) {
-                appState.prev_zoom = appState.zoom;
+                appState.prevZoom = appState.zoom;
                 appState.zoom =
                     Math.abs(newZoom - 1) < snapThreshold
                         ? 1
@@ -145,8 +143,8 @@
     }
 
     let fog_active = $derived(
-        appState.selected_tool === Tools.AddFog ||
-            appState.selected_tool === Tools.RemoveFog,
+        appState.selectedTool === Tools.AddFog ||
+            appState.selectedTool === Tools.RemoveFog,
     );
 
     function saveSceneFog() {
@@ -194,7 +192,7 @@
     $effect(() => {
         if (!scroll_container) return;
 
-        character_open.value;
+        toolbarState.characterOpen;
         scroll_container.scrollTop = 0;
     });
 </script>
@@ -208,13 +206,13 @@
 />
 
 <div class="flex flex-row gap-1 h-full pointer-events-none">
-    {#if characters_open.value}
+    {#if toolbarState.charactersOpen}
         <div
             class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col"
             transition:fly|global={{ x: -50, duration: 200 }}
             bind:this={scroll_container}
         >
-            {#if !character_open.value}
+            {#if !toolbarState.characterOpen}
                 <div class="p-2 px-4">
                     <h1 class="text-3xl font-bold">Charaktere</h1>
                     <div class="flex flex-row flex-wrap gap-2 mt-2">
@@ -222,7 +220,7 @@
                             <CharacterPreview
                                 {character}
                                 callback={() => {
-                                    character_open.value = character.name;
+                                    toolbarState.characterOpen = character.name;
                                 }}
                             ></CharacterPreview>
                         {/each}
@@ -230,7 +228,7 @@
                             <button
                                 class="btn"
                                 onclick={() => {
-                                    characterImportModal.value?.showModal();
+                                    modals.characterImportModal?.showModal();
                                 }}>Charakter Importieren</button
                             >
                         {/if}
@@ -244,26 +242,27 @@
                         class="btn btn-square btn-ghost btn-sm"
                         aria-label="Zurück"
                         onclick={() => {
-                            character_open.value = "";
+                            toolbarState.characterOpen = "";
                         }}
                     >
                         <i class="fa-solid fa-arrow-left"></i>
                     </button>
-                    {#if getCharacter(character_open.value)}
+                    {#if getCharacter(toolbarState.characterOpen)}
                         <div class="flex flex-col">
                             <span class="text-sm"
-                                >{getCharacter(character_open.value).name}</span
+                                >{getCharacter(toolbarState.characterOpen)
+                                    .name}</span
                             >
                             <span class="text-xs font-bold text-gray-400"
-                                >{getCharacter(character_open.value)
+                                >{getCharacter(toolbarState.characterOpen)
                                     .detailedDescription}</span
                             >
                         </div>
                     {/if}
                 </div>
-                {#if getCharacter(character_open.value)}
+                {#if getCharacter(toolbarState.characterOpen)}
                     <CharacterSheet
-                        character={getCharacter(character_open.value)}
+                        character={getCharacter(toolbarState.characterOpen)}
                     />
                 {/if}
             {/if}
@@ -281,7 +280,7 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm {appState.selected_tool ===
+                    class="btn btn-square btn-sm {appState.selectedTool ===
                         Tools.Pointer && 'btn-info'}"
                     aria-label="Zeiger"
                     onclick={() => {
@@ -328,7 +327,7 @@
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm {appState.selected_tool ===
+                                class="btn btn-square btn-sm {appState.selectedTool ===
                                     Tools.AddFog && 'btn-info'}"
                                 aria-label="Nebel hinzufügen"
                                 onclick={() => {
@@ -344,7 +343,7 @@
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm {appState.selected_tool ===
+                                class="btn btn-square btn-sm {appState.selectedTool ===
                                     Tools.RemoveFog && 'btn-info'}"
                                 aria-label="Nebel entfernen"
                                 onclick={() => {
@@ -394,7 +393,7 @@
                     class="btn btn-square btn-sm"
                     aria-label="Marker"
                     onclick={() => {
-                        markerModal.value?.showModal();
+                        modals.markerModal?.showModal();
                     }}
                 >
                     <i class="fa-solid fa-location-pin"></i>
@@ -408,11 +407,11 @@
             </div>
             <button
                 tabindex="0"
-                class="btn btn-square btn-sm {characters_open.value &&
+                class="btn btn-square btn-sm {toolbarState.charactersOpen &&
                     'btn-info'}"
                 aria-label="Marker"
                 onclick={() => {
-                    characters_open.value = !characters_open.value;
+                    toolbarState.charactersOpen = !toolbarState.charactersOpen;
                 }}
             >
                 <i class="fa-solid fa-user"></i>
@@ -424,7 +423,7 @@
             </div>
             <button
                 tabindex="0"
-                class="btn btn-square btn-sm {appState.selected_tool ===
+                class="btn btn-square btn-sm {appState.selectedTool ===
                     Tools.Ruler && 'btn-info'}"
                 aria-label="Lineal"
                 onclick={() => {

@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { appState } from "../../routes/state.svelte";
+    import { appState } from "../state.svelte";
 
     const { file, blur } = $props();
 
     let background_url = $derived(
         appState.token
-            ? `${appState.secure ? "https://" : "http://"}${appState.base_url}/assets/${file}?key=${encodeURIComponent(appState.token)}`
+            ? `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${file}?key=${encodeURIComponent(appState.token)}`
             : "",
     );
 </script>

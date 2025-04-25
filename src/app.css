@@ -3,6 +3,26 @@
     themes: dark --default;
 }
 
+body {
+    margin-top: 30px;
+}
+
+html, body {
+    overscroll-behavior: none;
+}
+
+:root:has(
+    .modal-open,
+    .modal[open],
+    .modal:target,
+    .modal-toggle:checked,
+    .drawer:not(.drawer-open) > .drawer-toggle:checked
+)
+.titlebar
+> div {
+    opacity: 0;
+}
+
 .frosted {
     background: rgba(28, 34, 41, 0.59);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);

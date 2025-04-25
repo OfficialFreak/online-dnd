@@ -4,7 +4,7 @@
     import DiceBox from "@3d-dice/dice-box";
     // @ts-ignore
     import confetti from "canvas-confetti";
-    import { roller } from "../../routes/state.svelte";
+    import { roller } from "../state.svelte";
 
     const poop = confetti.shapeFromText({ text: "💩", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);

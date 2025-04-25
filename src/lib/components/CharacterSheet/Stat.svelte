@@ -1,6 +1,6 @@
 <script lang="ts">
     import { CheckResult } from "$lib/types/messaging/client_messages";
-    import { appState, roller } from "../../../routes/state.svelte";
+    import { appState, roller } from "../../state.svelte";
 
     let { stat, character } = $props();
 

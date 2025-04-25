@@ -2,16 +2,16 @@
     import { onMount } from "svelte";
     import { fade } from "svelte/transition";
     import { goto } from "$app/navigation";
-    import { appState, ensureStore } from "./state.svelte";
-    import { connect } from "./connection.svelte";
+    import { appState, ensureStore } from "../lib/state.svelte";
+    import { connect } from "../lib/connection.svelte";
     import { invoke } from "@tauri-apps/api/core";
-    import { MessageTypes, notify } from "./notifications.svelte";
+    import { MessageTypes, notify } from "../lib/notifications.svelte";
 
     let token: string = $state("");
     let loading = $state(true);
     let error = $state(false);
     let url = $derived(
-        `${appState.secure ? "wss://" : "ws://"}${appState.base_url}/ws?key=${encodeURIComponent(token)}`,
+        `${appState.secure ? "wss://" : "ws://"}${appState.baseUrl}/ws?key=${encodeURIComponent(token)}`,
     );
 
     async function connectLoadingWrapper() {

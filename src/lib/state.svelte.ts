@@ -13,20 +13,19 @@ export enum Tools {
     Ruler
 }
 
-export const mouseDown = $state({value: false});
-
 export const appState = $state({
     token: null as string | null,
     ws: null as WebSocket | null,
     store: null as any,
     secure: true,
-    base_url: "dnd.wiegraebe.dev",
-    selected_tool: Tools.None,
+    baseUrl: "dnd.wiegraebe.dev",
+    selectedTool: Tools.None,
     dragging: false,
-    prev_zoom: 1,
+    prevZoom: 1,
     zoom: 1,
     ctrlPressed: false,
     verticalSnapPoint: 1,
+    mouseDown: false,
 });
 
 export const gameState = $state({
@@ -37,14 +36,39 @@ export const gameState = $state({
     resources: new SvelteSet() as SvelteSet<string>,
     pressure: false,
     users: [] as User[],
-    locked_markers: {} as Record<string, string>,
-    marker_lib: [] as MarkerTemplate[],
-    characters: [] as any[]
+    lockedMarkers: {} as Record<string, string>,
+    markerLib: [] as MarkerTemplate[],
+    characters: [] as any[],
+    DMName: "",
+    showMouse: false,
+    largeMouse: false,
 });
+
+export const mouseX = new Tween(0, {
+    duration: 200,
+    easing: circOut
+});
+
+export const mouseY = new Tween(0, {
+    duration: 200,
+    easing: circOut
+});
+
+export const modals: Record<string, HTMLDialogElement | null> = $state({
+    markerModal: null,
+    characterImportModal: null,
+});
+
+export const toolbarState = $state({
+    charactersOpen: false,
+    characterOpen: ""
+})
 
 export const fogState = $state({
     selected_player: "all"
 });
+
+export const roller: any = $state({value: null});
 
 export async function ensureStore() {
     if (!appState.store) {
@@ -52,24 +76,6 @@ export async function ensureStore() {
     }
 }
 
-export const mouseX = new Tween(0, {
-    duration: 200,
-    easing: circOut
-});
-export const mouseY = new Tween(0, {
-    duration: 200,
-    easing: circOut
-});
-export const DMName = $state({value: ""});
-export const showMouse = $state({value: false});
-export const largeMouse = $state({value: false});
-export const markerModal: {value: HTMLDialogElement | null} = $state({value: null});
-export const characterImportModal: {value: HTMLDialogElement | null} = $state({value: null});
-export const characters_open = $state({value: false});
-export const character_open = $state({value: ""});
-
 export function getCharacter(character: string) {
     return gameState.characters.find((char) => char.name === character);
 }
-
-export const roller: any = $state({value: null});
