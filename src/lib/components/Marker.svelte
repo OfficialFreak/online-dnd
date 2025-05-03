@@ -97,7 +97,7 @@
             </span>
         {/if}
         <div
-            class="relative mask mask-hexagon !flex justify-center items-center pointer-events-none bg-neutral"
+            class="relative mask mask-hexagon pointer-events-none bg-neutral"
             style="width: {typeof columnCount === 'string'
                 ? columnCount
                 : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
@@ -105,14 +105,18 @@
                 ? effect_style_mapping[marker.status_effects[0]][0]
                 : ''}"
         >
-            <img
-                alt="Marker"
-                src={getAssetUrl(marker.file)}
-                class="mask mask-hexagon !w-7/8 !h-7/8"
-                style={marker.status_effects && marker.status_effects[0]
-                    ? effect_style_mapping[marker.status_effects[0]][1]
-                    : ""}
-            />
+            <div
+                class="!flex justify-center items-center w-full h-full p-[0.09vw]"
+            >
+                <img
+                    alt="Marker"
+                    class="w-full h-full mask mask-hexagon"
+                    src={getAssetUrl(marker.file)}
+                    style={marker.status_effects && marker.status_effects[0]
+                        ? effect_style_mapping[marker.status_effects[0]][1]
+                        : ""}
+                />
+            </div>
         </div>
         {#if gameState.dm && mapUse}
             <ul
