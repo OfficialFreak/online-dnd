@@ -102,8 +102,9 @@
             </span>
         {/if}
         <div
-            class="relative mask mask-hexagon pointer-events-none bg-neutral !flex justify-center items-center p-0.5 aspect-square"
-            style="width: {typeof columnCount === 'string'
+            class="relative mask mask-hexagon pointer-events-none bg-neutral !flex justify-center items-center aspect-square"
+            style="padding: calc(3% + 0.03vw); width: {typeof columnCount ===
+            'string'
                 ? columnCount
                 : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
             marker.status_effects[0]
