@@ -68,23 +68,28 @@
     bind:this={markerElement}
     use:draggable={dragOptions}
     id={marker.name}
-    class="{!gameState.dm && mapUse ? 'tooltip' : ''} {mapUse
+    class="{!gameState.dm && mapUse ? 'tooltip tooltip-right' : ''} {mapUse
         ? '!absolute top-0 left-0'
         : 'relative'}"
 >
     {#if !gameState.dm}
         <span
-            class="tooltip-content flex justify-center items-center"
-            style="height: {2 /
-                appState.zoom}rem; translate: 0 var(--y-translate)"
+            class="tooltip-content justify-center items-center flex !absolute"
+            style="border-radius: {1 / appState.zoom}rem; padding: 0 {1 /
+                appState.zoom}rem; transform: translate({20 /
+                appState.zoom}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
         >
-            <span style="font-size: {1 / appState.zoom}rem">{marker.name}</span>
+            <span
+                style="font-size: {16 / appState.zoom}px; height: {40 /
+                    appState.zoom}px; line-height: {40 / appState.zoom}px;"
+                class="flex justify-center items-center">{marker.name}</span
+            >
         </span>
     {/if}
     <button
         class={(gameState.dm && mapUse
             ? "dropdown dropdown-hover dropdown-right dropdown-center"
-            : "") + " avatar"}
+            : "") + " avatar flex"}
         popovertarget={marker.name.replaceAll(" ", "-")}
     >
         {#if gameState.lockedMarkers[marker.name]}
@@ -97,7 +102,7 @@
             </span>
         {/if}
         <div
-            class="relative mask mask-hexagon pointer-events-none bg-neutral"
+            class="relative mask mask-hexagon pointer-events-none bg-neutral !flex justify-center items-center p-0.5 aspect-square"
             style="width: {typeof columnCount === 'string'
                 ? columnCount
                 : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
@@ -105,18 +110,14 @@
                 ? effect_style_mapping[marker.status_effects[0]][0]
                 : ''}"
         >
-            <div
-                class="!flex justify-center items-center w-full h-full p-[0.09vw]"
-            >
-                <img
-                    alt="Marker"
-                    class="w-full h-full mask mask-hexagon"
-                    src={getAssetUrl(marker.file)}
-                    style={marker.status_effects && marker.status_effects[0]
-                        ? effect_style_mapping[marker.status_effects[0]][1]
-                        : ""}
-                />
-            </div>
+            <img
+                alt="Marker"
+                class="w-full aspect-square mask mask-hexagon"
+                src={getAssetUrl(marker.file)}
+                style={marker.status_effects && marker.status_effects[0]
+                    ? effect_style_mapping[marker.status_effects[0]][1]
+                    : ""}
+            />
         </div>
         {#if gameState.dm && mapUse}
             <ul
@@ -181,6 +182,6 @@
 
 <style lang="css">
     .tooltip::after {
-        translate: 0 var(--y-translate);
+        content: unset !important;
     }
 </style>
