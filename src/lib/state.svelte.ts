@@ -45,12 +45,12 @@ export const gameState = $state({
 });
 
 export const mouseX = new Tween(0, {
-    duration: 8,
+    duration: 11,
     easing: circOut
 });
 
 export const mouseY = new Tween(0, {
-    duration: 8,
+    duration: 11,
     easing: circOut
 });
 
