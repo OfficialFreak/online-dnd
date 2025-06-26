@@ -12,6 +12,8 @@
     import throttle from "just-throttle";
     import debounce from "just-debounce-it";
     import { draggable } from "@neodrag/svelte";
+
+    import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
     import {
         MarkerFreed,
@@ -144,9 +146,10 @@
 
     let throttled = throttle(
         (x: number, y: number) => {
-            appState.ws?.send(MousePosition.create(x, y));
+            // appState.ws?.send(MousePosition.create(x, y));
+            invoke("send_dnd_mouse_position", { x: x, y: y });
         },
-        30,
+        8, // 120 Hz
         { leading: false, trailing: true },
     );
 

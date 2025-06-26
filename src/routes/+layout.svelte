@@ -574,6 +574,17 @@
         updating = true;
     });
 
+    listen("mouse-position", (event: { payload: { x: number; y: number } }) => {
+        if (gameState.dm) return;
+        mouseX.target = event.payload.x;
+        mouseY.target = event.payload.y;
+        gameState.showMouse = true;
+        clearTimeout(mouse_timeout);
+        mouse_timeout = setTimeout(() => {
+            gameState.showMouse = false;
+        }, 500);
+    });
+
     let cw = $state();
     let ch = $state();
     let html: HTMLHtmlElement | null = $state(null);
