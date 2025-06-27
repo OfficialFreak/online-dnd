@@ -146,7 +146,6 @@
 
     let throttled = throttle(
         (x: number, y: number) => {
-            // appState.ws?.send(MousePosition.create(x, y));
             invoke("send_dnd_mouse_position", { x: x, y: y });
         },
         8, // 120 Hz

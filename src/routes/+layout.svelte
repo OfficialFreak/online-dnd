@@ -278,6 +278,7 @@
                                 gameState.users.push({
                                     name: message.person,
                                     active: true,
+                                    dm: message.person_dm,
                                 });
                                 return;
                             }
@@ -342,17 +343,11 @@
                     break;
                 case MessageType.USERS:
                     gameState.users = message.users;
-                    break;
-                case MessageType.MOUSE_POSITION:
-                    if (gameState.dm) break;
-                    mouseX.target = message.x;
-                    mouseY.target = message.y;
-                    gameState.DMName = message.user;
-                    gameState.showMouse = true;
-                    clearTimeout(mouse_timeout);
-                    mouse_timeout = setTimeout(() => {
-                        gameState.showMouse = false;
-                    }, 500);
+                    for (const user of gameState.users) {
+                        if (user.dm) {
+                            gameState.DMName = user.name;
+                        }
+                    }
                     break;
                 case MessageType.MARKER_LOCKED:
                     gameState.lockedMarkers[message.marker_name] =

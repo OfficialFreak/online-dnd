@@ -128,18 +128,12 @@ export interface TogglePressure extends BaseServerMessage {
 export interface User {
     name: string;
     active: boolean;
+    dm: boolean;
 }
 
 export interface Users extends BaseServerMessage {
     type: MessageType.USERS;
     users: User[];
-}
-
-export interface MousePosition extends BaseServerMessage {
-    type: MessageType.MOUSE_POSITION;
-    user: string;
-    x: number;
-    y: number;
 }
 
 export interface MarkerPosition extends BaseServerMessage {
@@ -206,7 +200,6 @@ export type ServerMessage =
     | PreloadResource 
     | TogglePressure 
     | Users 
-    | MousePosition 
     | MarkerPosition 
     | MarkerLocked 
     | MarkerFreed 
@@ -247,8 +240,6 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as TogglePressure;
         case MessageType.USERS:
             return data as Users;
-        case MessageType.MOUSE_POSITION:
-            return data as MousePosition;
         case MessageType.MARKER_POSITION:
             return data as MarkerPosition;
         case MessageType.MARKER_LOCKED:
