@@ -9,8 +9,6 @@ export enum MessageType {
     PRELOAD_RESOURCE = "preload_resource",
     TOGGLE_PRESSURE = "toggle_pressure",
     USERS = "users",
-    MOUSE_POSITION = "mouse_position",
-    MARKER_POSITION = "marker_position",
     MARKER_LOCKED = "marker_locked",
     MARKER_FREED = "marker_freed",
     UPDATE_FOG = "update_fog",
@@ -136,13 +134,6 @@ export interface Users extends BaseServerMessage {
     users: User[];
 }
 
-export interface MarkerPosition extends BaseServerMessage {
-    type: MessageType.MARKER_POSITION;
-    marker_name: string;
-    x: number;
-    y: number;
-}
-
 export interface MarkerLocked extends BaseServerMessage {
     type: MessageType.MARKER_LOCKED;
     locked_by: string;
@@ -200,7 +191,6 @@ export type ServerMessage =
     | PreloadResource 
     | TogglePressure 
     | Users 
-    | MarkerPosition 
     | MarkerLocked 
     | MarkerFreed 
     | UpdateFog 
@@ -240,8 +230,6 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as TogglePressure;
         case MessageType.USERS:
             return data as Users;
-        case MessageType.MARKER_POSITION:
-            return data as MarkerPosition;
         case MessageType.MARKER_LOCKED:
             return data as MarkerLocked;
         case MessageType.MARKER_FREED:

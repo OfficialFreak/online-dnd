@@ -156,17 +156,6 @@ export class MouseLarge {
     }
 }
 
-export class MarkerPosition {
-    static create(marker_name: string, x: number, y: number): string {
-        return JSON.stringify({
-            type: "marker_position",
-            marker_name: marker_name,
-            x: x,
-            y: y,
-        });
-    }
-}
-
 export class MarkerLocked {
     static create(marker_name: string): string {
         return JSON.stringify({

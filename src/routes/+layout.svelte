@@ -320,11 +320,11 @@
                         return {
                             ...marker,
                             x: new Tween(marker.x, {
-                                duration: 200,
+                                duration: 11,
                                 easing: circOut,
                             }),
                             y: new Tween(marker.y, {
-                                duration: 200,
+                                duration: 11,
                                 easing: circOut,
                             }),
                         };
@@ -355,14 +355,6 @@
                     break;
                 case MessageType.MARKER_FREED:
                     delete gameState.lockedMarkers[message.marker_name];
-                    break;
-                case MessageType.MARKER_POSITION:
-                    if (!gameState.scene) return;
-                    let idx = gameState.scene.state.markers.findIndex(
-                        (marker) => marker.name === message.marker_name,
-                    );
-                    gameState.scene.state.markers[idx].x.target = message.x;
-                    gameState.scene.state.markers[idx].y.target = message.y;
                     break;
                 case MessageType.UPDATE_FOG:
                     if (!gameState.scene) return;
@@ -437,11 +429,11 @@
         let new_marker = {
             ...marker,
             x: new Tween(0, {
-                duration: 200,
+                duration: 11,
                 easing: circOut,
             }),
             y: new Tween(0, {
-                duration: 200,
+                duration: 11,
                 easing: circOut,
             }),
             status_effects: [],
@@ -579,6 +571,18 @@
             gameState.showMouse = false;
         }, 500);
     });
+
+    listen(
+        "marker-position",
+        (event: { payload: { x: number; y: number; marker_name: string } }) => {
+            if (!gameState.scene) return;
+            let idx = gameState.scene.state.markers.findIndex(
+                (marker) => marker.name === event.payload.marker_name,
+            );
+            gameState.scene.state.markers[idx].x.target = event.payload.x;
+            gameState.scene.state.markers[idx].y.target = event.payload.y;
+        },
+    );
 
     let cw = $state();
     let ch = $state();

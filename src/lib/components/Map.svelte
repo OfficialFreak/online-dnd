@@ -18,9 +18,7 @@
     import {
         MarkerFreed,
         MarkerLocked,
-        MarkerPosition,
         MouseLarge,
-        MousePosition,
         PutScene,
     } from "$lib/types/messaging/client_messages";
     import { type DragOptions } from "@neodrag/svelte";
@@ -146,7 +144,7 @@
 
     let throttled = throttle(
         (x: number, y: number) => {
-            invoke("send_dnd_mouse_position", { x: x, y: y });
+            invoke("send_mouse_position", { x: x, y: y });
         },
         8, // 120 Hz
         { leading: false, trailing: true },
@@ -161,11 +159,13 @@
             if (!appState.ws || !marker) return;
             marker.x.set(offsetX / w, { duration: 0 });
             marker.y.set(offsetY / h, { duration: 0 });
-            appState.ws.send(
-                MarkerPosition.create(currentNode.id, offsetX / w, offsetY / h),
-            );
+            invoke("send_marker_position", {
+                x: offsetX / w,
+                y: offsetY / h,
+                marker_name: currentNode.id,
+            });
         },
-        30,
+        8, // 120 Hz
         { leading: false, trailing: true },
     );
 

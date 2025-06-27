@@ -34,11 +34,30 @@ async fn close_splashscreen(window: Window) {
 }
 
 #[tauri::command]
-fn send_dnd_mouse_position(x: f32, y: f32, udp_state: State<UdpState>) {
+fn send_mouse_position(x: f32, y: f32, udp_state: State<UdpState>) {
     // UDP Sending Logic
-    let mut data = Vec::with_capacity(8);
+    let mut data = Vec::with_capacity(9);
+    data.extend_from_slice(&[0x01u8]);
     data.extend_from_slice(&x.to_le_bytes());
     data.extend_from_slice(&y.to_le_bytes());
+
+    // Send via UDP
+    if let Ok(socket) = udp_state.socket.lock() {
+        match socket.send_to(&data, "wiegraebe.dev:41340") {
+            Ok(_) => println!("Successfully sent position"),
+            Err(e) => eprintln!("Failed to send UDP packet: {}", e),
+        }
+    }
+}
+
+#[tauri::command]
+fn send_marker_position(x: f32, y: f32, marker_name: String, udp_state: State<UdpState>) {
+    // UDP Sending Logic
+    let mut data = Vec::with_capacity(1024); // 9 for position and type but string is of variable length
+    data.extend_from_slice(&[0x02u8]);
+    data.extend_from_slice(&x.to_le_bytes());
+    data.extend_from_slice(&y.to_le_bytes());
+    data.extend_from_slice(&marker_name.as_bytes());
 
     // Send via UDP
     if let Ok(socket) = udp_state.socket.lock() {
@@ -110,7 +129,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             close_splashscreen,
-            send_dnd_mouse_position
+            send_mouse_position,
+            send_marker_position
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
