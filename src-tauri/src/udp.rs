@@ -43,10 +43,10 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
                             x if *x == UdpMessageType::MousePosition as u8 && bytes_received == 9 => {
                                 // Bytes 1..9 are x and y
                                 let x = f32::from_le_bytes(
-                                    buf[1..5].try_into().expect("Couldn't convert x coordinate"),
+                                    buf[1..5].try_into().unwrap(),
                                 );
                                 let y = f32::from_le_bytes(
-                                    buf[5..9].try_into().expect("Couldn't convert y coordinate"),
+                                    buf[5..9].try_into().unwrap(),
                                 );
                                 app.emit("mouse-position", Coordinates { x, y })
                                     .unwrap_or_else(|e| {
@@ -61,7 +61,7 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
                                 let y = f32::from_le_bytes(
                                     buf[5..9].try_into().expect("Couldn't convert y coordinate"),
                                 );
-                                let marker_name = String::from_utf8(buf[10..bytes_received].to_vec()).expect("Couldn't convert marker_name");
+                                let marker_name = String::from_utf8(buf[9..bytes_received].to_vec()).expect("Couldn't convert marker_name");
                                 app.emit("marker-position", MarkerCoordinates { x, y, marker_name })
                                     .unwrap_or_else(|e| {
                                         eprintln!("Emit error: {}", e);

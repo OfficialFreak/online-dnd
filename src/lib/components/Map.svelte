@@ -162,7 +162,7 @@
             invoke("send_marker_position", {
                 x: offsetX / w,
                 y: offsetY / h,
-                marker_name: currentNode.id,
+                markerName: currentNode.id,
             });
         },
         8, // 120 Hz

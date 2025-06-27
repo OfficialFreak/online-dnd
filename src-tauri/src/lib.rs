@@ -44,7 +44,7 @@ fn send_mouse_position(x: f32, y: f32, udp_state: State<UdpState>) {
     // Send via UDP
     if let Ok(socket) = udp_state.socket.lock() {
         match socket.send_to(&data, "wiegraebe.dev:41340") {
-            Ok(_) => println!("Successfully sent position"),
+            Ok(_) => {}
             Err(e) => eprintln!("Failed to send UDP packet: {}", e),
         }
     }
@@ -53,7 +53,7 @@ fn send_mouse_position(x: f32, y: f32, udp_state: State<UdpState>) {
 #[tauri::command]
 fn send_marker_position(x: f32, y: f32, marker_name: String, udp_state: State<UdpState>) {
     // UDP Sending Logic
-    let mut data = Vec::with_capacity(1024); // 9 for position and type but string is of variable length
+    let mut data = Vec::with_capacity(9);
     data.extend_from_slice(&[0x02u8]);
     data.extend_from_slice(&x.to_le_bytes());
     data.extend_from_slice(&y.to_le_bytes());
@@ -62,7 +62,7 @@ fn send_marker_position(x: f32, y: f32, marker_name: String, udp_state: State<Ud
     // Send via UDP
     if let Ok(socket) = udp_state.socket.lock() {
         match socket.send_to(&data, "wiegraebe.dev:41340") {
-            Ok(_) => println!("Successfully sent position"),
+            Ok(_) => {},
             Err(e) => eprintln!("Failed to send UDP packet: {}", e),
         }
     }
