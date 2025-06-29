@@ -40,7 +40,9 @@
     });
 
     function getAssetUrl(asset: string) {
-        return `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${asset}?key=${encodeURIComponent(appState.token || "")}`;
+        return appState.token
+            ? `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${asset}?key=${encodeURIComponent(appState.token)}`
+            : "";
     }
 
     let throttled_save = throttle(
@@ -70,7 +72,7 @@
     id={marker.name}
     class="{!gameState.dm && mapUse ? 'tooltip tooltip-right' : ''} {mapUse
         ? '!absolute top-0 left-0'
-        : 'relative'}"
+        : 'relative'} hover:isolate hover:z-[9999]"
 >
     {#if !gameState.dm}
         <span

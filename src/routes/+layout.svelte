@@ -3,6 +3,7 @@
     import { getVersion } from "@tauri-apps/api/app";
     import "../app.css";
     import "@fortawesome/fontawesome-free/css/all.min.css";
+    import { fileTypeFromBuffer } from "file-type";
 
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import {
@@ -73,6 +74,15 @@
 
         // Read the file as binary
         const fileContent = await readFile(selectedFilePath);
+        const fileType = await fileTypeFromBuffer(fileContent);
+
+        if (fileType && fileType.mime.startsWith("video/")) {
+            notify(
+                "Die Datei wird auf dem Server konvertiert, weshalb der Upload einige Minuten dauern kann.",
+                MessageTypes.Info,
+                5000,
+            );
+        }
 
         // Create form data using Tauri's HTTP client
         const formData = new FormData();
@@ -93,6 +103,8 @@
             throw new Error(
                 `Upload failed: ${response.status} ${response.statusText}`,
             );
+        } else {
+            return response.text();
         }
     }
 
@@ -122,7 +134,10 @@
             throw new Error("Invalid file name");
         }
 
-        await upload_file(selectedFilePath, selectedFileName);
+        selectedFileName = await upload_file(
+            selectedFilePath,
+            selectedFileName,
+        );
         if (image_use === "scene") {
             scene_file = selectedFileName;
         } else if (image_use === "marker") {

@@ -157,6 +157,7 @@
             <li><button class="btn btn-ghost justify-start">Actions</button></li>
         </ul>
     </div> -->
+
     <div class="relative w-full h-full grow mt-1">
         <div class="w-full flex flex-wrap gap-y-1">
             {#each { length: 6 }, stat}
