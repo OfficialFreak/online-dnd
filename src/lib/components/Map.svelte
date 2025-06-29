@@ -146,7 +146,7 @@
         (x: number, y: number) => {
             invoke("send_mouse_position", { x: x, y: y });
         },
-        8, // 120 Hz
+        11, // 90 Hz
         { leading: false, trailing: true },
     );
 
@@ -165,7 +165,7 @@
                 markerName: currentNode.id,
             });
         },
-        8, // 120 Hz
+        11, // 90 Hz
         { leading: false, trailing: true },
     );
 

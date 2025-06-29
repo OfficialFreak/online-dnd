@@ -320,11 +320,11 @@
                         return {
                             ...marker,
                             x: new Tween(marker.x, {
-                                duration: 11,
+                                duration: 20,
                                 easing: circOut,
                             }),
                             y: new Tween(marker.y, {
-                                duration: 11,
+                                duration: 20,
                                 easing: circOut,
                             }),
                         };
@@ -429,11 +429,11 @@
         let new_marker = {
             ...marker,
             x: new Tween(0, {
-                duration: 11,
+                duration: 20,
                 easing: circOut,
             }),
             y: new Tween(0, {
-                duration: 11,
+                duration: 20,
                 easing: circOut,
             }),
             status_effects: [],
