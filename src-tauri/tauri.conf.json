@@ -1,57 +1,57 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "How to play DND Online fast",
-  "version": "0.3.9",
-  "identifier": "com.online-dnd.app",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../build"
-  },
-  "app": {
-    "windows": [
-      {
-        "title": "How to play DND Online fast",
-        "width": 800,
-        "height": 600,
-        "decorations": false,
-        "minWidth": 500,
-        "minHeight": 418,
-        "visible": false
-      },
-      {
-        "title": "How to play DND Online fast",
-        "width": 300,
-        "height": 400,
-        "decorations": false,
-        "url": "splashscreen.html",
-        "label": "splashscreen",
-        "resizable": false
-      }
-    ],
-    "security": {
-      "csp": null
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "How to play DND Online fast",
+    "version": "0.4.0",
+    "identifier": "com.online-dnd.app",
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "devUrl": "http://localhost:1420",
+        "beforeBuildCommand": "npm run build",
+        "frontendDist": "../build"
+    },
+    "app": {
+        "windows": [
+            {
+                "title": "How to play DND Online fast",
+                "width": 800,
+                "height": 600,
+                "decorations": false,
+                "minWidth": 500,
+                "minHeight": 418,
+                "visible": false
+            },
+            {
+                "title": "How to play DND Online fast",
+                "width": 300,
+                "height": 400,
+                "decorations": false,
+                "url": "splashscreen.html",
+                "label": "splashscreen",
+                "resizable": false
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ],
+        "createUpdaterArtifacts": true
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEwNTg1NUM3NTgzODIxNkQKUldSdElUaFl4MVZZb0NjQTNxaUZZMW5ydXVBdFpTcEwyLzRBRTRrOVdkWVpic2h3eGY4aS9lNXAK",
+            "endpoints": [
+                "https://github.com/OfficialFreak/online-dnd/releases/latest/download/latest.json"
+            ]
+        }
     }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "createUpdaterArtifacts": true
-  },
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEEwNTg1NUM3NTgzODIxNkQKUldSdElUaFl4MVZZb0NjQTNxaUZZMW5ydXVBdFpTcEwyLzRBRTRrOVdkWVpic2h3eGY4aS9lNXAK",
-        "endpoints": [
-          "https://github.com/OfficialFreak/online-dnd/releases/latest/download/latest.json"
-      ]
-    }
-  }
 }
