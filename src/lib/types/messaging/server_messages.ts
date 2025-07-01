@@ -16,7 +16,8 @@ export enum MessageType {
     MOUSE_LARGE = "mouse_large",
     CHARACTERS = "characters",
     CHECK_RESULT = "check_result",
-    SAVE_RESULT = "save_result"
+    SAVE_RESULT = "save_result",
+    COMBAT_STATE = "combat_state"
 }
 
 export enum EventType {
@@ -85,6 +86,8 @@ export interface Marker {
 export interface SceneState {
     fog_squares: Record<string, [number, number][]>;
     markers: Marker[];
+    initiative: [number, string][];
+    turn: string | null;
 }
 
 export interface SceneData extends BaseServerMessage {
@@ -180,6 +183,11 @@ export interface SaveResult extends BaseServerMessage {
     bonus: number;
 }
 
+export interface CombatState extends BaseServerMessage {
+    type: MessageType.COMBAT_STATE;
+    active: boolean;
+}
+
 export type ServerMessage = 
     | PlayerMessage 
     | InitialData 
@@ -198,7 +206,8 @@ export type ServerMessage =
     | MouseLarge 
     | Characters 
     | CheckResult 
-    | SaveResult;
+    | SaveResult
+    | CombatState;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -246,6 +255,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as CheckResult;
         case MessageType.SAVE_RESULT:
             return data as SaveResult;
+        case MessageType.COMBAT_STATE:
+            return data as CombatState;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

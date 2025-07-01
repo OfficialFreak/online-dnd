@@ -196,3 +196,12 @@ export class ImportCharacter {
         });
     }
 }
+
+export class CombatState {
+    static create(active: boolean): string {
+        return JSON.stringify({
+            type: "combat_state",
+            active: active
+        });
+    }
+}

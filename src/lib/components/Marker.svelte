@@ -8,7 +8,13 @@
     import throttle from "just-throttle";
     import { PutScene } from "$lib/types/messaging/client_messages";
 
-    let { marker, dragOptions, columnCount, mapUse = true } = $props();
+    let {
+        marker,
+        dragOptions,
+        columnCount,
+        mapUse = true,
+        banner = false,
+    } = $props();
     let markerElement: HTMLDivElement | null = $state(null);
     let scene_marker = $derived(
         gameState.scene?.state.markers.find(
@@ -24,14 +30,15 @@
     $effect(() => {
         if (!markerElement) return;
         markerElement.style.pointerEvents =
-            appState.selectedTool === Tools.Ruler ||
-            appState.selectedTool === Tools.Pointer ||
-            appState.selectedTool === Tools.None
+            (appState.selectedTool === Tools.Ruler ||
+                appState.selectedTool === Tools.Pointer ||
+                appState.selectedTool === Tools.None) &&
+            !banner
                 ? "auto"
                 : "none";
         markerElement.style.setProperty(
             "anchor-name",
-            `--${marker.name.replaceAll(" ", "-")}`,
+            `--${marker.name?.replaceAll(" ", "-") || ""}`,
         );
         markerElement.style.setProperty(
             "--y-translate",
@@ -54,6 +61,9 @@
         { leading: false, trailing: true },
     );
 
+    // svelte-ignore state_referenced_locally
+    let old_name = scene_marker.name;
+
     const effect_style_mapping = {
         knocked: ["background: #8e3a38", "filter: grayscale(0.8)"],
         petrified: ["background: gray", "filter: grayscale(1)"],
@@ -72,7 +82,9 @@
     id={marker.name}
     class="{!gameState.dm && mapUse ? 'tooltip tooltip-right' : ''} {mapUse
         ? '!absolute top-0 left-0'
-        : 'relative'} hover:isolate hover:z-[9999]"
+        : 'relative'} {!gameState.dm &&
+        banner &&
+        '!pointer-events-none'} hover:isolate hover:z-[9999]"
 >
     {#if !gameState.dm}
         <span
@@ -91,8 +103,11 @@
     <button
         class={(gameState.dm && mapUse
             ? "dropdown dropdown-hover dropdown-right dropdown-center"
-            : "") + " avatar flex"}
-        popovertarget={marker.name.replaceAll(" ", "-")}
+            : "") +
+            " avatar flex " +
+            (banner ? " aspect-[2/3] " : "") +
+            (!gameState.dm && banner && " pointer-events-none ")}
+        popovertarget={marker.name?.replaceAll(" ", "-") || ""}
     >
         {#if gameState.lockedMarkers[marker.name]}
             <span
@@ -104,18 +119,20 @@
             </span>
         {/if}
         <div
-            class="relative mask mask-hexagon pointer-events-none bg-neutral !flex justify-center items-center aspect-square"
+            class={"relative mask pointer-events-none bg-neutral !flex justify-center items-center aspect-square " +
+                (banner ? "mask-banner" : "mask-hexagon")}
             style="padding: calc(3% + 0.03vw); width: {typeof columnCount ===
             'string'
                 ? columnCount
                 : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
             marker.status_effects[0]
                 ? effect_style_mapping[marker.status_effects[0]][0]
-                : ''}"
+                : ''} {banner && 'transition: width 0.05s ease-out;'}"
         >
             <img
                 alt="Marker"
-                class="w-full aspect-square mask mask-hexagon"
+                class={"w-full aspect-square mask " +
+                    (banner ? "mask-banner" : "mask-hexagon")}
                 src={getAssetUrl(marker.file)}
                 style={marker.status_effects && marker.status_effects[0]
                     ? effect_style_mapping[marker.status_effects[0]][1]
@@ -136,6 +153,21 @@
                         class="input"
                         placeholder="Grom"
                         bind:value={scene_marker.name}
+                        oninput={() => {
+                            if (gameState.scene?.state.turn === old_name) {
+                                gameState.scene.state.turn = scene_marker.name;
+                            }
+
+                            let initiative =
+                                gameState.scene?.state.initiative.find(
+                                    (initiative) => initiative[1] === old_name,
+                                );
+                            if (initiative) {
+                                initiative[1] = scene_marker.name;
+                            }
+
+                            old_name = scene_marker.name;
+                        }}
                         onchange={throttled_save}
                     />
                     <legend class="fieldset-legend pointer-events-none"
@@ -168,6 +200,21 @@
                         class="btn btn-soft btn-error"
                         onclick={() => {
                             if (!gameState.scene) return;
+                            // Remove from initiative
+                            gameState.scene.state.initiative.splice(
+                                gameState.scene.state.initiative.findIndex(
+                                    (initiative) =>
+                                        initiative[1] === scene_marker.name,
+                                ),
+                                1,
+                            );
+
+                            if (
+                                gameState.scene.state.turn === scene_marker.name
+                            ) {
+                                gameState.scene.state.turn = null;
+                            }
+
                             gameState.scene.state.markers.splice(
                                 typeof scene_marker_index !== "number"
                                     ? Infinity
@@ -186,5 +233,17 @@
 <style lang="css">
     .tooltip::after {
         content: unset !important;
+    }
+
+    .mask-banner {
+        clip-path: polygon(
+            0% 0%,
+            100% 0%,
+            100% 70%,
+            65% 85%,
+            50% 100%,
+            35% 85%,
+            0% 70%
+        );
     }
 </style>

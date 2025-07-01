@@ -11,7 +11,10 @@
     } from "../state.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
-    import { PutScene } from "$lib/types/messaging/client_messages";
+    import {
+        CombatState,
+        PutScene,
+    } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "../notifications.svelte";
 
     function selectTool(tool: Tools) {
@@ -69,6 +72,11 @@
         }
 
         switch (evt.code) {
+            case "KeyK":
+                if (gameState.dm) {
+                    toggleCombat();
+                }
+                break;
             case "KeyL":
                 selectTool(Tools.Ruler);
                 break;
@@ -185,6 +193,13 @@
             gameState.scene.state.fog_squares[player] = [];
         }
         saveSceneFog();
+    }
+
+    function toggleCombat() {
+        gameState.combat = !gameState.combat;
+        if (appState.ws) {
+            appState.ws.send(CombatState.create(gameState.combat));
+        }
     }
 
     let scroll_container: any = $state(null);
@@ -398,6 +413,20 @@
                 >
                     <i class="fa-solid fa-location-pin"></i>
                 </button>
+            </div>
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    Kampf <kbd class="kbd">K</kbd>
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm {gameState.combat &&
+                        'btn-info'}"
+                    aria-label="Zeiger"
+                    onclick={() => {
+                        toggleCombat();
+                    }}><i class="fa-solid fa-hand-fist"></i></button
+                >
             </div>
         {/if}
         <div class="tooltip tooltip-right">

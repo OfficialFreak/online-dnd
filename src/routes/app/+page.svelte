@@ -17,6 +17,7 @@
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
     import Toolbar from "$lib/components/Toolbar.svelte";
     import { MessageTypes, notify } from "../../lib/notifications.svelte";
+    import InitiativeBar from "$lib/components/InitiativeBar.svelte";
 
     let url: string | null = $derived(
         appState.token
@@ -105,6 +106,13 @@
     />
 {/if}
 {#if !appState.dragging}
+    {#if gameState.scene && gameState.combat}
+        <div
+            class="fixed top-7 left-0 ml-14 w-[calc(100vw-5rem)] overflow-x-auto overflow-y-hidden flex justify-center pointer-events-none"
+        >
+            <InitiativeBar />
+        </div>
+    {/if}
     <div class="fixed top-10 left-2 bottom-16 pointer-events-none">
         <Toolbar />
     </div>

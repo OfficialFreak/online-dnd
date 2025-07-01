@@ -178,7 +178,7 @@
                 scene_columns,
                 scene_x_offset,
                 scene_y_offset,
-                { fog_squares: {}, markers: [] },
+                { fog_squares: {}, markers: [], initiative: [], turn: null },
             ),
         );
 
@@ -420,6 +420,9 @@
                         MessageTypes.Info,
                         -1,
                     );
+                    break;
+                case MessageType.COMBAT_STATE:
+                    gameState.combat = message.active;
                     break;
             }
         });
@@ -1109,7 +1112,7 @@
     class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"
 ></canvas>
 <div
-    class="fixed bottom-0 left-0 w-screen z-80 overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
+    class="fixed bottom-0 left-0 w-screen z-[9999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
 >
     <div
         class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"

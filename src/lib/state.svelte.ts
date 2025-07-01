@@ -10,15 +10,15 @@ export enum Tools {
     Pointer,
     AddFog,
     RemoveFog,
-    Ruler
+    Ruler,
 }
 
 export const appState = $state({
     token: null as string | null,
     ws: null as WebSocket | null,
     store: null as any,
-    secure: true,
-    baseUrl: "dnd.wiegraebe.dev",
+    secure: false,
+    baseUrl: "localhost:3030",
     selectedTool: Tools.None,
     dragging: false,
     prevZoom: 1,
@@ -42,6 +42,7 @@ export const gameState = $state({
     DMName: "",
     showMouse: false,
     largeMouse: false,
+    combat: false
 });
 
 export const mouseX = new Tween(0, {
