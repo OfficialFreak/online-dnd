@@ -7,6 +7,7 @@
         fogState,
         Tools,
         roller,
+        advance_turn,
     } from "../../lib/state.svelte";
     import { connect } from "../../lib/connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
@@ -18,6 +19,8 @@
     import Toolbar from "$lib/components/Toolbar.svelte";
     import { MessageTypes, notify } from "../../lib/notifications.svelte";
     import InitiativeBar from "$lib/components/InitiativeBar.svelte";
+    import { fade } from "svelte/transition";
+    import StatusEffectBar from "$lib/components/StatusEffectBar.svelte";
 
     let url: string | null = $derived(
         appState.token
@@ -80,6 +83,12 @@
             );
         }
     }
+
+    let own_character = $derived(
+        gameState.characters.find(
+            (character) => character.player_name === gameState.name,
+        ),
+    );
 </script>
 
 {#if gameState.scene}
@@ -119,5 +128,46 @@
     <div class="fixed bottom-2 left-2 z-10">
         <DiceChooser roll_callback={roll} />
     </div>
+
+    <div
+        class="fixed bottom-0 left-0 w-screen z-[999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
+    >
+        <div
+            class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"
+        >
+            {#if own_character?.activeStatusEffects?.length || 0 > 0}
+                <div
+                    class="flex justify-end items-end pointer-events-auto -mt-4"
+                >
+                    <StatusEffectBar
+                        effects={own_character.activeStatusEffects}
+                    />
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    {#if gameState.combat && gameState.scene?.state.initiative.length > 0 && (gameState.dm || gameState.characters.find((character) => character.player_name === gameState.name)?.name === gameState.scene?.state.turn)}
+        <div class="fixed bottom-2 left-1/2 -translate-x-1/2 z-10">
+            <div class="tooltip">
+                <div class="tooltip-content">
+                    <kbd class="kbd">→</kbd>
+                </div>
+                <button
+                    transition:fade={{ duration: 200 }}
+                    class="btn {gameState.dm
+                        ? !gameState.characters.some(
+                              (character) =>
+                                  character.name ===
+                                  gameState.scene?.state.turn,
+                          ) && 'btn-info'
+                        : 'btn-info'}"
+                    onclick={advance_turn}
+                >
+                    Zug beenden
+                </button>
+            </div>
+        </div>
+    {/if}
 {/if}
 <DiceRoller />

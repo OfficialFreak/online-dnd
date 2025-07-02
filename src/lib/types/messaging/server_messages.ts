@@ -5,6 +5,7 @@ export enum MessageType {
     EVENT = "event",
     ROLL_RESULT = "roll_result",
     SCENE = "scene",
+    SCENE_INITIATIVE = "scene_initiative",
     SCENE_LIST = "scene_list",
     PRELOAD_RESOURCE = "preload_resource",
     TOGGLE_PRESSURE = "toggle_pressure",
@@ -86,6 +87,12 @@ export interface Marker {
 export interface SceneState {
     fog_squares: Record<string, [number, number][]>;
     markers: Marker[];
+    initiative: [number, string][];
+    turn: string | null;
+}
+
+export interface InitiativeSceneData extends BaseServerMessage {
+    type: MessageType.SCENE_INITIATIVE;
     initiative: [number, string][];
     turn: string | null;
 }
@@ -195,6 +202,7 @@ export type ServerMessage =
     | LeaveEvent 
     | RollResult 
     | SceneData 
+    | InitiativeSceneData
     | SceneList 
     | PreloadResource 
     | TogglePressure 
@@ -231,6 +239,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as RollResult;
         case MessageType.SCENE:
             return data as SceneData;
+        case MessageType.SCENE_INITIATIVE:
+            return data as InitiativeSceneData;
         case MessageType.SCENE_LIST:
             return data as SceneList;
         case MessageType.PRELOAD_RESOURCE:

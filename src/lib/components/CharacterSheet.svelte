@@ -1,6 +1,11 @@
 <script lang="ts">
     import { CheckResult } from "$lib/types/messaging/client_messages";
-    import { appState, roller } from "../state.svelte";
+    import {
+        appState,
+        gameState,
+        roller,
+        update_initiative,
+    } from "../state.svelte";
     import SavingStat from "./CharacterSheet/SavingStat.svelte";
     import Stat from "./CharacterSheet/Stat.svelte";
 
@@ -16,6 +21,26 @@
                 character.actualInitiative,
             ),
         );
+        let char_init = gameState.scene?.state.initiative.find(
+            (initiative) => initiative[1] === character.name,
+        );
+        if (char_init) {
+            char_init[0] = result.roll_result + character.actualInitiative;
+        } else {
+            if (
+                gameState.scene?.state.markers.some(
+                    (marker) => marker.name === character.name,
+                )
+            ) {
+                gameState.scene?.state.initiative.push([
+                    result.roll_result + character.actualInitiative,
+                    character.name,
+                ]);
+            } else {
+                return;
+            }
+        }
+        await update_initiative();
     }
 </script>
 

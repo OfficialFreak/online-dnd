@@ -1,6 +1,11 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
-    import { appState, gameState, Tools } from "../state.svelte";
+    import {
+        appState,
+        gameState,
+        Tools,
+        update_initiative,
+    } from "../state.svelte";
     import { draggable } from "@neodrag/svelte";
     // @ts-ignore
     import MultiSelect from "svelte-multiselect";
@@ -27,13 +32,14 @@
         ),
     );
 
+    let position = $state({ x: 0, y: 0 });
+
     $effect(() => {
         if (!markerElement) return;
         markerElement.style.pointerEvents =
-            (appState.selectedTool === Tools.Ruler ||
-                appState.selectedTool === Tools.Pointer ||
-                appState.selectedTool === Tools.None) &&
-            !banner
+            appState.selectedTool === Tools.Ruler ||
+            appState.selectedTool === Tools.Pointer ||
+            appState.selectedTool === Tools.None
                 ? "auto"
                 : "none";
         markerElement.style.setProperty(
@@ -65,28 +71,64 @@
     let old_name = scene_marker.name;
 
     const effect_style_mapping = {
-        knocked: ["background: #8e3a38", "filter: grayscale(0.8)"],
-        petrified: ["background: gray", "filter: grayscale(1)"],
-        poisoned: ["background: #36d903", "filter: blur(0.5px);"],
-        burning: [
-            "background: #ff4300",
-            "filter: brightness(1.5) sepia(1) hue-rotate(333deg) saturate(3)",
+        knocked: [
+            "background: #8e3a38;",
+            "filter: grayscale(0.8);",
+            "burning.gif",
         ],
-        invisible: ["background: #cccccc44", "filter: opacity(0.5)"],
+        petrified: [
+            "background: gray;",
+            "filter: grayscale(1);",
+            "burning.gif",
+        ],
+        poisoned: [
+            "background: #36d903;",
+            "filter: blur(0.5px);",
+            "burning.gif",
+        ],
+        burning: [
+            "background: #ff4300;",
+            "filter: brightness(1.5) sepia(1) hue-rotate(333deg) saturate(3);",
+            "burning.gif",
+        ],
+        invisible: [
+            "background: #cccccc44;",
+            "filter: opacity(0.5);",
+            "burning.gif",
+        ],
     };
 </script>
 
 <div
     bind:this={markerElement}
-    use:draggable={dragOptions}
-    id={marker.name}
+    use:draggable={{
+        position: banner ? position : dragOptions.position,
+        ...dragOptions,
+        onDrag: ({ offsetX, offsetY }) => {
+            if (banner) {
+                position = { x: offsetX, y: offsetY };
+            }
+        },
+        onDragEnd: (evt) => {
+            if (dragOptions.onDragEnd) {
+                dragOptions.onDragEnd(evt);
+            }
+            if (banner) {
+                position.x = 0;
+                position.y = 0;
+                if (!markerElement) return;
+                markerElement.style = "";
+            }
+        },
+    }}
+    id={(banner ? "banner-" : !mapUse ? "nomapuse-" : "") + marker.name}
     class="{!gameState.dm && mapUse ? 'tooltip tooltip-right' : ''} {mapUse
         ? '!absolute top-0 left-0'
         : 'relative'} {!gameState.dm &&
         banner &&
         '!pointer-events-none'} hover:isolate hover:z-[9999]"
 >
-    {#if !gameState.dm}
+    {#if !gameState.dm && !banner}
         <span
             class="tooltip-content justify-center items-center flex !absolute"
             style="border-radius: {1 / appState.zoom}rem; padding: 0 {1 /
@@ -127,7 +169,7 @@
                 : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
             marker.status_effects[0]
                 ? effect_style_mapping[marker.status_effects[0]][0]
-                : ''} {banner && 'transition: width 0.05s ease-out;'}"
+                : ''}; {banner && 'transition: width 0.05s ease-out'}"
         >
             <img
                 alt="Marker"
@@ -138,6 +180,14 @@
                     ? effect_style_mapping[marker.status_effects[0]][1]
                     : ""}
             />
+            {#if marker.status_effects && marker.status_effects[0]}
+                <img
+                    alt="Effect Overlay"
+                    class={"absolute w-full aspect-square mask " +
+                        (banner ? "mask-banner" : "mask-hexagon")}
+                    src={effect_style_mapping[marker.status_effects[0]][2]}
+                />
+            {/if}
         </div>
         {#if gameState.dm && mapUse}
             <ul
@@ -194,10 +244,63 @@
                         --sms-min-height="2.5rem"
                     ></MultiSelect>
                 </li>
-                <li class="mt-2">
+                <li class="mt-2 flex flex-row gap-1">
+                    {#if !gameState.scene?.state.initiative.some((initiative) => initiative[1] === scene_marker.name)}
+                        <!-- svelte-ignore node_invalid_placement_ssr -->
+                        <button
+                            class="btn btn-soft btn-info flex-1"
+                            onclick={async () => {
+                                gameState.scene?.state.initiative.push([
+                                    0,
+                                    scene_marker.name,
+                                ]);
+
+                                await update_initiative();
+                            }}
+                        >
+                            <i class="fa-solid fa-plus"></i>
+                            Initiative
+                        </button>
+                    {:else}
+                        <!-- svelte-ignore node_invalid_placement_ssr -->
+                        <button
+                            class="btn btn-soft btn-warning flex-1"
+                            onclick={async () => {
+                                if (
+                                    gameState.scene?.state.initiative.length ===
+                                    1
+                                ) {
+                                    gameState.scene?.state.initiative.pop();
+                                } else {
+                                    console.log("Trying to find marker");
+                                    if (!gameState.scene) return;
+                                    console.log("Scene is available");
+                                    let idx =
+                                        gameState.scene.state.initiative.findIndex(
+                                            (initiative) =>
+                                                initiative[1] ===
+                                                scene_marker.name,
+                                        );
+
+                                    console.log("index:", idx);
+
+                                    if (idx === -1) return;
+                                    gameState.scene?.state.initiative.splice(
+                                        idx,
+                                        1,
+                                    );
+                                }
+
+                                await update_initiative();
+                            }}
+                        >
+                            <i class="fa-solid fa-minus"></i>
+                            Initiative
+                        </button>
+                    {/if}
                     <!-- svelte-ignore node_invalid_placement_ssr -->
                     <button
-                        class="btn btn-soft btn-error"
+                        class="btn btn-soft btn-error flex-1"
                         onclick={() => {
                             if (!gameState.scene) return;
                             // Remove from initiative

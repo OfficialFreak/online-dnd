@@ -49,7 +49,6 @@
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
-    import StatusEffectBar from "$lib/components/StatusEffectBar.svelte";
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
@@ -347,6 +346,34 @@
                     gameState.scene = message;
                     gameState.scene.state.markers = new_markers;
                     break;
+                case MessageType.SCENE_INITIATIVE:
+                    if (!gameState.scene) {
+                        console.warn(
+                            "No scene set but received initiative information",
+                        );
+                        break;
+                    }
+                    gameState.scene.state.initiative = message.initiative;
+
+                    if (
+                        gameState.scene.state.initiative.length > 0 &&
+                        ((gameState.scene.state.turn !== message.turn &&
+                            !gameState.dm &&
+                            gameState.characters.find(
+                                (character) =>
+                                    character.player_name === gameState.name,
+                            )?.name === message.turn) ||
+                            (gameState.dm &&
+                                !gameState.characters.some(
+                                    (character) =>
+                                        character.name === message.turn,
+                                )))
+                    ) {
+                        notify("Du bist dran", MessageTypes.Info, 3_000);
+                    }
+                    gameState.scene.state.turn = message.turn;
+
+                    break;
                 case MessageType.SCENE_LIST:
                     gameState.scenes = message.scenes;
                     break;
@@ -614,12 +641,6 @@
     });
     let scrollbar_visible = $state(false);
     let selected_player = $state(gameState.name);
-
-    let own_character = $derived(
-        gameState.characters.find(
-            (character) => character.player_name === gameState.name,
-        ),
-    );
 </script>
 
 <svelte:window
@@ -974,7 +995,7 @@
                             {marker}
                             mapUse={false}
                         />
-                        <span>{marker.name}</span>
+                        <span class="text-center">{marker.name}</span>
                         <span
                             class="badge absolute top-0 -right-1/2 -translate-x-1/2"
                         >
@@ -1118,11 +1139,6 @@
         class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"
     >
         <Notifications />
-        {#if own_character?.activeStatusEffects?.length || 0 > 0}
-            <div class="flex justify-end items-end pointer-events-auto -mt-4">
-                <StatusEffectBar effects={own_character.activeStatusEffects} />
-            </div>
-        {/if}
     </div>
 </div>
 

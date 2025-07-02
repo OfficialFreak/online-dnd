@@ -8,6 +8,9 @@
         getCharacter,
         modals,
         Tools,
+        update_initiative,
+        advance_turn,
+        get_sorted_initiative,
     } from "../state.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
@@ -57,7 +60,7 @@
         }
     });
 
-    function hotkeyHandler(evt: any) {
+    async function hotkeyHandler(evt: any) {
         const activeElement = document.activeElement;
 
         const isTyping =
@@ -122,6 +125,30 @@
                     appState.prevZoom = appState.zoom;
                     appState.zoom /= 1.25;
                 }
+                break;
+            case "ArrowLeft":
+                if (!gameState.combat || !gameState.dm || !gameState.scene)
+                    break;
+                // Go back a turn
+                let idx = get_sorted_initiative()?.findIndex(
+                    (initiative) =>
+                        initiative[1] === gameState.scene?.state.turn,
+                );
+
+                if (typeof idx !== "number") break;
+                if (idx === 0) {
+                    idx = get_sorted_initiative()?.length || 1 - 1;
+                } else {
+                    idx--;
+                }
+                gameState.scene.state.turn = (
+                    get_sorted_initiative() as [number, string][]
+                )[idx][1];
+                await update_initiative();
+
+                break;
+            case "ArrowRight":
+                await advance_turn();
                 break;
         }
     }

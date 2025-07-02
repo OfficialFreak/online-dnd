@@ -4,6 +4,7 @@ import type WebSocket from "@tauri-apps/plugin-websocket";
 import { circOut } from "svelte/easing";
 import { Tween } from "svelte/motion";
 import {SvelteSet} from "svelte/reactivity";	
+import { PutScene } from "./types/messaging/client_messages";
 
 export enum Tools {
     None,
@@ -79,4 +80,48 @@ export async function ensureStore() {
 
 export function getCharacter(character: string) {
     return gameState.characters.find((char) => char.name === character);
+}
+
+const sorted_initiative = $derived(
+    gameState.scene?.state.initiative.toSorted((a, b) => b[0] - a[0]),
+);
+
+export const get_sorted_initiative = () => sorted_initiative;
+
+export async function advance_turn() {
+    if (
+        !gameState.combat ||
+        !(
+            gameState.dm ||
+            gameState.characters.find(
+                (character) => character.player_name === gameState.name,
+            )?.name === gameState.scene?.state.turn
+        ) ||
+        !gameState.scene
+    )
+        return;
+
+    // Advance turn
+    let index = sorted_initiative?.findIndex(
+        (initiative) => initiative[1] === gameState.scene?.state.turn,
+    );
+
+    if (typeof index !== "number" || !sorted_initiative) return;
+    if (index === sorted_initiative.length - 1) {
+        index = 0;
+    } else {
+        index++;
+    }
+    gameState.scene.state.turn = sorted_initiative[index][1];
+    await update_initiative();
+}
+
+export async function update_initiative() {
+    if (!appState.ws || !gameState.scene) return;
+    await appState.ws.send(
+        PutScene.update_initiative(
+            gameState.scene.state.initiative,
+            gameState.scene.state.turn,
+        ),
+    );
 }
