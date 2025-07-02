@@ -71,31 +71,15 @@
     let old_name = scene_marker.name;
 
     const effect_style_mapping = {
-        knocked: [
-            "background: #8e3a38;",
-            "filter: grayscale(0.8);",
-            "burning.gif",
-        ],
-        petrified: [
-            "background: gray;",
-            "filter: grayscale(1);",
-            "burning.gif",
-        ],
-        poisoned: [
-            "background: #36d903;",
-            "filter: blur(0.5px);",
-            "burning.gif",
-        ],
+        knocked: ["background: #8e3a38;", "filter: grayscale(0.8);", null],
+        petrified: ["background: gray;", "filter: grayscale(1);", null],
+        poisoned: ["background: #36d903;", "filter: blur(0.5px);", null],
         burning: [
             "background: #ff4300;",
             "filter: brightness(1.5) sepia(1) hue-rotate(333deg) saturate(3);",
             "burning.gif",
         ],
-        invisible: [
-            "background: #cccccc44;",
-            "filter: opacity(0.5);",
-            "burning.gif",
-        ],
+        invisible: ["background: #cccccc44;", "filter: opacity(0.5);", null],
     };
 </script>
 
@@ -180,7 +164,7 @@
                     ? effect_style_mapping[marker.status_effects[0]][1]
                     : ""}
             />
-            {#if marker.status_effects && marker.status_effects[0]}
+            {#if marker.status_effects && marker.status_effects[0] && effect_style_mapping[marker.status_effects[0]][2] !== null}
                 <img
                     alt="Effect Overlay"
                     class={"absolute w-full aspect-square mask " +
