@@ -71,16 +71,20 @@
     let old_name = scene_marker.name;
 
     const effect_style_mapping = {
-        knocked: ["background: #8e3a38;", "filter: grayscale(0.8);", null],
-        petrified: ["background: gray;", "filter: grayscale(1);", null],
-        poisoned: ["background: #36d903;", "filter: blur(0.5px);", null],
+        knocked: ["--background: #8e3a38;", "filter: grayscale(0.8);", null],
+        petrified: ["--background: gray;", "filter: grayscale(1);", null],
+        poisoned: ["--background: #36d903;", "filter: blur(0.5px);", null],
         burning: [
-            "background: #ff4300;",
+            "--background: #ff4300;",
             "filter: brightness(1.5) sepia(1) hue-rotate(333deg) saturate(3);",
             "burning.gif",
         ],
-        invisible: ["background: #cccccc44;", "filter: opacity(0.5);", null],
+        invisible: ["--background: #cccccc44;", "filter: opacity(0.5);", null],
     };
+
+    let connected_character = $derived(
+        gameState.characters.find((char) => char.name === marker.name),
+    );
 </script>
 
 <div
@@ -145,15 +149,18 @@
             </span>
         {/if}
         <div
-            class={"relative mask pointer-events-none bg-neutral !flex justify-center items-center aspect-square " +
+            class={"relative mask pointer-events-none !flex justify-center items-center aspect-square " +
                 (banner ? "mask-banner" : "mask-hexagon")}
-            style="padding: calc(3% + 0.03vw); width: {typeof columnCount ===
+            style="padding: calc(3% + 0.03vw); --background: var(--color-neutral); width: {typeof columnCount ===
             'string'
                 ? columnCount
                 : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
             marker.status_effects[0]
                 ? effect_style_mapping[marker.status_effects[0]][0]
-                : ''}; {banner && 'transition: width 0.05s ease-out'}"
+                : ''}; {banner &&
+                'transition: width 0.05s ease-out'}; {connected_character
+                ? `background: conic-gradient(var(--background) ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg, #ff637d33 ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg) !important;`
+                : 'background: var(--background)'}"
         >
             <img
                 alt="Marker"
