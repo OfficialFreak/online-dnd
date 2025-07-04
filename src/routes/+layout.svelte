@@ -723,7 +723,7 @@
                 {/if}
             </div>
         </button>
-        {#if gameState.name === "Nils"}
+        {#if gameState.name === "Laura"}
             <button
                 class="text-sm"
                 onclick={async () => {
