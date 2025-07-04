@@ -77,7 +77,9 @@
                     }}
                     class="chat chat-end pointer-events-auto"
                 >
-                    <div class="chat-header">notification.msg.sender</div>
+                    <div class="chat-header">
+                        {notification.msg.sender}
+                    </div>
                     <div class="chat-bubble">
                         {typeof notification.msg === "string"
                             ? notification.msg

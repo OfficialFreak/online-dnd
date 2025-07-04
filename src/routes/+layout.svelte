@@ -26,6 +26,7 @@
         DeleteScene,
         ImportCharacter,
         InitialMessage,
+        PlayerMessage,
         PreloadResource,
         PutMarker,
         PutScene,
@@ -52,6 +53,8 @@
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
+    const heart = confetti.shapeFromText({ text: "❤️", scalar: 8 });
+    const heart2 = confetti.shapeFromText({ text: "💕", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
     let confetti_function: any = $state();
 
@@ -275,7 +278,7 @@
                             sender: `${message.sender}${message.sender_dm ? " 👑" : ""}`,
                         },
                         MessageTypes.Message,
-                        2000,
+                        0,
                     );
                     break;
                 case MessageType.INITIAL:
@@ -334,11 +337,11 @@
                         return {
                             ...marker,
                             x: new Tween(marker.x, {
-                                duration: 20,
+                                duration: 50,
                                 easing: circOut,
                             }),
                             y: new Tween(marker.y, {
-                                duration: 20,
+                                duration: 50,
                                 easing: circOut,
                             }),
                         };
@@ -474,11 +477,11 @@
         let new_marker = {
             ...marker,
             x: new Tween(0, {
-                duration: 20,
+                duration: 50,
                 easing: circOut,
             }),
             y: new Tween(0, {
-                duration: 20,
+                duration: 50,
                 easing: circOut,
             }),
             status_effects: [],
@@ -720,6 +723,46 @@
                 {/if}
             </div>
         </button>
+        {#if gameState.name === "Nils"}
+            <button
+                class="text-sm"
+                onclick={async () => {
+                    if (!appState.ws) {
+                        return;
+                    }
+
+                    // @ts-ignore
+                    await appState.ws.send(
+                        PlayerMessage.create("Easteregg gefunden ;D", "Nils"),
+                    );
+
+                    let duration = 1000;
+                    let end = Date.now() + duration;
+                    (function frame() {
+                        confetti_function({
+                            particleCount: 2,
+                            angle: 60,
+                            spread: 55,
+                            scalar: 4,
+                            origin: { x: 0 },
+                            shapes: [heart, heart2],
+                        });
+                        confetti_function({
+                            particleCount: 2,
+                            angle: 120,
+                            spread: 55,
+                            scalar: 4,
+                            origin: { x: 1 },
+                            shapes: [heart, heart2],
+                        });
+
+                        if (Date.now() < end) {
+                            requestAnimationFrame(frame);
+                        }
+                    })();
+                }}>🫶</button
+            >
+        {/if}
         {#if gameState.dm}
             <div class="dropdown dropdown-hover">
                 <div

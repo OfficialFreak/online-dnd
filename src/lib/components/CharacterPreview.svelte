@@ -2,6 +2,7 @@
     import { ImportCharacter } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "../notifications.svelte";
     import { appState, gameState } from "../state.svelte";
+    import StatusEffectBar from "./StatusEffectBar.svelte";
 
     let { character, callback = null } = $props();
 
@@ -80,6 +81,25 @@
             >
                 <i class="fa-solid fa-rotate-right"></i>
             </button>
+        </div>
+    {/if}
+    {#if character.activeStatusEffects.length > 0}
+        <div
+            class="absolute bottom-4 {(gameState.dm ||
+                character.player_name === gameState.name) &&
+            callback !== null
+                ? 'right-10'
+                : 'right-1'} scale-60 origin-bottom-right flex justify-end items-end pointer-events-auto -mt-4"
+        >
+            <div
+                class="{(gameState.dm ||
+                    character.player_name === gameState.name) &&
+                callback !== null
+                    ? 'max-w-50'
+                    : 'max-w-65'} overflow-x-auto h-26 px-8 flex justify-start items-end no-scrollbar"
+            >
+                <StatusEffectBar effects={character.activeStatusEffects} />
+            </div>
         </div>
     {/if}
 </div>

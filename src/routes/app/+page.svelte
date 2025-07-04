@@ -138,10 +138,15 @@
             {#if own_character?.activeStatusEffects?.length || 0 > 0}
                 <div
                     class="flex justify-end items-end pointer-events-auto -mt-4"
+                    transition:fade|global={{ duration: 200 }}
                 >
-                    <StatusEffectBar
-                        effects={own_character.activeStatusEffects}
-                    />
+                    <div
+                        class="max-w-[50vw] overflow-x-auto h-26 px-8 flex justify-start items-end no-scrollbar"
+                    >
+                        <StatusEffectBar
+                            effects={own_character.activeStatusEffects}
+                        />
+                    </div>
                 </div>
             {/if}
         </div>

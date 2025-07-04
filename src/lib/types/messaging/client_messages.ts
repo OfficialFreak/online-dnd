@@ -9,10 +9,11 @@ export class InitialMessage {
 }
 
 export class PlayerMessage {
-    static create(msg: string): string {
+    static create(msg: string, recipient: string): string {
         return JSON.stringify({
             type: "message",
-            "msg": msg
+            "msg": msg,
+            "recipient": recipient
         });
     }
 }

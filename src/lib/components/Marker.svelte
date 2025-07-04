@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { fade } from "svelte/transition";
     import {
         appState,
         gameState,
+        getCharacter,
         Tools,
         update_initiative,
     } from "../state.svelte";
@@ -12,6 +12,7 @@
     // @ts-ignore
     import throttle from "just-throttle";
     import { PutScene } from "$lib/types/messaging/client_messages";
+    import CharacterPreview from "./CharacterPreview.svelte";
 
     let {
         marker,
@@ -90,11 +91,14 @@
 <div
     bind:this={markerElement}
     use:draggable={{
-        position: banner ? position : dragOptions.position,
         ...dragOptions,
-        onDrag: ({ offsetX, offsetY }) => {
+        position: banner ? position : dragOptions.position,
+        onDrag: (evt) => {
+            if (dragOptions.onDrag) {
+                dragOptions.onDrag(evt);
+            }
             if (banner) {
-                position = { x: offsetX, y: offsetY };
+                position = { x: evt.offsetX, y: evt.offsetY };
             }
         },
         onDragEnd: (evt) => {
@@ -110,28 +114,31 @@
         },
     }}
     id={(banner ? "banner-" : !mapUse ? "nomapuse-" : "") + marker.name}
-    class="{!gameState.dm && mapUse ? 'tooltip tooltip-right' : ''} {mapUse
-        ? '!absolute top-0 left-0'
-        : 'relative'} {!gameState.dm &&
+    class="{!gameState.dm && mapUse && !getCharacter(marker.name)
+        ? 'tooltip tooltip-right'
+        : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
         banner &&
         '!pointer-events-none'} hover:isolate hover:z-[9999]"
 >
     {#if !gameState.dm && !banner}
-        <span
-            class="tooltip-content justify-center items-center flex !absolute"
-            style="border-radius: {1 / appState.zoom}rem; padding: 0 {1 /
-                appState.zoom}rem; transform: translate({20 /
-                appState.zoom}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
-        >
+        {#if !getCharacter(marker.name)}
             <span
-                style="font-size: {16 / appState.zoom}px; height: {40 /
-                    appState.zoom}px; line-height: {40 / appState.zoom}px;"
-                class="flex justify-center items-center">{marker.name}</span
+                class="tooltip-content justify-center items-center flex !absolute"
+                style="border-radius: {1 / appState.zoom}rem; padding: 0 {1 /
+                    appState.zoom}rem; transform: translate({20 /
+                    appState.zoom}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
             >
-        </span>
+                <span
+                    style="font-size: {16 / appState.zoom}px; height: {40 /
+                        appState.zoom}px; line-height: {40 / appState.zoom}px;"
+                    class="flex justify-center items-center">{marker.name}</span
+                >
+            </span>
+        {/if}
     {/if}
     <button
-        class={(gameState.dm && mapUse
+        class={((gameState.dm && mapUse) ||
+        (!gameState.dm && getCharacter(marker.name))
             ? "dropdown dropdown-hover dropdown-right dropdown-center"
             : "") +
             " avatar flex " +
@@ -142,7 +149,6 @@
         {#if gameState.lockedMarkers[marker.name]}
             <span
                 class="absolute top-0 right-1/2 translate-x-1/2 badge badge-neutral z-10 badge-xs"
-                transition:fade={{ duration: 100 }}
             >
                 <i class="fa-solid fa-up-down-left-right"></i>
                 {gameState.lockedMarkers[marker.name]}
@@ -319,6 +325,13 @@
                         }}>Entfernen</button
                     >
                 </li>
+            </ul>
+        {:else if getCharacter(marker.name) && !appState.dragging}
+            <ul
+                class="dropdown-content menu z-1 p-0 shadow-sm w-80 flex flex-row justify-start items-start text-left !transition-none"
+                style="transform: scale({Math.min(0.8 / appState.zoom, 1)})"
+            >
+                <CharacterPreview character={getCharacter(marker.name)} />
             </ul>
         {/if}
     </button>
