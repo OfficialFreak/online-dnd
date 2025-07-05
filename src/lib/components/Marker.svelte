@@ -326,7 +326,7 @@
                     >
                 </li>
             </ul>
-        {:else if getCharacter(marker.name) && !appState.dragging}
+        {:else if getCharacter(marker.name) && !appState.dragging && mapUse}
             <ul
                 class="dropdown-content menu z-1 p-0 shadow-sm w-80 flex flex-row justify-start items-start text-left !transition-none"
                 style="transform: scale({Math.min(0.8 / appState.zoom, 1)})"
