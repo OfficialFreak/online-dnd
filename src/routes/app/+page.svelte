@@ -109,7 +109,7 @@
             fogState.selected_player != "all"
                 ? fogState.selected_player
                 : gameState.name
-        ] as [number, number][]}
+        ]}
         markers={gameState.scene.state.markers}
         editable={true}
     />
@@ -152,7 +152,7 @@
         </div>
     </div>
 
-    {#if gameState.combat && gameState.scene?.state.initiative.length > 0 && (gameState.dm || gameState.characters.find((character) => character.player_name === gameState.name)?.name === gameState.scene?.state.turn)}
+    {#if gameState.combat && (gameState.scene?.state.initiative?.length || 0) > 0 && (gameState.dm || gameState.characters.find((character) => character.player_name === gameState.name)?.name === gameState.scene?.state.turn)}
         <div class="fixed bottom-2 left-1/2 -translate-x-1/2 z-10">
             <div class="tooltip">
                 <div class="tooltip-content">

@@ -25,7 +25,7 @@
             .backdropAvatarUrl ||
             'https://www.dndbeyond.com/avatars/43993/228/638609652442536203.jpeg'}')"
     ></div>
-    <div class="p-1 flex flex-row gap-2">
+    <div class="p-1 flex flex-row gap-2 items-center">
         <div
             class="h-22 aspect-square p-1 mask mask-hexagon"
             style="background: {character.decorations.themeColor?.themeColor ||

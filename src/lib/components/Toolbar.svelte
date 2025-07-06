@@ -55,7 +55,14 @@
             if (all_compatible) return;
             gameState.scene.state.fog_squares = {};
             for (const player of gameState.users) {
-                gameState.scene.state.fog_squares[player.name] = [];
+                gameState.scene.state.fog_squares[player.name] =
+                    new Array<number>(
+                        Math.ceil(
+                            (gameState.scene.columns * gameState.scene.rows) /
+                                32,
+                        ),
+                    );
+                gameState.scene.state.fog_squares[player.name].fill(0);
             }
         }
     });
@@ -198,13 +205,12 @@
                 ? gameState.users.map((user) => user.name)
                 : [fogState.selected_player];
         for (const player of edit_players) {
-            gameState.scene.state.fog_squares[player] = [];
-            for (let x = 0; x < gameState.scene.columns; x++) {
-                // @ts-ignore
-                for (let y = 0; y < gameState.scene.rows; y++) {
-                    gameState.scene.state.fog_squares[player].push([x, y]);
-                }
-            }
+            gameState.scene.state.fog_squares[player] = new Array(
+                Math.ceil(
+                    (gameState.scene.columns * gameState.scene.rows) / 32,
+                ),
+            );
+            gameState.scene.state.fog_squares[player].fill(-1);
         }
         saveSceneFog();
     }
@@ -217,7 +223,7 @@
                 ? gameState.users.map((user) => user.name)
                 : [fogState.selected_player];
         for (const player of edit_players) {
-            gameState.scene.state.fog_squares[player] = [];
+            gameState.scene.state.fog_squares[player].fill(0);
         }
         saveSceneFog();
     }

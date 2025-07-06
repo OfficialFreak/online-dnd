@@ -28,6 +28,7 @@
     let {
         file,
         columns,
+        set_rows = () => {},
         x_offset,
         y_offset,
         fog_squares,
@@ -45,8 +46,7 @@
     let grid: [number, number] = $derived([size, size]);
     let rows = $derived(Math.ceil(h / size) + 1);
     $effect(() => {
-        // @ts-ignore
-        gameState.scene.rows = rows;
+        set_rows(rows);
     });
     let map_url = $derived(getAssetUrl(file) || "");
     function getAssetUrl(asset: string) {
@@ -76,20 +76,51 @@
         appState.verticalSnapPoint = window.innerHeight / h;
     });
 
+    function setFogAt(
+        fog: Array<number>,
+        x: number,
+        y: number,
+        state: boolean,
+    ) {
+        if (!fog || !columns) return false;
+
+        let index = y * columns + x;
+        let arrayIndex = Math.floor(index / 32);
+        let bitIndex = index % 32;
+        if (state) {
+            fog[arrayIndex] |= 1 << (31 - bitIndex);
+        } else {
+            fog[arrayIndex] &= ~(1 << (31 - bitIndex));
+        }
+    }
+
+    function isFogAt(fog: Array<number>, x: number, y: number) {
+        if (!fog || !columns) return false;
+
+        let index = y * columns + x;
+        let arrayIndex = Math.floor(index / 32);
+        let bitIndex = index % 32;
+        return (fog[arrayIndex] & (1 << (31 - bitIndex))) !== 0;
+    }
+
     $effect(() => {
-        if (fogCtx && fog_squares) {
+        if (fogCtx && fog_squares && rows) {
             fogCtx.globalCompositeOperation = "source-over";
             fogCtx.clearRect(0, 0, w, h);
-            // Draw Fog
 
+            // Draw Fog
             fogCtx.beginPath();
-            for (const [x, y] of fog_squares) {
-                fogCtx.rect(
-                    size * x + x_offset,
-                    size * y + y_offset,
-                    size,
-                    size,
-                );
+            for (let x = 0; x < columns; x++) {
+                for (let y = 0; y < rows; y++) {
+                    if (isFogAt(fog_squares, x, y)) {
+                        fogCtx.rect(
+                            size * x + x_offset,
+                            size * y + y_offset,
+                            size,
+                            size,
+                        );
+                    }
+                }
             }
             fogCtx.fillStyle = "#cccccc";
             fogCtx.fill();
@@ -135,10 +166,10 @@
 
     let mouse_in_fog = $derived(
         gameState.scene &&
-            gameState.scene.state.fog_squares[gameState.name].some(
-                ([sx, sy]) =>
-                    sx === Math.floor((mouseX.current * w - x_offset) / size) &&
-                    sy === Math.floor((mouseY.current * h - y_offset) / size),
+            isFogAt(
+                fog_squares,
+                Math.floor((mouseX.current * w - x_offset) / size),
+                Math.floor((mouseY.current * h - y_offset) / size),
             ),
     );
 
@@ -236,20 +267,31 @@
                     ? gameState.users.map((user) => user.name)
                     : [fogState.selected_player];
             for (const player of edit_players) {
-                gameState.scene.state.fog_squares[player] ??= [];
+                if (!gameState.scene.state.fog_squares[player]) {
+                    gameState.scene.state.fog_squares[player] =
+                        new Array<number>(Math.ceil((columns * rows) / 32));
+                    gameState.scene.state.fog_squares[player].fill(0);
+                }
                 if (
                     appState.selectedTool === Tools.AddFog &&
-                    !gameState.scene.state.fog_squares[player].some(
-                        ([sx, sy]) => sx === x && sy === y,
-                    )
+                    !isFogAt(gameState.scene.state.fog_squares[player], x, y)
                 ) {
-                    gameState.scene.state.fog_squares[player].push([x, y]);
-                } else if (appState.selectedTool === Tools.RemoveFog) {
-                    let idx = gameState.scene.state.fog_squares[
-                        player
-                    ].findIndex(([sx, sy]) => sx === x && sy === y);
-                    if (idx === -1) return;
-                    gameState.scene.state.fog_squares[player].splice(idx, 1);
+                    setFogAt(
+                        gameState.scene.state.fog_squares[player],
+                        x,
+                        y,
+                        true,
+                    );
+                } else if (
+                    appState.selectedTool === Tools.RemoveFog &&
+                    isFogAt(gameState.scene.state.fog_squares[player], x, y)
+                ) {
+                    setFogAt(
+                        gameState.scene.state.fog_squares[player],
+                        x,
+                        y,
+                        false,
+                    );
                 }
             }
             debounced_fog_save();

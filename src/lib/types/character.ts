@@ -120,15 +120,12 @@ export class Character {
             if (item.equipped && item.definition.armorClass) {
                 switch (item.definition.armorTypeId) {
                     case 1:
-                        console.log(item);
                         armor_class += this.statModifiers.dexterity + item.definition.armorClass
                         break;
                     case 2:
-                        console.log(item);
                         armor_class += Math.min(this.statModifiers.dexterity, 2) + item.definition.armorClass
                         break;
                     case 3:
-                        console.log(item);
                         armor_class += item.definition.armorClass
                         break;
 

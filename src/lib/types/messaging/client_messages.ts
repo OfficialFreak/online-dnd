@@ -53,7 +53,7 @@ export class SaveResult {
 }
 
 export class PutScene {
-    static create(name: string, map_file: string, background_file: string, background_blur: number, columns: number, x_offset: number, y_offset: number, state: SceneState): string {
+    static create(name: string, map_file: string, background_file: string, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number, state: SceneState): string {
         return JSON.stringify({
             type: "put_scene",
             name: name,
@@ -61,6 +61,7 @@ export class PutScene {
             background_file: background_file,
             background_blur: background_blur,
             columns: columns,
+            rows: rows,
             x_offset: x_offset,
             y_offset: y_offset,
             state: state
@@ -74,6 +75,7 @@ export class PutScene {
                 y: marker.y.target
             };
         })
+        
         return JSON.stringify({
             type: "put_scene",
             name: scene.name,
@@ -81,12 +83,13 @@ export class PutScene {
             background_file: scene.background,
             background_blur: scene.background_blur,
             columns: scene.columns,
+            rows: scene.rows,
             x_offset: scene.x_offset,
             y_offset: scene.y_offset,
             state: {...scene.state, markers: new_markers}
         });
     }
-    static update_fog(fog_squares: Record<string, [number, number][]>): string {
+    static update_fog(fog_squares: SceneState["fog_squares"]): string {
         return JSON.stringify({
             type: "update_fog",
             fog_squares: fog_squares

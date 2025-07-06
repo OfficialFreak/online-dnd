@@ -8,7 +8,6 @@
         update_initiative,
     } from "$lib/state.svelte";
     import { flip } from "svelte/animate";
-    import { PutScene } from "$lib/types/messaging/client_messages";
 
     let columnCount = $derived(
         (gameState.scene?.state.initiative.length || 0) > 17 ? 30 : 20,
@@ -111,8 +110,13 @@
                                         sorted_markers[index].name,
                                 );
                             if (!prev_init || !next_init) return; // So typescript doesn't complain. It should never return here
-                            let prev_initiative = prev_init[0] || 0;
-                            let next_initiative = next_init[0] || 0;
+                            let prev_initiative = prev_init[0];
+                            let next_initiative = next_init[0];
+
+                            if (prev_init[0] === next_init[0]) {
+                                prev_init[0] += 0.001;
+                                next_init[0] -= 0.001;
+                            }
 
                             let new_initiative =
                                 (prev_initiative + next_initiative) / 2;

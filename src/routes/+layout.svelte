@@ -37,6 +37,7 @@
         MessageType,
         parseServerMessage,
         type MarkerTemplate,
+        type SceneState,
     } from "$lib/types/messaging/server_messages";
     import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
@@ -178,9 +179,15 @@
                 background_file as string,
                 background_blur,
                 scene_columns,
+                scene_rows,
                 scene_x_offset,
                 scene_y_offset,
-                { fog_squares: {}, markers: [], initiative: [], turn: null },
+                {
+                    fog_squares: {},
+                    markers: [],
+                    initiative: [],
+                    turn: null,
+                },
             ),
         );
 
@@ -498,7 +505,24 @@
         }
         new_marker.name = new_marker.name + (i === 1 ? "" : ` ${i.toString()}`);
         gameState.scene.state.markers.push(new_marker);
-        await appState.ws.send(PutScene.update(gameState.scene));
+
+        let serialized_fog: SceneState["fog_squares"] = {};
+        for (const [person, values] of Object.entries(
+            gameState.scene.state.fog_squares,
+        )) {
+            // @ts-ignore
+            serialized_fog[person] = Array.from(values);
+        }
+
+        await appState.ws.send(
+            PutScene.update({
+                ...gameState.scene,
+                state: {
+                    ...gameState.scene.state,
+                    fog_squares: serialized_fog,
+                },
+            }),
+        );
         notify("Marker in die Szene eingefügt", MessageTypes.Success, 3000);
     }
 
@@ -555,6 +579,7 @@
     let background_file: string | null = $state(null);
     let background_blur: number = $state(10);
     let scene_columns: number = $state(10);
+    let scene_rows: number = $state(10);
     let scene_x_offset: number = $state(0);
     let scene_y_offset: number = $state(0);
     let character_url = $state("");
@@ -919,9 +944,10 @@
                     <Map
                         file={scene_file}
                         columns={scene_columns}
+                        set_rows={(rows: number) => (scene_rows = rows)}
                         x_offset={scene_x_offset}
                         y_offset={scene_y_offset}
-                        fog_squares={[]}
+                        fog_squares={{}}
                         markers={[]}
                     />
                 </div>
@@ -953,9 +979,9 @@
                     </div>
                 {/if}
 
-                <button class="btn btn-neutral mt-4" onclick={create_scene}
-                    >Scene erstellen</button
-                >
+                <button class="btn btn-neutral mt-4" onclick={create_scene}>
+                    Scene erstellen
+                </button>
                 <p class="fieldset-label">
                     Du kannst Szenen überschreiben indem du eine Neue Szene mit
                     gleichem Namen erstellst.
@@ -984,7 +1010,7 @@
                             columns={previewScene.columns}
                             x_offset={previewScene.x_offset}
                             y_offset={previewScene.y_offset}
-                            fog_squares={[]}
+                            fog_squares={{}}
                             markers={[]}
                         />
                     </div>

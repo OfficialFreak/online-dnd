@@ -279,8 +279,6 @@
                                                 scene_marker.name,
                                         );
 
-                                    console.log("index:", idx);
-
                                     if (idx === -1) return;
                                     gameState.scene?.state.initiative.splice(
                                         idx,

@@ -85,7 +85,7 @@ export interface Marker {
 }
 
 export interface SceneState {
-    fog_squares: Record<string, [number, number][]>;
+    fog_squares: Record<string, Array<number>>;
     markers: Marker[];
     initiative: [number, string][];
     turn: string | null;
@@ -104,6 +104,7 @@ export interface SceneData extends BaseServerMessage {
     background: string;
     background_blur: number;
     columns: number;
+    rows: number;
     x_offset: number;
     y_offset: number;
     state: SceneState;
@@ -113,6 +114,7 @@ export interface Scene {
     _id: string;
     name: string;
     map_file: string;
+    rows: number;
     columns: number;
     x_offset: number;
     y_offset: number;
@@ -157,7 +159,7 @@ export interface MarkerFreed extends BaseServerMessage {
 
 export interface UpdateFog extends BaseServerMessage {
     type: MessageType.UPDATE_FOG;
-    fog_squares: Record<string, [number, number][]>;
+    fog_squares: SceneState["fog_squares"];
 }
 
 export interface MarkerLib extends BaseServerMessage {
