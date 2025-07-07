@@ -109,7 +109,7 @@ pub fn run() {
             let _ = app;
             let app_handle = app.handle().clone();
 
-            let socket = UdpSocket::bind("0.0.0.0:0").expect("Could not bind to random UDP port");
+            let socket = UdpSocket::bind("[::]:0").expect("Could not bind to random UDP port");
             let socket = Arc::new(socket);
 
             app.manage(UdpState {

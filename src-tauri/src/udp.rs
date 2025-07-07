@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::net::UdpSocket;
+use std::net::{ToSocketAddrs, UdpSocket};
 use std::{sync::Arc, thread, time::Duration};
 use tauri::{AppHandle, Emitter};
 
@@ -85,7 +85,11 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
     {
         let socket = Arc::clone(&socket);
         thread::spawn(move || {
-            let target = "wiegraebe.dev:41340";
+            let target = "wiegraebe.dev:41340"
+                .to_socket_addrs()
+                .expect("Unable to convert to socket address")
+                .find(|a| a.is_ipv6())
+                .expect("No IPv6 address found");
             loop {
                 if let Err(e) = socket.send_to(&[0x00u8], target) {
                     eprintln!("Heartbeat send error: {}", e);
