@@ -6,7 +6,7 @@
         Tools,
         update_initiative,
     } from "../state.svelte";
-    import { draggable } from "@neodrag/svelte";
+    import { Compartment, draggable, events, position } from "@neodrag/svelte";
     // @ts-ignore
     import MultiSelect from "svelte-multiselect";
     // @ts-ignore
@@ -33,7 +33,7 @@
         ),
     );
 
-    let position = $state({ x: 0, y: 0 });
+    let current_position = $state({ x: 0, y: 0 });
 
     $effect(() => {
         if (!markerElement) return;
@@ -86,33 +86,50 @@
     let connected_character = $derived(
         gameState.characters.find((char) => char.name === marker.name),
     );
+
+    const eventsComp = Compartment.of(() =>
+        events({
+            onDrag: (evt) => {
+                if (dragOptions.onDrag) {
+                    dragOptions.onDrag(evt);
+                }
+                if (banner) {
+                    current_position = evt.offset;
+                }
+            },
+            onDragStart: (evt) => {
+                if (dragOptions.onDragStart) {
+                    dragOptions.onDragStart(evt);
+                }
+            },
+            onDragEnd: (evt) => {
+                if (dragOptions.onDragEnd) {
+                    dragOptions.onDragEnd(evt);
+                }
+                if (banner) {
+                    current_position.x = 0;
+                    current_position.y = 0;
+                    if (!markerElement) return;
+                    markerElement.style = "";
+                }
+            },
+        }),
+    );
+
+    const positionComp = Compartment.of(() =>
+        banner
+            ? position({ current: current_position })
+            : position({ current: dragOptions.position }),
+    );
 </script>
 
 <div
     bind:this={markerElement}
-    use:draggable={{
-        ...dragOptions,
-        position: banner ? position : dragOptions.position,
-        onDrag: (evt) => {
-            if (dragOptions.onDrag) {
-                dragOptions.onDrag(evt);
-            }
-            if (banner) {
-                position = { x: evt.offsetX, y: evt.offsetY };
-            }
-        },
-        onDragEnd: (evt) => {
-            if (dragOptions.onDragEnd) {
-                dragOptions.onDragEnd(evt);
-            }
-            if (banner) {
-                position.x = 0;
-                position.y = 0;
-                if (!markerElement) return;
-                markerElement.style = "";
-            }
-        },
-    }}
+    {@attach draggable(() => [
+        positionComp,
+        eventsComp,
+        ...dragOptions.plugins,
+    ])}
     id={(banner ? "banner-" : !mapUse ? "nomapuse-" : "") + marker.name}
     class="{!gameState.dm && mapUse && !getCharacter(marker.name)
         ? 'tooltip tooltip-right'

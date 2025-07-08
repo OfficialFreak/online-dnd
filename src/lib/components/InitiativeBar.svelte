@@ -2,12 +2,12 @@
     import { fade } from "svelte/transition";
     import Marker from "./Marker.svelte";
     import {
-        appState,
         gameState,
         get_sorted_initiative,
         update_initiative,
     } from "$lib/state.svelte";
     import { flip } from "svelte/animate";
+    import { axis } from "@neodrag/svelte";
 
     let columnCount = $derived(
         (gameState.scene?.state.initiative.length || 0) > 17 ? 30 : 20,
@@ -44,7 +44,7 @@
                 columnCount={columnCount -
                     (gameState.scene?.state.turn === marker?.name ? 4 : 0)}
                 dragOptions={{
-                    axis: "x",
+                    plugins: [axis("x")],
                     onDragStart: () => {
                         dragging_marker = marker.name;
                     },

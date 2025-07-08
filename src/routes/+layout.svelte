@@ -51,6 +51,7 @@
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
+    import { disabled } from "@neodrag/svelte";
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
@@ -1060,7 +1061,7 @@
                     <div class="relative flex flex-col gap-1 items-center w-20">
                         <Marker
                             columnCount="100%"
-                            dragOptions={{ disabled: true }}
+                            dragOptions={{ plugins: [disabled(true)] }}
                             {marker}
                             mapUse={false}
                         />
@@ -1175,7 +1176,7 @@
             {:else}
                 <Marker
                     columnCount="100%"
-                    dragOptions={{ disabled: true }}
+                    dragOptions={{ plugins: [disabled(true)] }}
                     marker={{
                         name: marker_name,
                         size: marker_size,

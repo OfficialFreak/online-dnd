@@ -11,7 +11,18 @@
     // @ts-ignore
     import throttle from "just-throttle";
     import debounce from "just-debounce-it";
-    import { draggable } from "@neodrag/svelte";
+    import {
+        bounds,
+        BoundsFrom,
+        Compartment,
+        ControlFrom,
+        controls,
+        disabled,
+        draggable,
+        events,
+        grid,
+        position,
+    } from "@neodrag/svelte";
 
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
@@ -21,7 +32,6 @@
         MouseLarge,
         PutScene,
     } from "$lib/types/messaging/client_messages";
-    import { type DragOptions } from "@neodrag/svelte";
     import Marker from "./Marker.svelte";
     import { MessageTypes, notify } from "../notifications.svelte";
 
@@ -41,9 +51,84 @@
     let fogCtx: CanvasRenderingContext2D | null = $state(null);
     let w = $state(0);
     let h = $state(0);
+    let precomputedRects = $derived.by(() => {
+        const rowRuns: Array<Array<{ x: number; width: number }>> = [];
+
+        for (let row = 0; row < rows; row++) {
+            const runs = [];
+            let start = -1;
+
+            for (let col = 0; col <= columns; col++) {
+                const idx = row * columns + col;
+                const arrayIndex = Math.floor(idx / 32);
+                const bit = 31 - (idx % 32);
+                const isSet =
+                    col < columns &&
+                    (fog_squares[arrayIndex] & (1 << bit)) !== 0;
+
+                if (isSet) {
+                    if (start === -1) start = col;
+                } else if (start !== -1) {
+                    runs.push({ x: start, width: col - start });
+                    start = -1;
+                }
+            }
+
+            rowRuns.push(runs);
+        }
+
+        const result: Array<{
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        }> = [];
+        const rowsCount = rowRuns.length;
+
+        const pointers = new Array(rowsCount).fill(0);
+
+        for (let r = 0; r < rowsCount; r++) {
+            const runs = rowRuns[r];
+            for (let i = 0; i < runs.length; i++) {
+                let { x, width } = runs[i];
+                let height = 1;
+                let currentRow = r;
+
+                while (currentRow + 1 < rowsCount) {
+                    const nextRuns = rowRuns[currentRow + 1];
+                    let ptr = pointers[currentRow + 1];
+
+                    while (
+                        ptr < nextRuns.length &&
+                        (nextRuns[ptr].x < x ||
+                            (nextRuns[ptr].x === x &&
+                                nextRuns[ptr].width < width))
+                    ) {
+                        ptr++;
+                    }
+
+                    if (
+                        ptr < nextRuns.length &&
+                        nextRuns[ptr].x === x &&
+                        nextRuns[ptr].width === width
+                    ) {
+                        height++;
+                        currentRow++;
+                        pointers[currentRow] = ptr + 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                result.push({ x, y: r, width, height });
+            }
+        }
+
+        return result;
+    });
 
     let size = $derived(w / columns);
-    let grid: [number, number] = $derived([size, size]);
+    let current_grid: [number, number] = $derived([size, size]);
     let rows = $derived(Math.ceil(h / size) + 1);
     $effect(() => {
         set_rows(rows);
@@ -104,42 +189,46 @@
     }
 
     $effect(() => {
-        if (fogCtx && fog_squares && rows) {
+        if (fogCtx && precomputedRects && rows) {
             fogCtx.globalCompositeOperation = "source-over";
             fogCtx.clearRect(0, 0, w, h);
 
             // Draw Fog
             fogCtx.beginPath();
-            for (let x = 0; x < columns; x++) {
-                for (let y = 0; y < rows; y++) {
-                    if (isFogAt(fog_squares, x, y)) {
-                        fogCtx.rect(
-                            size * x + x_offset,
-                            size * y + y_offset,
-                            size,
-                            size,
-                        );
-                    }
-                }
+            for (const { x, y, width, height } of precomputedRects) {
+                fogCtx.rect(
+                    size * x + x_offset,
+                    size * y + y_offset,
+                    size * width,
+                    size * height,
+                );
             }
+
             fogCtx.fillStyle = "#cccccc";
             fogCtx.fill();
-
-            if (
-                fogPattern &&
-                !(
-                    appState.mouseDown &&
-                    (appState.selectedTool === Tools.AddFog ||
-                        appState.selectedTool === Tools.RemoveFog)
-                )
-            ) {
-                fogCtx.globalCompositeOperation = "source-in";
-                fogCtx.fillStyle = fogPattern;
-                fogCtx.filter = "blur(5px)";
-                fogCtx.fillRect(-5, -5, w + 10, h + 10);
-                fogCtx.filter = "none";
-            }
         }
+    });
+
+    $effect(() => {
+        if (
+            precomputedRects &&
+            fogCtx &&
+            fogPattern &&
+            !(
+                appState.mouseDown &&
+                (appState.selectedTool === Tools.AddFog ||
+                    appState.selectedTool === Tools.RemoveFog)
+            )
+        ) {
+            fogCtx.globalCompositeOperation = "source-in";
+            fogCtx.fillStyle = fogPattern;
+            fogCtx.filter = "blur(5px)";
+            fogCtx.fillRect(-5, -5, w + 10, h + 10);
+            fogCtx.filter = "none";
+        }
+    });
+
+    $effect(() => {
         if (gridCtx) {
             gridCtx.clearRect(0, 0, w, h);
             // Draw Grid
@@ -182,17 +271,18 @@
     );
 
     let throttledMarkerDrag = throttle(
-        ({ offsetX, offsetY, currentNode }) => {
+        async ({ offset, currentNode }) => {
+            console.log("Hey ho", offset.x, offset.y);
             if (!gameState.scene) return;
             let marker = gameState.scene.state.markers.find(
                 (marker) => marker.name === currentNode.id,
             );
             if (!appState.ws || !marker) return;
-            marker.x.set(offsetX / w, { duration: 0 });
-            marker.y.set(offsetY / h, { duration: 0 });
+            await marker.x.set(offset.x / w, { duration: 0 });
+            await marker.y.set(offset.y / h, { duration: 0 });
             invoke("send_marker_position", {
-                x: offsetX / w,
-                y: offsetY / h,
+                x: offset.x / w,
+                y: offset.y / h,
                 markerName: currentNode.id,
             });
         },
@@ -303,31 +393,33 @@
         fogCtx = fogCanvas.getContext("2d");
     });
 
-    let dragOptions: DragOptions = $derived({
-        onDragStart: ({ currentNode }) => {
+    const gridComp = Compartment.of(() =>
+        appState.ctrlPressed ? grid(current_grid) : grid([null, null]),
+    );
+
+    let dragOptions = $derived({
+        onDrag: (evt: any) => throttledMarkerDrag(evt),
+        onDragStart: ({ currentNode }: any) => {
             appState.dragging = true;
             if (!appState.ws) return;
             appState.ws.send(MarkerLocked.create(currentNode.id));
         },
-        onDragEnd: ({ offsetX, offsetY, currentNode }) => {
+        onDragEnd: async ({ offset, currentNode }: any) => {
             if (!gameState.scene) return;
             let marker = gameState.scene.state.markers.find(
                 (marker) => marker.name === currentNode.id,
             );
             if (!marker) return;
-            marker.x.set(offsetX / w, { duration: 0 });
-            marker.y.set(offsetY / h, { duration: 0 });
+            await marker.x.set(offset.x / w, { duration: 0 });
+            await marker.y.set(offset.y / h, { duration: 0 });
             appState.dragging = false;
             if (!appState.ws) return;
             if (!gameState.scene) return;
             appState.ws.send(
-                MarkerFreed.create(currentNode.id, offsetX / w, offsetY / h),
+                MarkerFreed.create(currentNode.id, offset.x / w, offset.y / h),
             );
         },
-        bounds: "parent",
-        onDrag: throttledMarkerDrag,
-        legacyTranslate: false,
-        grid: appState.ctrlPressed ? grid : undefined,
+        plugins: [bounds(BoundsFrom.parent()), gridComp],
     });
 
     let translate_thingy = $derived(
@@ -413,11 +505,20 @@
                 {marker}
                 dragOptions={{
                     ...dragOptions,
-                    position: {
-                        x: marker.x.current * w,
-                        y: marker.y.current * h,
-                    },
-                    disabled: !!gameState.lockedMarkers[marker.name],
+                    plugins: [
+                        ...dragOptions.plugins,
+                        Compartment.of(() =>
+                            position({
+                                current: {
+                                    x: marker.x.current * w,
+                                    y: marker.y.current * h,
+                                },
+                            }),
+                        ),
+                        Compartment.of(() =>
+                            disabled(!!gameState.lockedMarkers[marker.name]),
+                        ),
+                    ],
                 }}
                 columnCount={columns}
             />
@@ -448,7 +549,11 @@
         <div
             role="banner"
             class="absolute top-1/2 left-1/2"
-            use:draggable={{ handle: ".handle" }}
+            {@attach draggable([
+                controls({
+                    allow: ControlFrom.selector(".handle"),
+                }),
+            ])}
             onmousemove={(evt) => {
                 clickHandler(evt, false);
             }}
