@@ -194,7 +194,7 @@
         appState.ws.send(
             PutScene.update_fog(gameState.scene.state.fog_squares),
         );
-        notify("Nebel aktualisiert", MessageTypes.Success, 1000);
+        notify("Fog updated", MessageTypes.Success, 1000);
     }
 
     function fillAll() {
@@ -262,7 +262,7 @@
         >
             {#if !toolbarState.characterOpen}
                 <div class="p-2 px-4">
-                    <h1 class="text-3xl font-bold">Charaktere</h1>
+                    <h1 class="text-3xl font-bold">Characters</h1>
                     <div class="flex flex-row flex-wrap gap-2 mt-2">
                         {#each gameState.characters as character}
                             <CharacterPreview
@@ -277,7 +277,7 @@
                                 class="btn"
                                 onclick={() => {
                                     modals.characterImportModal?.showModal();
-                                }}>Charakter Importieren</button
+                                }}>Import Character</button
                             >
                         {/if}
                     </div>
@@ -324,7 +324,7 @@
         {#if gameState.dm}
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
-                    Zeiger <kbd class="kbd">Z</kbd>
+                    Pointer <kbd class="kbd">Z</kbd>
                 </div>
                 <button
                     tabindex="0"
@@ -349,17 +349,17 @@
                         <h3
                             class="-ml-2 font-bold pointer-events-none -my-1 text-base"
                         >
-                            Nebel
+                            Fog
                         </h3>
                         <legend
                             class="-ml-2 fieldset-legend pointer-events-none"
-                            >Spieler wählen</legend
+                            >Choose player</legend
                         >
                         <select
                             class="select select-sm !bg-[var(--color-base-100)]"
                             bind:value={fogState.selected_player}
                         >
-                            <option value="all">Alle</option>
+                            <option value="all">Everyone</option>
                             {#each gameState.users as player}
                                 <option value={player.name}
                                     >{#if player.active}🟢{:else}🔴{/if}
@@ -371,7 +371,7 @@
                     <li class="flex flex-row gap-1 mt-1">
                         <div class="tooltip tooltip-bottom p-0">
                             <div class="tooltip-content">
-                                Nebel hinzufügen <kbd class="kbd">F</kbd>
+                                Add fog <kbd class="kbd">F</kbd>
                             </div>
                             <button
                                 tabindex="0"
@@ -387,47 +387,47 @@
                         </div>
                         <div class="tooltip tooltip-bottom p-0">
                             <div class="tooltip-content">
-                                Nebel entfernen <kbd class="kbd">G</kbd>
+                                Remove fog
+                                <button
+                                    tabindex="0"
+                                    class="btn btn-square btn-sm {appState.selectedTool ===
+                                        Tools.RemoveFog && 'btn-info'}"
+                                    aria-label="Nebel entfernen"
+                                    onclick={() => {
+                                        selectTool(Tools.RemoveFog);
+                                    }}
+                                >
+                                    <i class="fa-solid fa-eraser"></i>
+                                </button>
                             </div>
-                            <button
-                                tabindex="0"
-                                class="btn btn-square btn-sm {appState.selectedTool ===
-                                    Tools.RemoveFog && 'btn-info'}"
-                                aria-label="Nebel entfernen"
-                                onclick={() => {
-                                    selectTool(Tools.RemoveFog);
-                                }}
-                            >
-                                <i class="fa-solid fa-eraser"></i>
-                            </button>
-                        </div>
-                        <div class="tooltip tooltip-bottom p-0">
-                            <div class="tooltip-content">
-                                Alles ausfüllen <kbd class="kbd">SHIFT</kbd> +
-                                <kbd class="kbd">F</kbd>
+                            <div class="tooltip tooltip-bottom p-0">
+                                <div class="tooltip-content">
+                                    Fill all <kbd class="kbd">SHIFT</kbd> +
+                                    <kbd class="kbd">F</kbd>
+                                </div>
+                                <button
+                                    tabindex="0"
+                                    class="btn btn-square btn-sm"
+                                    aria-label="Alles ausfüllen"
+                                    onclick={fillAll}
+                                >
+                                    <i class="fa-solid fa-fill-drip"></i>
+                                </button>
                             </div>
-                            <button
-                                tabindex="0"
-                                class="btn btn-square btn-sm"
-                                aria-label="Alles ausfüllen"
-                                onclick={fillAll}
-                            >
-                                <i class="fa-solid fa-fill-drip"></i>
-                            </button>
-                        </div>
-                        <div class="tooltip tooltip-bottom p-0">
-                            <div class="tooltip-content">
-                                Alles entfernen <kbd class="kbd">SHIFT</kbd> +
-                                <kbd class="kbd">G</kbd>
+                            <div class="tooltip tooltip-bottom p-0">
+                                <div class="tooltip-content">
+                                    Remove all <kbd class="kbd">SHIFT</kbd> +
+                                    <kbd class="kbd">G</kbd>
+                                </div>
+                                <button
+                                    tabindex="0"
+                                    class="btn btn-square btn-sm"
+                                    aria-label="Alles entfernen"
+                                    onclick={removeAll}
+                                >
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
                             </div>
-                            <button
-                                tabindex="0"
-                                class="btn btn-square btn-sm"
-                                aria-label="Alles entfernen"
-                                onclick={removeAll}
-                            >
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
                         </div>
                     </li>
                 </ul>
@@ -449,7 +449,7 @@
             </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
-                    Kampf <kbd class="kbd">K</kbd>
+                    Combat <kbd class="kbd">K</kbd>
                 </div>
                 <button
                     tabindex="0"
@@ -464,7 +464,7 @@
         {/if}
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
-                Charaktere <kbd class="kbd">C</kbd>
+                Characters <kbd class="kbd">C</kbd>
             </div>
             <button
                 tabindex="0"
@@ -480,7 +480,7 @@
         </div>
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
-                Lineal <kbd class="kbd">L</kbd>
+                Ruler <kbd class="kbd">L</kbd>
             </div>
             <button
                 tabindex="0"

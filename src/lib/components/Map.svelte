@@ -140,6 +140,9 @@
                 fogCtx.filter = "none";
             }
         }
+    });
+
+    $effect(() => {
         if (gridCtx) {
             gridCtx.clearRect(0, 0, w, h);
             // Draw Grid
@@ -205,7 +208,7 @@
         appState.ws.send(
             PutScene.update_fog(gameState.scene.state.fog_squares),
         );
-        notify("Nebel aktualisiert", MessageTypes.Success, 1000);
+        notify("Fog updated", MessageTypes.Success, 1000);
     }
 
     let debounced_fog_save = debounce(saveSceneFog, 500);

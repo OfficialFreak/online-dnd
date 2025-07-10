@@ -169,7 +169,7 @@
                         : 'btn-info'}"
                     onclick={advance_turn}
                 >
-                    Zug beenden
+                    End turn
                 </button>
             </div>
         </div>

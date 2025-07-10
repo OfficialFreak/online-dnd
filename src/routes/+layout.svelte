@@ -309,12 +309,12 @@
                             joined_person.active = true;
                             if (message.person_dm) {
                                 notify(
-                                    `${message.person} ist aus seinem uralten Schlummer erwacht`,
+                                    `${message.person} has awakened from their ancient slumber`,
                                     MessageTypes.Scawy,
                                 );
                             } else {
                                 notify(
-                                    `${message.person} schließt sich dem Abenteuer an`,
+                                    `${message.person} joins the adventure`,
                                     MessageTypes.Neutral,
                                 );
                             }
@@ -379,7 +379,7 @@
                                         character.name === message.turn,
                                 )))
                     ) {
-                        notify("Du bist dran", MessageTypes.Info, 3_000);
+                        notify("It's your turn", MessageTypes.Info, 3_000);
                     }
                     gameState.scene.state.turn = message.turn;
 
@@ -470,7 +470,7 @@
     async function select_scene(name: string) {
         if (!appState.ws) return;
         await appState.ws.send(ActivateScene.create(name));
-        notify("Szene aktiviert", MessageTypes.Success, 1500);
+        notify("Activated Scene", MessageTypes.Success, 1500);
     }
 
     async function delete_scene(name: string) {
@@ -523,7 +523,7 @@
                 },
             }),
         );
-        notify("Marker in die Szene eingefügt", MessageTypes.Success, 3000);
+        notify("Added the marker to the scene", MessageTypes.Success, 3000);
     }
 
     async function remove_marker(marker: MarkerTemplate) {
@@ -805,7 +805,7 @@
                             class="btn btn-ghost justify-start"
                             onclick={() => {
                                 scene_chooser_modal?.showModal();
-                            }}>Szenen</button
+                            }}>Scenes</button
                         >
                     </li>
                     <li>
@@ -898,7 +898,7 @@
 </div>
 <dialog bind:this={scene_modal} class="modal">
     <div class="modal-box">
-        <h3 class="text-lg font-bold">Szene erstellen</h3>
+        <h3 class="text-lg font-bold">Create Scene</h3>
         <fieldset class="fieldset">
             <legend class="fieldset-legend">Szenenname</legend>
             <input
@@ -995,7 +995,7 @@
 </dialog>
 <dialog bind:this={scene_chooser_modal} class="modal">
     <div class="modal-box">
-        <h3 class="text-lg font-bold">Szenen</h3>
+        <h3 class="text-lg font-bold">Scenes</h3>
         <ul class="list bg-base-100 rounded-box shadow-md">
             {#each gameState.scenes as previewScene}
                 <li
@@ -1024,7 +1024,7 @@
                                 select_scene(previewScene.name);
                             }}
                         >
-                            Aktivieren
+                            Activate
                         </button>
                         <button
                             class="btn btn-soft btn-error"
@@ -1032,7 +1032,7 @@
                                 delete_scene(previewScene.name);
                             }}
                         >
-                            Löschen
+                            Delete
                         </button>
                     </div>
                 </li>
@@ -1042,7 +1042,7 @@
                     class="btn btn-ghost w-full"
                     onclick={() => {
                         scene_modal?.showModal();
-                    }}>Szene erstellen</button
+                    }}>Create Scene</button
                 >
             </li>
         </ul>
@@ -1053,7 +1053,7 @@
 </dialog>
 <dialog bind:this={modals.markerModal} class="modal">
     <div class="modal-box">
-        <h3 class="text-lg font-bold">Marker Bibliothek</h3>
+        <h3 class="text-lg font-bold">Marker Library</h3>
         <ul class="list bg-base-100 rounded-box shadow-md">
             {#each gameState.markerLib as marker}
                 <li class="list-row flex flex-row items-center justify-between">
@@ -1079,13 +1079,13 @@
                             class="btn btn-ghost"
                             onclick={() => {
                                 add_marker(marker);
-                            }}>Hinzufügen</button
+                            }}>Add</button
                         >
                         <button
                             class="btn btn-soft btn-error"
                             onclick={() => {
                                 remove_marker(marker);
-                            }}>Löschen</button
+                            }}>Delete</button
                         >
                     </div>
                 </li>
@@ -1095,7 +1095,7 @@
                     class="btn btn-ghost w-full"
                     onclick={() => {
                         marker_creation_modal?.showModal();
-                    }}>Marker erstellen</button
+                    }}>Create Marker</button
                 >
             </li>
         </ul>

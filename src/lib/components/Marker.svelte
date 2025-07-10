@@ -218,7 +218,7 @@
                         onchange={throttled_save}
                     />
                     <legend class="fieldset-legend pointer-events-none"
-                        >Größe</legend
+                        >Size</legend
                     >
                     <input
                         type="number"
@@ -230,7 +230,7 @@
                         onchange={throttled_save}
                     />
                     <legend class="fieldset-legend pointer-events-none"
-                        >Statuseffekte</legend
+                        >Status Effects</legend
                     >
                     <MultiSelect
                         on:change={throttled_save}
@@ -320,7 +320,7 @@
                                 1,
                             );
                             throttled_save();
-                        }}>Entfernen</button
+                        }}>Remove</button
                     >
                 </li>
             </ul>

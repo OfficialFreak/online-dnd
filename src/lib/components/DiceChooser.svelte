@@ -54,20 +54,20 @@
                         reset();
                     }}
                 >
-                    Würfeln
+                    Roll
                 </button>
                 <select
                     class="select join-item rounded-r-full h-full"
                     bind:value={privacy_level}
                 >
-                    <option disabled selected>Sichtbarkeit</option>
-                    <option value="public">Alle</option>
-                    <option value="dm">Nur der DM</option>
-                    <option value="private">Privat</option>
+                    <option disabled selected>Visibility</option>
+                    <option value="public">All</option>
+                    <option value="dm">Only the DM</option>
+                    <option value="private">Private</option>
                 </select>
             </div>
             <button class="btn rounded-full h-12" onclick={reset}>
-                Zurücksetzen
+                Reset
             </button>
         {/if}
     </div>
