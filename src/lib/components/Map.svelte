@@ -46,6 +46,7 @@
     let grid: [number, number] = $derived([size, size]);
     let rows = $derived(Math.ceil(h / size) + 1);
     $effect(() => {
+        if (!editable) return;
         set_rows(rows);
     });
     let map_url = $derived(getAssetUrl(file) || "");
@@ -65,7 +66,7 @@
         }
     };
     $effect(() => {
-        if (!fogCtx) return;
+        if (!fogCtx || !editable) return;
         const pattern = fogCtx.createPattern(fogImg, "repeat");
         if (pattern) {
             fogPattern = pattern;
@@ -73,6 +74,7 @@
     });
 
     $effect(() => {
+        if (!editable) return;
         appState.verticalSnapPoint = window.innerHeight / h;
     });
 
@@ -95,15 +97,13 @@
     }
 
     function isFogAt(fog: Array<number>, x: number, y: number) {
-        if (!fog || !columns) return false;
-
         let index = y * columns + x;
-        let arrayIndex = Math.floor(index / 32);
-        let bitIndex = index % 32;
-        return (fog[arrayIndex] & (1 << (31 - bitIndex))) !== 0;
+        return (fog[Math.floor(index / 32)] & (1 << (31 - (index % 32)))) !== 0;
     }
 
     $effect(() => {
+        if (!editable) return;
+
         if (fogCtx && fog_squares && rows) {
             fogCtx.globalCompositeOperation = "source-over";
             fogCtx.clearRect(0, 0, w, h);
@@ -140,6 +140,9 @@
                 fogCtx.filter = "none";
             }
         }
+    });
+
+    $effect(() => {
         if (gridCtx) {
             gridCtx.clearRect(0, 0, w, h);
             // Draw Grid
@@ -213,6 +216,7 @@
     let ruler_rotation = $state(0);
 
     function clickHandler(event: MouseEvent, click: boolean) {
+        if (!editable) return;
         let currentMouseX = event.offsetX / w;
         // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
         let currentMouseY = event.offsetY / h;
@@ -300,6 +304,7 @@
 
     onMount(() => {
         gridCtx = gridCanvas.getContext("2d");
+        if (!editable) return;
         fogCtx = fogCanvas.getContext("2d");
     });
 
@@ -366,12 +371,14 @@
     }
 
     $effect(() => {
+        if (!editable) return;
         if (!appState.mouseDown) {
             rotate_active = false;
         }
     });
 
     $effect(() => {
+        if (!editable) return;
         if (!ruler) return;
         ruler.style.rotate = `${ruler_rotation}deg`;
     });
@@ -391,13 +398,15 @@
         bind:clientWidth={w}
         bind:clientHeight={h}
         onmousedown={(evt) => {
+            if (!editable) return;
             clickHandler(evt, true);
         }}
         onmousemove={(evt) => {
+            if (!editable) return;
             clickHandler(evt, false);
         }}
         onclick={(evt) => {
-            if (!appState.ws) return;
+            if (!appState.ws || !editable) return;
             if (evt.button === 0 && appState.selectedTool === Tools.Pointer) {
                 appState.ws.send(MouseLarge.create());
             }
@@ -407,70 +416,74 @@
         class="absolute top-0 left-0 w-full h-full z-0 opacity-50"
     >
     </canvas>
-    <div class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
-        {#each markers as marker}
-            <Marker
-                {marker}
-                dragOptions={{
-                    ...dragOptions,
-                    position: {
-                        x: marker.x.current * w,
-                        y: marker.y.current * h,
-                    },
-                    disabled: !!gameState.lockedMarkers[marker.name],
-                }}
-                columnCount={columns}
-            />
-        {/each}
-    </div>
-    <canvas
-        bind:this={fogCanvas}
-        width={w as number}
-        height={h as number}
-        class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
-        style="opacity: {gameState.dm ? '60' : '100'}%"
-    >
-    </canvas>
-    {#if gameState.showMouse && !mouse_in_fog && !gameState.dm}
+    {#if editable}
         <div
-            transition:fade
-            class="absolute pointer-events-none top-0 left-0 origin-top-left"
-            style="transform: translate({mouseX.current *
-                w}px, {mouseY.current * h}px) scale({gameState.largeMouse
-                ? '2'
-                : '1'});"
+            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
         >
-            <i class="fa-solid fa-arrow-pointer"></i>
-            <span class="badge badge-xs">{gameState.DMName}</span>
+            {#each markers as marker}
+                <Marker
+                    {marker}
+                    dragOptions={{
+                        ...dragOptions,
+                        position: {
+                            x: marker.x.current * w,
+                            y: marker.y.current * h,
+                        },
+                        disabled: !!gameState.lockedMarkers[marker.name],
+                    }}
+                    columnCount={columns}
+                />
+            {/each}
         </div>
-    {/if}
-    {#if appState.selectedTool === Tools.Ruler && editable}
-        <div
-            role="banner"
-            class="absolute top-1/2 left-1/2"
-            use:draggable={{ handle: ".handle" }}
-            onmousemove={(evt) => {
-                clickHandler(evt, false);
-            }}
+        <canvas
+            bind:this={fogCanvas}
+            width={w as number}
+            height={h as number}
+            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+            style="opacity: {gameState.dm ? '60' : '100'}%"
         >
+        </canvas>
+        {#if gameState.showMouse && !mouse_in_fog && !gameState.dm}
             <div
-                bind:this={ruler}
-                bind:clientWidth={ruler_width}
-                class="origin-center block h-8 w-50 bg-base-100 text-white overflow-auto resize-x"
+                transition:fade
+                class="absolute pointer-events-none top-0 left-0 origin-top-left"
+                style="transform: translate({mouseX.current *
+                    w}px, {mouseY.current * h}px) scale({gameState.largeMouse
+                    ? '2'
+                    : '1'});"
             >
-                <div class="absolute bottom-0 h-full w-full handle"></div>
-                <button
-                    aria-label="Rotate Handle"
-                    class="absolute top-1/2 right-0 -translate-y-1/2 w-4 h-full bg-base-300"
-                    onmousedown={rulerRotate}
-                ></button>
-                <span
-                    class="absolute top-0 left-0 w-full h-full flex justify-center items-center pointer-events-none"
-                >
-                    {Math.round((ruler_width / size) * 50) / 10}
-                    <i class="ml-2 fa-solid fa-shoe-prints text-xs"></i>
-                </span>
+                <i class="fa-solid fa-arrow-pointer"></i>
+                <span class="badge badge-xs">{gameState.DMName}</span>
             </div>
-        </div>
+        {/if}
+        {#if appState.selectedTool === Tools.Ruler}
+            <div
+                role="banner"
+                class="absolute top-1/2 left-1/2"
+                use:draggable={{ handle: ".handle" }}
+                onmousemove={(evt) => {
+                    clickHandler(evt, false);
+                }}
+            >
+                <div
+                    bind:this={ruler}
+                    bind:clientWidth={ruler_width}
+                    class="origin-center block h-8 w-50 bg-base-100 text-white overflow-auto resize-x"
+                >
+                    <div class="absolute bottom-0 h-full w-full handle"></div>
+                    <button
+                        aria-label="Rotate Handle"
+                        class="absolute top-1/2 right-0 -translate-y-1/2 w-4 h-full bg-base-300"
+                        onmousedown={rulerRotate}
+                    ></button>
+                    <span
+                        class="absolute top-0 left-0 w-full h-full flex justify-center items-center pointer-events-none"
+                    >
+                        {Math.round((ruler_width / size) * 50) / 10}
+                        <i class="ml-2 fa-solid fa-shoe-prints text-xs"></i>
+                    </span>
+                </div>
+            </div>
+        {/if}
     {/if}
 </div>
