@@ -75,7 +75,9 @@
         {#each entries as [dice, count]}
             <div class="indicator">
                 {#if count > 0}
-                    <span class="indicator-item badge">{count}</span>
+                    <span class="indicator-item badge will-change-contents"
+                        >{count}</span
+                    >
                 {/if}
                 <div class="tooltip" data-tip={dice.toUpperCase()}>
                     <button

@@ -19,6 +19,7 @@
         PutScene,
     } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "../notifications.svelte";
+    import debounce from "just-debounce-it";
 
     function selectTool(tool: Tools) {
         if (appState.selectedTool === tool) {
@@ -160,9 +161,17 @@
         }
     }
 
+    const removeZooming = debounce(() => {
+        appState.zooming = false;
+    }, 500);
+
     function wheelHandler(evt: any) {
         if (evt.ctrlKey) {
             evt.preventDefault();
+            if (evt.deltaY < 0) {
+                appState.zooming = true;
+                removeZooming();
+            }
 
             const snapThreshold = 0.05;
 

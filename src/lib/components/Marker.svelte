@@ -13,6 +13,7 @@
     import throttle from "just-throttle";
     import { PutScene } from "$lib/types/messaging/client_messages";
     import CharacterPreview from "./CharacterPreview.svelte";
+    import { onMount } from "svelte";
 
     let {
         marker,
@@ -86,6 +87,10 @@
     let connected_character = $derived(
         gameState.characters.find((char) => char.name === marker.name),
     );
+
+    onMount(() => {
+        console.log("Mounted Marker", marker.name);
+    });
 </script>
 
 <div
@@ -118,7 +123,7 @@
         ? 'tooltip tooltip-right'
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
         banner &&
-        '!pointer-events-none'} hover:isolate hover:z-[9999]"
+        '!pointer-events-none'} {mapUse && 'hover:isolate hover:z-[9999]'}"
 >
     {#if !gameState.dm && !banner}
         {#if !getCharacter(marker.name)}

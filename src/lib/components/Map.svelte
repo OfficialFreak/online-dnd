@@ -97,7 +97,7 @@
     }
 
     function isFogAt(fog: Array<number>, x: number, y: number) {
-        let index = y * columns + x;
+        const index = y * columns + x;
         return (fog[Math.floor(index / 32)] & (1 << (31 - (index % 32)))) !== 0;
     }
 
@@ -387,7 +387,8 @@
 </script>
 
 <div
-    class="w-full relative select-none overflow-hidden"
+    class="w-full relative select-none overflow-hidden {appState.zooming &&
+        'will-change-transform'}"
     style="transform: scale({editable ? appState.zoom : 1}) translate({editable
         ? translate_thingy
         : 0}%, {editable ? translate_thingy : 0}%)"
