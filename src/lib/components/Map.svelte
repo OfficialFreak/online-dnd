@@ -387,8 +387,7 @@
 </script>
 
 <div
-    class="w-full relative select-none overflow-hidden {appState.zooming &&
-        'will-change-transform'}"
+    class="w-full relative select-none overflow-hidden"
     style="transform: scale({editable ? appState.zoom : 1}) translate({editable
         ? translate_thingy
         : 0}%, {editable ? translate_thingy : 0}%)"

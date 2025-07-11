@@ -24,7 +24,6 @@ export const appState = $state({
     dragging: false,
     prevZoom: 1,
     zoom: 1,
-    zooming: false,
     ctrlPressed: false,
     verticalSnapPoint: 1,
     mouseDown: false,

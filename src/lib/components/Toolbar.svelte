@@ -161,17 +161,9 @@
         }
     }
 
-    const removeZooming = debounce(() => {
-        appState.zooming = false;
-    }, 500);
-
     function wheelHandler(evt: any) {
         if (evt.ctrlKey) {
             evt.preventDefault();
-            if (evt.deltaY < 0) {
-                appState.zooming = true;
-                removeZooming();
-            }
 
             const snapThreshold = 0.05;
 
