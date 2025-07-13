@@ -392,7 +392,12 @@
         ? translate_thingy
         : 0}%, {editable ? translate_thingy : 0}%)"
 >
-    <img src={map_url} alt="Map" class="w-full" />
+    <img
+        src={map_url}
+        alt="Map"
+        class="w-full"
+        fetchpriority={editable ? "high" : "auto"}
+    />
     <canvas
         bind:this={gridCanvas}
         bind:clientWidth={w}
