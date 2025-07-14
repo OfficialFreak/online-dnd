@@ -18,6 +18,8 @@
     "core:window:allow-close",
     "dialog:default",
     "fs:default",
+    "drpc:allow-is-running",
+    "drpc:default",
     {
         "identifier": "http:default",
         "allow": [

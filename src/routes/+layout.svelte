@@ -52,6 +52,8 @@
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
     import { invoke } from "@tauri-apps/api/core";
+    import { setActivity, start, stop } from "tauri-plugin-drpc";
+    import { Activity, Assets, Timestamps } from "tauri-plugin-drpc/activity";
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
@@ -273,10 +275,18 @@
         audio.loop = true;
 
         confetti_function = confetti.create(confetti_canvas, { resize: true });
+
+        await start("1394274196603011223");
     });
 
     let mouse_timeout: any = $state(null);
     let large_mouse_timeout: any = $state(null);
+
+    function choose(choices: string[]) {
+        var index = Math.floor(Math.random() * choices.length);
+        return choices[index];
+    }
+
     $effect(() => {
         if (!appState.ws) return;
         appState.ws.addListener((msg) => {
@@ -296,6 +306,30 @@
                 case MessageType.INITIAL:
                     gameState.name = message.display_name;
                     gameState.dm = message.dm_status;
+
+                    const assets = new Assets()
+                        .setLargeImage("favicon")
+                        .setLargeText("How to play DND Online fast");
+
+                    const discordActivity = new Activity()
+                        .setState(
+                            gameState.dm
+                                ? choose([
+                                      "Plant einen Total Party Kill",
+                                      "Entscheidet über das Schicksal der Party",
+                                      "Erschafft neue Monster",
+                                  ])
+                                : choose([
+                                      "Auf einem Abenteuer",
+                                      "Sammelt Schätze",
+                                      "Macht die Tavernen unsicher",
+                                      "Am 4. Nat 1 hintereinander würfeln",
+                                  ]),
+                        )
+                        .setAssets(assets)
+                        .setTimestamps(new Timestamps(Date.now()));
+
+                    setActivity(discordActivity);
                     break;
                 case MessageType.EVENT:
                     switch (message.event_type) {
@@ -680,8 +714,9 @@
 </script>
 
 <svelte:window
-    onbeforeunload={() => {
-        appState.ws?.disconnect();
+    onbeforeunload={async () => {
+        await appState.ws?.disconnect();
+        await stop();
     }}
 />
 
