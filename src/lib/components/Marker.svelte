@@ -164,8 +164,9 @@
         >
             <Display
                 alt="Marker"
-                class={"w-full aspect-square mask object-cover object-top " +
+                class={"w-full aspect-square mask object-cover object-top pointer-events-auto drag-none " +
                     (banner ? "mask-banner" : "mask-hexagon")}
+                hoverVideoOnly={true}
                 thumbnail={!(mapUse || banner)}
                 asset={marker.file}
                 style={marker.status_effects && marker.status_effects[0]
