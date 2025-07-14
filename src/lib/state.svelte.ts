@@ -18,8 +18,8 @@ export const appState = $state({
     token: null as string | null,
     ws: null as WebSocket | null,
     store: null as any,
-    secure: true,
-    baseUrl: "dnd.wiegraebe.dev",
+    secure: false,
+    baseUrl: "localhost:3030",
     selectedTool: Tools.None,
     dragging: false,
     prevZoom: 1,
@@ -58,6 +58,7 @@ export const mouseY = new Tween(0, {
 
 export const modals: Record<string, HTMLDialogElement | null> = $state({
     markerModal: null,
+    sceneChooserModal: null,
     characterImportModal: null,
 });
 
@@ -87,6 +88,14 @@ const sorted_initiative = $derived(
 );
 
 export const get_sorted_initiative = () => sorted_initiative;
+
+const own_character = $derived(
+    gameState.characters.find(
+        (character) => character.player_name === gameState.name,
+    ),
+);
+
+export const get_own_character = () => own_character;
 
 export async function advance_turn() {
     if (

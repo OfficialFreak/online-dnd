@@ -8,6 +8,7 @@
         Tools,
         roller,
         advance_turn,
+        get_own_character,
     } from "../../lib/state.svelte";
     import { connect } from "../../lib/connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
@@ -83,12 +84,6 @@
             );
         }
     }
-
-    let own_character = $derived(
-        gameState.characters.find(
-            (character) => character.player_name === gameState.name,
-        ),
-    );
 </script>
 
 {#if gameState.scene}
@@ -122,9 +117,7 @@
             <InitiativeBar />
         </div>
     {/if}
-    <div class="fixed top-10 left-2 bottom-16 pointer-events-none">
-        <Toolbar />
-    </div>
+    <Toolbar />
     <div class="fixed bottom-2 left-2 z-10">
         <DiceChooser roll_callback={roll} />
     </div>
@@ -135,7 +128,7 @@
         <div
             class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"
         >
-            {#if own_character?.activeStatusEffects?.length || 0 > 0}
+            {#if get_own_character()?.activeStatusEffects?.length || 0 > 0}
                 <div
                     class="flex justify-end items-end pointer-events-auto -mt-4"
                     transition:fade|global={{ duration: 200 }}
@@ -144,7 +137,7 @@
                         class="max-w-[50vw] overflow-x-auto h-26 px-8 flex justify-start items-end no-scrollbar"
                     >
                         <StatusEffectBar
-                            effects={own_character.activeStatusEffects}
+                            effects={get_own_character().activeStatusEffects}
                         />
                     </div>
                 </div>

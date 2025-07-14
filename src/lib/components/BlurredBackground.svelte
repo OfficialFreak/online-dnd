@@ -11,6 +11,6 @@
 </script>
 
 <div
-    style="background: url({background_url}); filter: blur({blur}px)"
-    class="absolute h-full max-h-screen mt-[-30px] pointer-events-none w-full bg-repeat bg-auto"
+    style="background: url({background_url}); filter: blur({blur}px); background-size: cover;"
+    class="fixed h-full max-h-screen mt-[-30px] pointer-events-none w-full bg-repeat bg-auto"
 ></div>

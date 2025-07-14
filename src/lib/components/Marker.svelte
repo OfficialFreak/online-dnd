@@ -14,6 +14,7 @@
     import { PutScene } from "$lib/types/messaging/client_messages";
     import CharacterPreview from "./CharacterPreview.svelte";
     import { onMount } from "svelte";
+    import Display from "./Display.svelte";
 
     let {
         marker,
@@ -54,12 +55,6 @@
         );
     });
 
-    function getAssetUrl(asset: string) {
-        return appState.token
-            ? `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${asset}?key=${encodeURIComponent(appState.token)}`
-            : "";
-    }
-
     let throttled_save = throttle(
         () => {
             if (!gameState.scene) return;
@@ -87,10 +82,6 @@
     let connected_character = $derived(
         gameState.characters.find((char) => char.name === marker.name),
     );
-
-    onMount(() => {
-        console.log("Mounted Marker", marker.name);
-    });
 </script>
 
 <div
@@ -125,21 +116,19 @@
         banner &&
         '!pointer-events-none'} {mapUse && 'hover:isolate hover:z-[9999]'}"
 >
-    {#if !gameState.dm && !banner}
-        {#if !getCharacter(marker.name)}
+    {#if !gameState.dm && !banner && !getCharacter(marker.name)}
+        <span
+            class="tooltip-content justify-center items-center flex !absolute"
+            style="border-radius: {1 / appState.zoom}rem; padding: 0 {1 /
+                appState.zoom}rem; transform: translate({20 /
+                appState.zoom}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
+        >
             <span
-                class="tooltip-content justify-center items-center flex !absolute"
-                style="border-radius: {1 / appState.zoom}rem; padding: 0 {1 /
-                    appState.zoom}rem; transform: translate({20 /
-                    appState.zoom}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
+                style="font-size: {16 / appState.zoom}px; height: {40 /
+                    appState.zoom}px; line-height: {40 / appState.zoom}px;"
+                class="flex justify-center items-center">{marker.name}</span
             >
-                <span
-                    style="font-size: {16 / appState.zoom}px; height: {40 /
-                        appState.zoom}px; line-height: {40 / appState.zoom}px;"
-                    class="flex justify-center items-center">{marker.name}</span
-                >
-            </span>
-        {/if}
+        </span>
     {/if}
     <button
         class={((gameState.dm && mapUse) ||
@@ -170,14 +159,15 @@
                 ? effect_style_mapping[marker.status_effects[0]][0]
                 : ''}; {banner &&
                 'transition: width 0.05s ease-out'}; {connected_character
-                ? `background: conic-gradient(var(--background) ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg, #ff637d33 ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg) !important;`
+                ? `background: conic-gradient(var(--background) ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg, #ff002b73 ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg) !important;`
                 : 'background: var(--background)'}"
         >
-            <img
+            <Display
                 alt="Marker"
-                class={"w-full aspect-square mask " +
+                class={"w-full aspect-square mask object-cover object-top " +
                     (banner ? "mask-banner" : "mask-hexagon")}
-                src={getAssetUrl(marker.file)}
+                thumbnail={!(mapUse || banner)}
+                asset={marker.file}
                 style={marker.status_effects && marker.status_effects[0]
                     ? effect_style_mapping[marker.status_effects[0]][1]
                     : ""}

@@ -24,6 +24,7 @@
     import { type DragOptions } from "@neodrag/svelte";
     import Marker from "./Marker.svelte";
     import { MessageTypes, notify } from "../notifications.svelte";
+    import Display from "./Display.svelte";
 
     let {
         file,
@@ -46,14 +47,8 @@
     let grid: [number, number] = $derived([size, size]);
     let rows = $derived(Math.ceil(h / size) + 1);
     $effect(() => {
-        if (!editable) return;
         set_rows(rows);
     });
-    let map_url = $derived(getAssetUrl(file) || "");
-    function getAssetUrl(asset: string) {
-        if (!appState.token) return;
-        return `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${asset}?key=${encodeURIComponent(appState.token)}`;
-    }
 
     let fogImg = new Image(0, 0);
     fogImg.src = "fog.jpg";
@@ -392,8 +387,9 @@
         ? translate_thingy
         : 0}%, {editable ? translate_thingy : 0}%)"
 >
-    <img
-        src={map_url}
+    <Display
+        asset={file}
+        thumbnail={!editable}
         alt="Map"
         class="w-full"
         fetchpriority={editable ? "high" : "auto"}

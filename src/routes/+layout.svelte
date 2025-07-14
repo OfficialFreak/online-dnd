@@ -51,6 +51,7 @@
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
+    import { invoke } from "@tauri-apps/api/core";
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
@@ -235,9 +236,9 @@
     $effect(() => {
         if (appState.ws) {
             appState.ws.addListener((msg) => {
-                console.log("Received:", msg);
                 // Assume the worst, kill ourselves xD
                 if (typeof msg === "string") {
+                    console.log("Received:", msg);
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
                     console.log("Closed connection :o");
                     try {
@@ -245,12 +246,16 @@
                     } catch {}
                     appState.ws = null;
                 } else if (msg.type == "Close") {
+                    console.log("Received:", msg);
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
                     console.log("Closed connection :o");
                     try {
                         appState.ws?.disconnect();
                     } catch {}
                     appState.ws = null;
+                } else {
+                    // @ts-ignore
+                    console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
                 }
             });
         }
@@ -556,13 +561,6 @@
         await appState.ws.send(PreloadResource.create(file));
     }
 
-    async function toggle_pressure() {
-        if (!appState.ws) return;
-
-        pressure = !pressure;
-        await appState.ws.send(TogglePressure.create(pressure));
-    }
-
     async function importCharacter() {
         if (!appState.ws) return;
 
@@ -589,7 +587,6 @@
     let marker_file = $state("");
 
     let scene_modal: HTMLDialogElement | null = $state(null);
-    let scene_chooser_modal: HTMLDialogElement | null = $state(null);
     let marker_creation_modal: HTMLDialogElement | null = $state(null);
 
     let audio: HTMLAudioElement | null = $state(null);
@@ -634,6 +631,15 @@
         updating = true;
     });
 
+    listen("backend-error", (event: { payload: string }) => {
+        notify(event.payload, MessageTypes.Error, 0);
+        console.log(`Backend Error: ${event.payload}`);
+    });
+
+    listen("backend-debug", (event: { payload: string }) => {
+        console.log(`Backend Debug: ${event.payload}`);
+    });
+
     listen("mouse-position", (event: { payload: { x: number; y: number } }) => {
         if (gameState.dm) return;
         mouseX.target = event.payload.x;
@@ -656,6 +662,8 @@
             gameState.scene.state.markers[idx].y.target = event.payload.y;
         },
     );
+
+    invoke("frontend_ready");
 
     let cw = $state();
     let ch = $state();
@@ -791,36 +799,10 @@
         {#if gameState.dm}
             <div class="dropdown dropdown-hover">
                 <div
-                    tabindex="0"
-                    role="button"
-                    class="btn btn-soft btn-info !text-xs px-2 my-auto h-6"
+                    class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-events-none"
                 >
                     DM
                 </div>
-                <ul
-                    class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm"
-                >
-                    <li>
-                        <button
-                            class="btn btn-ghost justify-start"
-                            onclick={() => {
-                                scene_chooser_modal?.showModal();
-                            }}>Szenen</button
-                        >
-                    </li>
-                    <li>
-                        <button
-                            class="btn btn-ghost justify-start"
-                            onclick={toggle_pressure}
-                        >
-                            {#if pressure}
-                                Chill Pill
-                            {:else}
-                                Pressure
-                            {/if}
-                        </button>
-                    </li>
-                </ul>
             </div>
         {/if}
         {#if updating}
@@ -896,307 +878,315 @@
         </button>
     </div>
 </div>
-<dialog bind:this={scene_modal} class="modal">
-    <div class="modal-box">
-        <h3 class="text-lg font-bold">Szene erstellen</h3>
-        <fieldset class="fieldset">
-            <legend class="fieldset-legend">Szenenname</legend>
-            <input
-                type="text"
-                bind:value={scene_name}
-                class="input"
-                placeholder="Goblinlager"
-            />
-
-            {#if !scene_file}
-                <button
-                    class="btn btn-neutral mt-4"
-                    onclick={() => {
-                        user_upload("scene");
-                    }}>Map hochladen</button
-                >
-            {:else}
-                <legend class="fieldset-legend">Spalten</legend>
+{#if gameState.dm}
+    <dialog bind:this={scene_modal} class="modal">
+        <div class="modal-box">
+            <h3 class="text-lg font-bold">Szene erstellen</h3>
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Szenenname</legend>
                 <input
-                    type="number"
-                    bind:value={scene_columns}
+                    type="text"
+                    bind:value={scene_name}
                     class="input"
-                    placeholder="10"
+                    placeholder="Goblinlager"
                 />
 
-                <legend class="fieldset-legend">X-Offset</legend>
-                <input
-                    type="number"
-                    bind:value={scene_x_offset}
-                    class="input"
-                    placeholder="10"
-                />
-
-                <legend class="fieldset-legend">Y-Offset</legend>
-                <input
-                    type="number"
-                    bind:value={scene_y_offset}
-                    class="input"
-                    placeholder="10"
-                />
-
-                <div class="w-full mt-4">
-                    <Map
-                        file={scene_file}
-                        columns={scene_columns}
-                        set_rows={(rows: number) => (scene_rows = rows)}
-                        x_offset={scene_x_offset}
-                        y_offset={scene_y_offset}
-                        fog_squares={{}}
-                        markers={[]}
-                    />
-                </div>
-
-                {#if !background_file}
+                {#if !scene_file}
                     <button
                         class="btn btn-neutral mt-4"
                         onclick={() => {
-                            user_upload("background");
-                        }}>Hintergrundbild hochladen</button
+                            user_upload("scene");
+                        }}>Map hochladen</button
                     >
-                    <p class="fieldset-label">
-                        Hintergrundbilder sind optional
-                    </p>
                 {:else}
-                    <legend class="fieldset-legend">Menge an Blur</legend>
+                    <legend class="fieldset-legend">Spalten</legend>
                     <input
-                        bind:value={background_blur}
-                        type="range"
-                        min="0"
-                        max="30"
-                        class="range"
+                        type="number"
+                        bind:value={scene_columns}
+                        class="input"
+                        placeholder="10"
                     />
-                    <div class="relative w-full h-30 pt-[30px] mt-4">
-                        <BlurredBackground
-                            file={background_file}
-                            blur={background_blur}
-                        />
-                    </div>
-                {/if}
 
-                <button class="btn btn-neutral mt-4" onclick={create_scene}>
-                    Scene erstellen
-                </button>
-                <p class="fieldset-label">
-                    Du kannst Szenen überschreiben indem du eine Neue Szene mit
-                    gleichem Namen erstellst.
-                </p>
-            {/if}
-        </fieldset>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button class="outline-0" onclick={reset_scene_vars}>close</button>
-    </form>
-</dialog>
-<dialog bind:this={scene_chooser_modal} class="modal">
-    <div class="modal-box">
-        <h3 class="text-lg font-bold">Szenen</h3>
-        <ul class="list bg-base-100 rounded-box shadow-md">
-            {#each gameState.scenes as previewScene}
-                <li
-                    class="list-row flex flex-row items-center justify-between"
-                    onmouseenter={() => {
-                        send_preload(previewScene.map_file);
-                    }}
-                >
-                    <div class="w-20">
+                    <legend class="fieldset-legend">X-Offset</legend>
+                    <input
+                        type="number"
+                        bind:value={scene_x_offset}
+                        class="input"
+                        placeholder="10"
+                    />
+
+                    <legend class="fieldset-legend">Y-Offset</legend>
+                    <input
+                        type="number"
+                        bind:value={scene_y_offset}
+                        class="input"
+                        placeholder="10"
+                    />
+
+                    <div class="w-full mt-4">
                         <Map
-                            file={previewScene.map_file}
-                            columns={previewScene.columns}
-                            x_offset={previewScene.x_offset}
-                            y_offset={previewScene.y_offset}
+                            file={scene_file}
+                            columns={scene_columns}
+                            set_rows={(rows: number) => (scene_rows = rows)}
+                            x_offset={scene_x_offset}
+                            y_offset={scene_y_offset}
                             fog_squares={{}}
                             markers={[]}
                         />
                     </div>
-                    <div class="flex-1">
-                        <h3 class="text-base font-bold">{previewScene.name}</h3>
-                    </div>
-                    <div>
-                        <button
-                            class="btn btn-ghost"
-                            onclick={() => {
-                                select_scene(previewScene.name);
-                            }}
-                        >
-                            Aktivieren
-                        </button>
-                        <button
-                            class="btn btn-soft btn-error"
-                            onclick={() => {
-                                delete_scene(previewScene.name);
-                            }}
-                        >
-                            Löschen
-                        </button>
-                    </div>
-                </li>
-            {/each}
-            <li>
-                <button
-                    class="btn btn-ghost w-full"
-                    onclick={() => {
-                        scene_modal?.showModal();
-                    }}>Szene erstellen</button
-                >
-            </li>
-        </ul>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button class="outline-0">close</button>
-    </form>
-</dialog>
-<dialog bind:this={modals.markerModal} class="modal">
-    <div class="modal-box">
-        <h3 class="text-lg font-bold">Marker Bibliothek</h3>
-        <ul class="list bg-base-100 rounded-box shadow-md">
-            {#each gameState.markerLib as marker}
-                <li class="list-row flex flex-row items-center justify-between">
-                    <div class="relative flex flex-col gap-1 items-center w-20">
-                        <Marker
-                            columnCount="100%"
-                            dragOptions={{ disabled: true }}
-                            {marker}
-                            mapUse={false}
-                        />
-                        <span class="text-center">{marker.name}</span>
-                        <span
-                            class="badge absolute top-0 -right-1/2 -translate-x-1/2"
-                        >
-                            <i
-                                class="fa-solid fa-up-right-and-down-left-from-center"
-                            ></i>
-                            {marker.size}
-                        </span>
-                    </div>
-                    <div class="flex flex-row gap-2">
-                        <button
-                            class="btn btn-ghost"
-                            onclick={() => {
-                                add_marker(marker);
-                            }}>Hinzufügen</button
-                        >
-                        <button
-                            class="btn btn-soft btn-error"
-                            onclick={() => {
-                                remove_marker(marker);
-                            }}>Löschen</button
-                        >
-                    </div>
-                </li>
-            {/each}
-            <li>
-                <button
-                    class="btn btn-ghost w-full"
-                    onclick={() => {
-                        marker_creation_modal?.showModal();
-                    }}>Marker erstellen</button
-                >
-            </li>
-        </ul>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button class="outline-0">close</button>
-    </form>
-</dialog>
-<dialog bind:this={modals.characterImportModal} class="modal">
-    <div class="modal-box">
-        <h3 class="text-lg font-bold">Charakter Importieren</h3>
-        <fieldset class="fieldset">
-            <legend class="fieldset-legend">Charakter URL</legend>
-            <input
-                type="text"
-                class="input"
-                placeholder="https://www.dndbeyond.com/characters/xxxxxxxxx"
-                bind:value={character_url}
-            />
-            <p class="fieldset-label">
-                Es ist wichtig, dass der Charakter öffentlich gestellt ist
-            </p>
-            <legend class="fieldset-legend">Zugehöriger Spieler</legend>
-            <select
-                class="select select-sm !bg-[var(--color-base-100)]"
-                bind:value={selected_player}
-            >
-                {#each gameState.users as player}
-                    <option value={player.name}
-                        >{#if player.active}🟢{:else}🔴{/if}
-                        {player.name}</option
-                    >
-                {/each}
-            </select>
-            <button
-                class="btn btn-neutral mt-4"
-                onclick={() => {
-                    importCharacter();
-                }}>Importieren</button
-            >
-        </fieldset>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button class="outline-0">close</button>
-    </form>
-</dialog>
-<dialog bind:this={marker_creation_modal} class="modal">
-    <div class="modal-box">
-        <h3 class="text-lg font-bold">Marker erstellen</h3>
-        <fieldset class="fieldset">
-            <legend class="fieldset-legend">Markername</legend>
-            <input
-                type="text"
-                bind:value={marker_name}
-                class="input"
-                placeholder="Grom"
-            />
-            <legend class="fieldset-legend">Größe</legend>
-            <input
-                type="number"
-                bind:value={marker_size}
-                class="input"
-                placeholder="1"
-            />
-            <p class="fieldset-label">
-                Die Größe gibt an, wie viele Spalten (und somit auch Zeilen) der
-                Marker einnimmt.
-            </p>
 
-            {#if !marker_file}
+                    {#if !background_file}
+                        <button
+                            class="btn btn-neutral mt-4"
+                            onclick={() => {
+                                user_upload("background");
+                            }}>Hintergrundbild hochladen</button
+                        >
+                        <p class="fieldset-label">
+                            Hintergrundbilder sind optional
+                        </p>
+                    {:else}
+                        <legend class="fieldset-legend">Menge an Blur</legend>
+                        <input
+                            bind:value={background_blur}
+                            type="range"
+                            min="0"
+                            max="30"
+                            class="range"
+                        />
+                        <div class="relative w-full h-30 pt-[30px] mt-4">
+                            <BlurredBackground
+                                file={background_file}
+                                blur={background_blur}
+                            />
+                        </div>
+                    {/if}
+
+                    <button class="btn btn-neutral mt-4" onclick={create_scene}>
+                        Scene erstellen
+                    </button>
+                    <p class="fieldset-label">
+                        Du kannst Szenen überschreiben indem du eine Neue Szene
+                        mit gleichem Namen erstellst.
+                    </p>
+                {/if}
+            </fieldset>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button class="outline-0" onclick={reset_scene_vars}>close</button>
+        </form>
+    </dialog>
+    <dialog bind:this={modals.sceneChooserModal} class="modal">
+        <div class="modal-box">
+            <h3 class="text-lg font-bold">Szenen</h3>
+            <ul class="list bg-base-100 rounded-box shadow-md">
+                {#each gameState.scenes as previewScene}
+                    <li
+                        class="list-row flex flex-row items-center justify-between"
+                        onmouseenter={() => {
+                            send_preload(previewScene.map_file);
+                        }}
+                    >
+                        <div class="w-20">
+                            <Map
+                                file={previewScene.map_file}
+                                columns={previewScene.columns}
+                                x_offset={previewScene.x_offset}
+                                y_offset={previewScene.y_offset}
+                                fog_squares={{}}
+                                markers={[]}
+                            />
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-base font-bold">
+                                {previewScene.name}
+                            </h3>
+                        </div>
+                        <div>
+                            <button
+                                class="btn btn-ghost"
+                                onclick={() => {
+                                    select_scene(previewScene.name);
+                                }}
+                            >
+                                Aktivieren
+                            </button>
+                            <button
+                                class="btn btn-soft btn-error"
+                                onclick={() => {
+                                    delete_scene(previewScene.name);
+                                }}
+                            >
+                                Löschen
+                            </button>
+                        </div>
+                    </li>
+                {/each}
+                <li>
+                    <button
+                        class="btn btn-ghost w-full"
+                        onclick={() => {
+                            scene_modal?.showModal();
+                        }}>Szene erstellen</button
+                    >
+                </li>
+            </ul>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button class="outline-0">close</button>
+        </form>
+    </dialog>
+    <dialog bind:this={modals.markerModal} class="modal">
+        <div class="modal-box">
+            <h3 class="text-lg font-bold">Marker Bibliothek</h3>
+            <ul class="list bg-base-100 rounded-box shadow-md">
+                {#each gameState.markerLib as marker}
+                    <li
+                        class="list-row flex flex-row items-center justify-between"
+                    >
+                        <div
+                            class="relative flex flex-col gap-1 items-center w-20"
+                        >
+                            <Marker
+                                columnCount="100%"
+                                dragOptions={{ disabled: true }}
+                                {marker}
+                                mapUse={false}
+                            />
+                            <span class="text-center">{marker.name}</span>
+                            <span
+                                class="badge absolute top-0 -right-1/2 -translate-x-1/2"
+                            >
+                                <i
+                                    class="fa-solid fa-up-right-and-down-left-from-center"
+                                ></i>
+                                {marker.size}
+                            </span>
+                        </div>
+                        <div class="flex flex-row gap-2">
+                            <button
+                                class="btn btn-ghost"
+                                onclick={() => {
+                                    add_marker(marker);
+                                }}>Hinzufügen</button
+                            >
+                            <button
+                                class="btn btn-soft btn-error"
+                                onclick={() => {
+                                    remove_marker(marker);
+                                }}>Löschen</button
+                            >
+                        </div>
+                    </li>
+                {/each}
+                <li>
+                    <button
+                        class="btn btn-ghost w-full"
+                        onclick={() => {
+                            marker_creation_modal?.showModal();
+                        }}>Marker erstellen</button
+                    >
+                </li>
+            </ul>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button class="outline-0">close</button>
+        </form>
+    </dialog>
+    <dialog bind:this={modals.characterImportModal} class="modal">
+        <div class="modal-box">
+            <h3 class="text-lg font-bold">Charakter Importieren</h3>
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Charakter URL</legend>
+                <input
+                    type="text"
+                    class="input"
+                    placeholder="https://www.dndbeyond.com/characters/xxxxxxxxx"
+                    bind:value={character_url}
+                />
+                <p class="fieldset-label">
+                    Es ist wichtig, dass der Charakter öffentlich gestellt ist
+                </p>
+                <legend class="fieldset-legend">Zugehöriger Spieler</legend>
+                <select
+                    class="select select-sm !bg-[var(--color-base-100)]"
+                    bind:value={selected_player}
+                >
+                    {#each gameState.users as player}
+                        <option value={player.name}
+                            >{#if player.active}🟢{:else}🔴{/if}
+                            {player.name}</option
+                        >
+                    {/each}
+                </select>
                 <button
                     class="btn btn-neutral mt-4"
                     onclick={() => {
-                        user_upload("marker");
-                    }}>Marker-Bild</button
+                        importCharacter();
+                    }}>Importieren</button
                 >
-            {:else}
-                <Marker
-                    columnCount="100%"
-                    dragOptions={{ disabled: true }}
-                    marker={{
-                        name: marker_name,
-                        size: marker_size,
-                        file: marker_file,
-                    }}
-                    mapUse={false}
+            </fieldset>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button class="outline-0">close</button>
+        </form>
+    </dialog>
+    <dialog bind:this={marker_creation_modal} class="modal">
+        <div class="modal-box">
+            <h3 class="text-lg font-bold">Marker erstellen</h3>
+            <fieldset class="fieldset">
+                <legend class="fieldset-legend">Markername</legend>
+                <input
+                    type="text"
+                    bind:value={marker_name}
+                    class="input"
+                    placeholder="Grom"
                 />
-                <button class="btn btn-neutral mt-4" onclick={create_marker}
-                    >Marker erstellen</button
-                >
+                <legend class="fieldset-legend">Größe</legend>
+                <input
+                    type="number"
+                    bind:value={marker_size}
+                    class="input"
+                    placeholder="1"
+                />
                 <p class="fieldset-label">
-                    Du kannst Marker überschreiben indem du einen neuen Marker
-                    mit gleichem Namen erstellst.
+                    Die Größe gibt an, wie viele Spalten (und somit auch Zeilen)
+                    der Marker einnimmt.
                 </p>
-            {/if}
-        </fieldset>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button class="outline-0" onclick={reset_marker_vars}>close</button>
-    </form>
-</dialog>
+
+                {#if !marker_file}
+                    <button
+                        class="btn btn-neutral mt-4"
+                        onclick={() => {
+                            user_upload("marker");
+                        }}>Marker-Bild</button
+                    >
+                {:else}
+                    <Marker
+                        columnCount="100%"
+                        dragOptions={{ disabled: true }}
+                        marker={{
+                            name: marker_name,
+                            size: marker_size,
+                            file: marker_file,
+                        }}
+                        mapUse={false}
+                    />
+                    <button class="btn btn-neutral mt-4" onclick={create_marker}
+                        >Marker erstellen</button
+                    >
+                    <p class="fieldset-label">
+                        Du kannst Marker überschreiben indem du einen neuen
+                        Marker mit gleichem Namen erstellst.
+                    </p>
+                {/if}
+            </fieldset>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button class="outline-0" onclick={reset_marker_vars}>close</button>
+        </form>
+    </dialog>
+{/if}
 <canvas
     bind:this={confetti_canvas}
     class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"

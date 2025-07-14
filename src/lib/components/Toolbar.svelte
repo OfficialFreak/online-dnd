@@ -11,15 +11,17 @@
         update_initiative,
         advance_turn,
         get_sorted_initiative,
+        get_own_character,
     } from "../state.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
     import {
         CombatState,
+        ImportCharacter,
         PutScene,
+        TogglePressure,
     } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "../notifications.svelte";
-    import debounce from "just-debounce-it";
 
     function selectTool(tool: Tools) {
         if (appState.selectedTool === tool) {
@@ -87,6 +89,19 @@
                 if (gameState.dm) {
                     toggleCombat();
                 }
+                break;
+            case "KeyP":
+                if (gameState.dm) {
+                    toggle_pressure();
+                }
+                break;
+            case "KeyS":
+                if (gameState.dm) {
+                    modals.sceneChooserModal?.showModal();
+                }
+                break;
+            case "KeyR":
+                await updateCharacter();
                 break;
             case "KeyL":
                 selectTool(Tools.Ruler);
@@ -185,6 +200,18 @@
         }
     }
 
+    async function updateCharacter() {
+        if (!appState.ws) return;
+        const own_character = get_own_character();
+        await appState.ws.send(
+            ImportCharacter.create(
+                own_character.readonlyUrl,
+                own_character.player_name,
+            ),
+        );
+        notify("Charakter wird aktualisiert", MessageTypes.Success, 2000);
+    }
+
     let fog_active = $derived(
         appState.selectedTool === Tools.AddFog ||
             appState.selectedTool === Tools.RemoveFog,
@@ -244,6 +271,14 @@
         toolbarState.characterOpen;
         scroll_container.scrollTop = 0;
     });
+
+    let pressure = $state(false);
+    async function toggle_pressure() {
+        if (!appState.ws) return;
+
+        pressure = !pressure;
+        await appState.ws.send(TogglePressure.create(pressure));
+    }
 </script>
 
 <svelte:window
@@ -254,7 +289,9 @@
     on:wheel|nonpassive={wheelHandler}
 />
 
-<div class="flex flex-row gap-1 h-full pointer-events-none">
+<div
+    class="fixed top-10 left-2 bottom-16 flex flex-row gap-1 pointer-events-none"
+>
     {#if toolbarState.charactersOpen}
         <div
             class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col"
@@ -335,6 +372,35 @@
                     onclick={() => {
                         selectTool(Tools.Pointer);
                     }}><i class="fa-solid fa-arrow-pointer"></i></button
+                >
+            </div>
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    Szenen <kbd class="kbd">S</kbd>
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm"
+                    aria-label="Szenen"
+                    onclick={() => {
+                        modals.sceneChooserModal?.showModal();
+                    }}><i class="fa-solid fa-map"></i></button
+                >
+            </div>
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    {#if pressure}
+                        Chill Pill
+                    {:else}
+                        Pressure
+                    {/if} <kbd class="kbd">P</kbd>
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm {pressure && 'btn-info'}"
+                    aria-label="Szenen"
+                    onclick={toggle_pressure}
+                    ><i class="fa-solid fa-stopwatch"></i></button
                 >
             </div>
             <div class="dropdown dropdown-right dropdown-hover">
@@ -479,6 +545,21 @@
                 <i class="fa-solid fa-user"></i>
             </button>
         </div>
+        {#if !gameState.dm}
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    Charakter Aktualisieren <kbd class="kbd">R</kbd>
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm"
+                    aria-label="Charakter Aktualisieren"
+                    onclick={updateCharacter}
+                >
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        {/if}
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
                 Lineal <kbd class="kbd">L</kbd>

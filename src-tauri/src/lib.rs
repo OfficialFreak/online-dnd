@@ -9,6 +9,9 @@ use tauri_plugin_updater::UpdaterExt;
 mod udp;
 use udp::*;
 
+mod types;
+use types::FrontendState;
+
 // UDP Socket State
 struct UdpState {
     socket: Mutex<Arc<UdpSocket>>,
@@ -62,10 +65,15 @@ fn send_marker_position(x: f32, y: f32, marker_name: String, udp_state: State<Ud
     // Send via UDP
     if let Ok(socket) = udp_state.socket.lock() {
         match socket.send_to(&data, "wiegraebe.dev:41340") {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => eprintln!("Failed to send UDP packet: {}", e),
         }
     }
+}
+
+#[tauri::command]
+fn frontend_ready(state: State<FrontendState>) {
+    *state.ready.lock().unwrap() = true;
 }
 
 #[cfg(not(debug_assertions))]
@@ -109,11 +117,27 @@ pub fn run() {
             let _ = app;
             let app_handle = app.handle().clone();
 
-            let socket = UdpSocket::bind("[::]:0").expect("Could not bind to random UDP port");
+            let socket = {
+                let mut tmp_socket =
+                    UdpSocket::bind("[::]:0").expect("Could not bind to random UDP port (IPv6)");
+                if tmp_socket.send_to(b"\x00", "[ff02::1]:12345").is_ok() {
+                    println!("Using IPv6 socket");
+                } else {
+                    println!("IPv6 failed, falling back to IPv4 socket");
+                    tmp_socket = UdpSocket::bind("0.0.0.0:0")
+                        .expect("Could not bind to random UDP port (IPv4)")
+                }
+                tmp_socket
+            };
+
             let socket = Arc::new(socket);
 
             app.manage(UdpState {
                 socket: Mutex::new(Arc::clone(&socket)),
+            });
+
+            app.manage(FrontendState {
+                ready: Mutex::new(false),
             });
 
             start_udp(app_handle, Arc::clone(&socket));
@@ -130,7 +154,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             close_splashscreen,
             send_mouse_position,
-            send_marker_position
+            send_marker_position,
+            frontend_ready
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

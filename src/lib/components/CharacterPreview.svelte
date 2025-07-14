@@ -22,7 +22,7 @@
     <div
         class="absolute inset-0 -z-1 bg-cover brightness-30 pointer-events-none rounded-[4px]"
         style="background-image: url('{character.decorations
-            .backdropAvatarUrl ||
+            .smallBackdropAvatarUrl ||
             'https://www.dndbeyond.com/avatars/43993/228/638609652442536203.jpeg'}')"
     ></div>
     <div class="p-1 flex flex-row gap-2 items-center">

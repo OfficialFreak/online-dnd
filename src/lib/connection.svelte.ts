@@ -14,7 +14,7 @@ async function connect(url: string) {
         // Override send method to log messages
         appState.ws.send = function (data: string) {
             try {
-                console.log("Sent:", JSON.parse(data));
+                console.log(`Sent ${JSON.parse(data).type}:`, JSON.parse(data));
             } catch {console.log("Sent:", data)}
             return originalSend(data);
         };
