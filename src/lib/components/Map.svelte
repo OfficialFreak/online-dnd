@@ -379,6 +379,18 @@
     });
 
     let ruler_width = $state(20);
+
+    let player_markers = $derived(
+        markers.filter((marker: any) =>
+            gameState.characters.some((char) => char.name === marker.name),
+        ),
+    );
+    let non_player_markers = $derived(
+        markers.filter(
+            (marker: any) =>
+                !gameState.characters.some((char) => char.name === marker.name),
+        ),
+    );
 </script>
 
 <div
@@ -418,10 +430,11 @@
     >
     </canvas>
     {#if editable}
+        <!-- Non Player Markers under the fog -->
         <div
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
         >
-            {#each markers as marker}
+            {#each non_player_markers as marker}
                 <Marker
                     {marker}
                     dragOptions={{
@@ -444,6 +457,25 @@
             style="opacity: {gameState.dm ? '60' : '100'}%"
         >
         </canvas>
+        <!-- Player Markers above the Fog -->
+        <div
+            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+        >
+            {#each player_markers as marker}
+                <Marker
+                    {marker}
+                    dragOptions={{
+                        ...dragOptions,
+                        position: {
+                            x: marker.x.current * w,
+                            y: marker.y.current * h,
+                        },
+                        disabled: !!gameState.lockedMarkers[marker.name],
+                    }}
+                    columnCount={columns}
+                />
+            {/each}
+        </div>
         {#if gameState.showMouse && !mouse_in_fog && !gameState.dm}
             <div
                 transition:fade
