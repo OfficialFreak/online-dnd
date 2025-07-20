@@ -912,7 +912,7 @@
     </div>
 </div>
 {#if gameState.dm}
-    <dialog bind:this={scene_modal} class="modal">
+    <dialog bind:this={scene_modal} class="modal scrollbar-gutter-affected">
         <div class="modal-box">
             <h3 class="text-lg font-bold">Szene erstellen</h3>
             <fieldset class="fieldset">
@@ -1009,7 +1009,10 @@
             <button class="outline-0" onclick={reset_scene_vars}>close</button>
         </form>
     </dialog>
-    <dialog bind:this={modals.sceneChooserModal} class="modal">
+    <dialog
+        bind:this={modals.sceneChooserModal}
+        class="modal scrollbar-gutter-affected"
+    >
         <div class="modal-box">
             <h3 class="text-lg font-bold">Szenen</h3>
             <ul class="list bg-base-100 rounded-box shadow-md">
@@ -1069,7 +1072,10 @@
             <button class="outline-0">close</button>
         </form>
     </dialog>
-    <dialog bind:this={modals.markerModal} class="modal">
+    <dialog
+        bind:this={modals.markerModal}
+        class="modal scrollbar-gutter-affected"
+    >
         <div class="modal-box">
             <h3 class="text-lg font-bold">Marker Bibliothek</h3>
             <ul class="list bg-base-100 rounded-box shadow-md">
@@ -1126,7 +1132,10 @@
             <button class="outline-0">close</button>
         </form>
     </dialog>
-    <dialog bind:this={modals.characterImportModal} class="modal">
+    <dialog
+        bind:this={modals.characterImportModal}
+        class="modal scrollbar-gutter-affected"
+    >
         <div class="modal-box">
             <h3 class="text-lg font-bold">Charakter Importieren</h3>
             <fieldset class="fieldset">
@@ -1164,7 +1173,10 @@
             <button class="outline-0">close</button>
         </form>
     </dialog>
-    <dialog bind:this={marker_creation_modal} class="modal">
+    <dialog
+        bind:this={marker_creation_modal}
+        class="modal scrollbar-gutter-affected"
+    >
         <div class="modal-box">
             <h3 class="text-lg font-bold">Marker erstellen</h3>
             <fieldset class="fieldset">
