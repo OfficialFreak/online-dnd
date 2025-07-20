@@ -79,9 +79,7 @@
         invisible: ["--background: #cccccc44;", "filter: opacity(0.5);", null],
     };
 
-    let connected_character = $derived(
-        gameState.characters.find((char) => char.name === marker.name),
-    );
+    let connected_character = $derived(getCharacter(marker.name));
 </script>
 
 <div

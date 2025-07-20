@@ -11,7 +11,9 @@
     let loading = $state(true);
     let error = $state(false);
     let url = $derived(
-        `${appState.secure ? "wss://" : "ws://"}${appState.baseUrl}/ws?key=${encodeURIComponent(token)}`,
+        token
+            ? `${appState.secure ? "wss://" : "ws://"}${appState.baseUrl}/ws?key=${encodeURIComponent(token)}`
+            : null,
     );
 
     async function connectLoadingWrapper() {
@@ -19,6 +21,11 @@
         appState.store = appState.store;
         loading = true;
         await appState.store.set("token", { value: token });
+        if (!url) {
+            error = true;
+            loading = false;
+            return;
+        }
         if (await connect(url)) {
             notify("Verbunden", MessageTypes.Success, 1000);
             loading = false;

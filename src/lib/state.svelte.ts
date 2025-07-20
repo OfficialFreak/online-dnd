@@ -89,11 +89,7 @@ const sorted_initiative = $derived(
 
 export const get_sorted_initiative = () => sorted_initiative;
 
-const own_character = $derived(
-    gameState.characters.find(
-        (character) => character.player_name === gameState.name,
-    ),
-);
+const own_character = $derived(getCharacter(gameState.name));
 
 export const get_own_character = () => own_character;
 
@@ -102,9 +98,7 @@ export async function advance_turn() {
         !gameState.combat ||
         !(
             gameState.dm ||
-            gameState.characters.find(
-                (character) => character.player_name === gameState.name,
-            )?.name === gameState.scene?.state.turn
+            own_character?.name === gameState.scene?.state.turn
         ) ||
         !gameState.scene
     )

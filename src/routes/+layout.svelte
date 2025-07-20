@@ -13,6 +13,7 @@
         mouseX,
         mouseY,
         modals,
+        get_own_character,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
@@ -408,10 +409,7 @@
                         gameState.scene.state.initiative.length > 0 &&
                         ((gameState.scene.state.turn !== message.turn &&
                             !gameState.dm &&
-                            gameState.characters.find(
-                                (character) =>
-                                    character.player_name === gameState.name,
-                            )?.name === message.turn) ||
+                            get_own_character()?.name === message.turn) ||
                             (gameState.dm &&
                                 !gameState.characters.some(
                                     (character) =>

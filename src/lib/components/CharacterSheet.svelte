@@ -7,6 +7,7 @@
         update_initiative,
     } from "../state.svelte";
     import SavingStat from "./CharacterSheet/SavingStat.svelte";
+    import Sense from "./CharacterSheet/Sense.svelte";
     import Stat from "./CharacterSheet/Stat.svelte";
 
     let { character } = $props();
@@ -47,6 +48,7 @@
 <div class="w-full grow flex flex-col relative pb-4">
     <img
         class="absolute top-0 left-0 -z-10 w-full h-full object-cover object-center rounded-box"
+        style="filter: brightness(0.7)"
         src={character.decorations.backdropAvatarUrl ||
             "https://www.dndbeyond.com/avatars/43993/228/638609652442536203.jpeg"}
         alt="Background"
@@ -195,9 +197,25 @@
                 <SavingStat {stat} {character} />
             {/each}
         </div>
-        <!--
-        <h1>Senses</h1>
-        Passive zeug
-        darkvision 60 ft. -->
+        <div class="divider">Senses</div>
+        <div class="w-full flex flex-wrap gap-y-1">
+            {#each [0, 1, 2] as stat}
+                <Sense {stat} {character} />
+            {/each}
+        </div>
+        {#if Object.keys(character.specialSenses).length}
+            <div
+                style="border-color: {character.decorations.themeColor
+                    ?.themeColor || 'black'}"
+                class="flex flex-col gap-2 my-2 mx-1 py-1 text-center rounded-md justify-center frosted dark-frosted text-gray-200"
+            >
+                {#each Object.entries(character.specialSenses) as [name, distance]}
+                    <span
+                        ><div class="capitalize inline">{name}</div>
+                        {distance} ft.</span
+                    >
+                {/each}
+            </div>
+        {/if}
     </div>
 </div>

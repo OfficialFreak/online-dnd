@@ -11,6 +11,7 @@ export class Character {
     modifiers: any;
     inventory: any;
     conditions: any;
+    customSenses: any;
 
     constructor(data: any) {
         Object.assign(this, data);
@@ -93,6 +94,65 @@ export class Character {
         }
 
         return stats
+    }
+
+    get passiveSenses() {
+        let stats = {
+            "perception": 10 + this.statModifiers.wisdom,
+            "investigation": 10 + this.statModifiers.intelligence,
+            "insight": 10 + this.statModifiers.wisdom
+        };
+
+
+        for (const [modifier_origin, modifiers] of Object.entries(this.modifiers)) {
+            for (const modifier of modifiers as any) {
+                if (modifier.type === "proficiency") {
+                    try {
+                        if (Object.keys(stats).includes(modifier.subType)) {
+                            // @ts-ignore
+                            stats[modifier.subType] += this.proficiencyBonus;
+                        }
+                    } catch {}
+                }
+            }
+        }
+
+        return stats;
+    }
+
+    get specialSenses() {
+        const idNameMap = {
+            1: "blindsight",
+            2: "darkvision",
+            3: "tremorsense",
+            4: "truesight"
+        };
+
+        let stats = {};
+
+        // Set base
+        for (const [modifier_origin, modifiers] of Object.entries(this.modifiers)) {
+            for (const modifier of modifiers as any) {
+                if (modifier.type === "set-base") {
+                    try {
+                        if (Object.values(idNameMap).includes(modifier.subType)) {
+                            // @ts-ignore
+                            stats[modifier.subType] = modifier.fixedValue;
+                        }
+                    } catch {}
+                }
+            }
+        }
+
+        // Apply Overrides / Custom Senses
+        for (const modifier of this.customSenses) {
+            if (modifier.distance) {
+                // @ts-ignore
+                stats[idNameMap[modifier.senseId]] = modifier.distance;
+            }
+        }
+
+        return stats;
     }
 
     get maxHealth(): number {
