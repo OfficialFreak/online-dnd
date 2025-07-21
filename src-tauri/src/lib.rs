@@ -76,6 +76,14 @@ fn frontend_ready(state: State<FrontendState>) {
     *state.ready.lock().unwrap() = true;
 }
 
+#[tauri::command]
+fn is_dev() -> bool {
+    #[cfg(debug_assertions)]
+    return true;
+    #[cfg(not(debug_assertions))]
+    return false;
+}
+
 #[cfg(not(debug_assertions))]
 async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
     if let Some(update) = app.updater()?.check().await? {
@@ -156,7 +164,8 @@ pub fn run() {
             close_splashscreen,
             send_mouse_position,
             send_marker_position,
-            frontend_ready
+            frontend_ready,
+            is_dev
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -63,6 +63,8 @@
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
     let confetti_function: any = $state();
 
+    let isDev: boolean = $state(false);
+
     const appWindow = getCurrentWindow();
     let url = $derived(
         appState.token
@@ -278,7 +280,31 @@
         confetti_function = confetti.create(confetti_canvas, { resize: true });
 
         await start("1394274196603011223");
+        isDev = await invoke("is_dev");
+        if (isDev) {
+            setDiscordStatus(
+                choose([
+                    "Fixt die Bugs aus letzter Session",
+                    "Baut neue lustige Features",
+                    "Refactored den Code",
+                ]),
+                isDev,
+            );
+        }
     });
+
+    function setDiscordStatus(message: string, dev: boolean) {
+        const assets = new Assets()
+            .setLargeImage(!dev ? "favicon" : "dev_favicon")
+            .setLargeText("How to play DND Online fast");
+
+        const discordActivity = new Activity()
+            .setState(message)
+            .setAssets(assets)
+            .setTimestamps(new Timestamps(Date.now()));
+
+        setActivity(discordActivity);
+    }
 
     let mouse_timeout: any = $state(null);
     let large_mouse_timeout: any = $state(null);
@@ -308,29 +334,27 @@
                     gameState.name = message.display_name;
                     gameState.dm = message.dm_status;
 
-                    const assets = new Assets()
-                        .setLargeImage("favicon")
-                        .setLargeText("How to play DND Online fast");
-
-                    const discordActivity = new Activity()
-                        .setState(
-                            gameState.dm
-                                ? choose([
-                                      "Plant einen Total Party Kill",
-                                      "Entscheidet über das Schicksal der Party",
-                                      "Erschafft neue Monster",
-                                  ])
-                                : choose([
-                                      "Auf einem Abenteuer",
-                                      "Sammelt Schätze",
-                                      "Macht die Tavernen unsicher",
-                                      "Am 4. Nat 1 hintereinander würfeln",
-                                  ]),
-                        )
-                        .setAssets(assets)
-                        .setTimestamps(new Timestamps(Date.now()));
-
-                    setActivity(discordActivity);
+                    setDiscordStatus(
+                        isDev
+                            ? choose([
+                                  "Fixt die Bugs aus letzter Session",
+                                  "Baut neue lustige Features",
+                                  "Refactored den Code",
+                              ])
+                            : gameState.dm
+                              ? choose([
+                                    "Plant einen Total Party Kill",
+                                    "Entscheidet über das Schicksal der Party",
+                                    "Erschafft neue Monster",
+                                ])
+                              : choose([
+                                    "Auf einem Abenteuer",
+                                    "Sammelt Schätze",
+                                    "Macht die Tavernen unsicher",
+                                    "Am 4. Nat 1 hintereinander würfeln",
+                                ]),
+                        isDev,
+                    );
                     break;
                 case MessageType.EVENT:
                     switch (message.event_type) {
@@ -855,8 +879,8 @@
         {#await getVersion() then version}
             <span
                 class="self-center text-gray-500 opacity-0 peer-hover:opacity-100 transition-opacity ml-2"
-                >{version}</span
-            >
+                >{version} {isDev ? "Development Build" : ""}
+            </span>
         {/await}
     </div>
 
