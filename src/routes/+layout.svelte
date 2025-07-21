@@ -53,8 +53,6 @@
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
     import { invoke } from "@tauri-apps/api/core";
-    import { setActivity, start, stop } from "tauri-plugin-drpc";
-    import { Activity, Assets, Timestamps } from "tauri-plugin-drpc/activity";
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
@@ -279,32 +277,8 @@
 
         confetti_function = confetti.create(confetti_canvas, { resize: true });
 
-        await start("1394274196603011223");
         isDev = await invoke("is_dev");
-        if (isDev) {
-            setDiscordStatus(
-                choose([
-                    "Fixt die Bugs aus letzter Session",
-                    "Baut neue lustige Features",
-                    "Refactored den Code",
-                ]),
-                isDev,
-            );
-        }
     });
-
-    function setDiscordStatus(message: string, dev: boolean) {
-        const assets = new Assets()
-            .setLargeImage(!dev ? "favicon" : "dev_favicon")
-            .setLargeText("How to play DND Online fast");
-
-        const discordActivity = new Activity()
-            .setState(message)
-            .setAssets(assets)
-            .setTimestamps(new Timestamps(Date.now()));
-
-        setActivity(discordActivity);
-    }
 
     let mouse_timeout: any = $state(null);
     let large_mouse_timeout: any = $state(null);
@@ -334,27 +308,6 @@
                     gameState.name = message.display_name;
                     gameState.dm = message.dm_status;
 
-                    setDiscordStatus(
-                        isDev
-                            ? choose([
-                                  "Fixt die Bugs aus letzter Session",
-                                  "Baut neue lustige Features",
-                                  "Refactored den Code",
-                              ])
-                            : gameState.dm
-                              ? choose([
-                                    "Plant einen Total Party Kill",
-                                    "Entscheidet über das Schicksal der Party",
-                                    "Erschafft neue Monster",
-                                ])
-                              : choose([
-                                    "Auf einem Abenteuer",
-                                    "Sammelt Schätze",
-                                    "Macht die Tavernen unsicher",
-                                    "Am 4. Nat 1 hintereinander würfeln",
-                                ]),
-                        isDev,
-                    );
                     break;
                 case MessageType.EVENT:
                     switch (message.event_type) {
