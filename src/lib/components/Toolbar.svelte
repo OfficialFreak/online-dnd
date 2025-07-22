@@ -585,21 +585,5 @@
                 </button>
             </div>
         {/if}
-        <div class="tooltip tooltip-right">
-            <div class="tooltip-content">
-                Lineal <kbd class="kbd">L</kbd>
-            </div>
-            <button
-                tabindex="0"
-                class="btn btn-square btn-sm {appState.selectedTool ===
-                    Tools.Ruler && 'btn-info'}"
-                aria-label="Lineal"
-                onclick={() => {
-                    selectTool(Tools.Ruler);
-                }}
-            >
-                <i class="fa-solid fa-ruler"></i>
-            </button>
-        </div>
     </div>
 </div>

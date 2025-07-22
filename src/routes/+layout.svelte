@@ -748,7 +748,7 @@
     <div class="flex justify-center transition-opacity">
         <button
             onclick={reconnect}
-            oncontextmenu={disconnect}
+            ondblclick={disconnect}
             aria-label="Reconnect"
             class="cursor-pointer peer"
         >

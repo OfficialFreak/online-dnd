@@ -8,7 +8,7 @@
         ...props
     } = $props();
 
-    let hovering = $state(false);
+    let hovering = $state(true);
     let thumbnail_asset_name = $derived(asset + "_thumbnail.webp");
     let video = $derived(asset.endsWith(".mp4"));
     let still = $derived(video ? asset + "_still.webp" : asset);
@@ -21,15 +21,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-    class="contents"
-    onmouseenter={() => {
-        hovering = true;
-    }}
-    onmouseleave={() => {
-        hovering = false;
-    }}
->
+<div class="contents">
     {#if thumbnail}
         {#if toUrl(thumbnail_asset_name)}
             <img src={toUrl(thumbnail_asset_name)} {...props} />
