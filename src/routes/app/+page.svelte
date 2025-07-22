@@ -84,7 +84,10 @@
             );
         }
     }
+    let innerWidth = $state(487); // Magic number is the min-width for the desktop app
 </script>
+
+<svelte:window bind:innerWidth />
 
 {#if gameState.scene}
     {#if gameState.scene.background}
@@ -117,7 +120,7 @@
             <InitiativeBar />
         </div>
     {/if}
-    <Toolbar />
+    <Toolbar scale={innerWidth < 487 ? innerWidth / 487 : 1} />
     <div class="fixed bottom-2 left-2 z-10">
         <DiceChooser roll_callback={roll} />
     </div>

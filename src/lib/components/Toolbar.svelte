@@ -289,6 +289,8 @@
         pressure = !pressure;
         await appState.ws.send(TogglePressure.create(pressure));
     }
+
+    let { scale } = $props();
 </script>
 
 <svelte:window
@@ -300,7 +302,8 @@
 />
 
 <div
-    class="fixed top-10 left-2 bottom-16 flex flex-row gap-1 pointer-events-none"
+    class="fixed top-10 left-2 bottom-16 flex flex-row gap-1 pointer-events-none origin-top-left"
+    style="transform: scale({scale})"
 >
     {#if toolbarState.charactersOpen}
         <div
