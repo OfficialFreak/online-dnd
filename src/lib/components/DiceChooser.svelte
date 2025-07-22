@@ -71,7 +71,9 @@
             </button>
         {/if}
     </div>
-    <ul class="dropdown-content z-1 flex flex-col !gap-2 pb-2">
+    <ul
+        class="dropdown-content z-1 flex flex-col !gap-2 pb-2 pr-4 pt-10 max-h-[80vh] overflow-y-auto overflow-x-hidden"
+    >
         {#each entries as [dice, count]}
             <div class="indicator">
                 {#if count > 0}
