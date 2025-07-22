@@ -70,6 +70,18 @@
         }
     });
 
+    function zoomIn() {
+        appState.prevZoom = appState.zoom;
+        appState.zoom *= 1.25;
+    }
+
+    function zoomOut() {
+        if (appState.zoom > 0.3) {
+            appState.prevZoom = appState.zoom;
+            appState.zoom /= 1.25;
+        }
+    }
+
     async function hotkeyHandler(evt: any) {
         const activeElement = document.activeElement;
 
@@ -139,14 +151,12 @@
                 break;
             case "BracketRight":
                 if (evt.ctrlKey) {
-                    appState.prevZoom = appState.zoom;
-                    appState.zoom *= 1.25;
+                    zoomIn();
                 }
                 break;
             case "Slash":
-                if (evt.ctrlKey && appState.zoom > 0.3) {
-                    appState.prevZoom = appState.zoom;
-                    appState.zoom /= 1.25;
+                if (evt.ctrlKey) {
+                    zoomOut();
                 }
                 break;
             case "ArrowLeft":
@@ -359,6 +369,18 @@
         class="flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto"
         transition:fade|global={{ duration: 100 }}
     >
+        <button
+            tabindex="0"
+            class="btn btn-square btn-sm"
+            aria-label="Zeiger"
+            onclick={zoomIn}><i class="fa-solid fa-plus"></i></button
+        >
+        <button
+            tabindex="0"
+            class="btn btn-square btn-sm"
+            aria-label="Zeiger"
+            onclick={zoomOut}><i class="fa-solid fa-minus"></i></button
+        >
         {#if gameState.dm}
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">

@@ -815,77 +815,6 @@
                 </div>
             </div>
         {/if}
-        {#if updating}
-            <div
-                class="tooltip tooltip-bottom"
-                data-tip="Die App wird sich gleich neustarten"
-            >
-                <div
-                    tabindex="0"
-                    role="button"
-                    class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-events-none ml-2"
-                >
-                    Updatevorgang...
-                </div>
-            </div>
-        {/if}
-        {#await getVersion() then version}
-            <span
-                class="self-center text-gray-500 opacity-0 peer-hover:opacity-100 transition-opacity ml-2"
-                >{version} {isDev ? "Development Build" : ""}
-            </span>
-        {/await}
-    </div>
-
-    <div class="flex justify-center transition-opacity">
-        <button
-            class="titlebar-button"
-            id="titlebar-minimize"
-            onclick={appWindow.minimize}
-            aria-label="Minimize"
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                ><path fill="currentColor" d="M19 13H5v-2h14z" /></svg
-            >
-        </button>
-        <button
-            class="titlebar-button"
-            id="titlebar-maximize"
-            onclick={appWindow.toggleMaximize}
-            aria-label="Maximize"
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                ><path
-                    fill="currentColor"
-                    d="M19 3H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 2v14H5V5z"
-                /></svg
-            >
-        </button>
-        <button
-            class="titlebar-button"
-            id="titlebar-close"
-            onclick={appWindow.close}
-            aria-label="Close"
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                ><path
-                    fill="currentColor"
-                    d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
-                /></svg
-            >
-        </button>
     </div>
 </div>
 {#if gameState.dm}
@@ -1234,25 +1163,12 @@
         position: fixed;
         top: 0;
         left: 0;
-        right: 0;
         background: rgba(28, 34, 41, 0.59);
         box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         backdrop-filter: blur(7.5px);
         -webkit-backdrop-filter: blur(7.5px);
         border: 1px solid rgba(28, 34, 41, 0.12);
-    }
-    .titlebar-button {
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        width: 28px;
-        height: 28px;
-        user-select: none;
-        -webkit-user-select: none;
-        color: white;
-        cursor: pointer;
-    }
-    .titlebar-button:hover {
-        background: rgba(0, 0, 0, 0.2);
+        padding-right: 0.1rem;
+        border-bottom-right-radius: 0.25rem;
     }
 </style>
