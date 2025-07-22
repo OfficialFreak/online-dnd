@@ -45,3 +45,7 @@ html, body {
 .no-scrollbar {
     scrollbar-width: none;
 }
+
+:root {
+    touch-action: pan-x pan-y; 
+}
