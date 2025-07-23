@@ -1282,7 +1282,7 @@
         top: 0;
         left: 0;
         right: 0;
-        background: rgba(28, 34, 41, 0.59);
+        background: color-mix(in srgb, var(--color-base-100), transparent 40%);
         box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         backdrop-filter: blur(7.5px);
         -webkit-backdrop-filter: blur(7.5px);

@@ -36,7 +36,7 @@
             class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center"
             aria-label="D20"
         >
-            <span class="dice-icon d20 !bg-gray-500"></span>
+            <span class="dice-icon d20 !bg-base-content/70"></span>
         </button>
         {#if chosen_dice}
             <div class="join h-12 justify-center">
@@ -93,7 +93,7 @@
                             count > 0 && dice_count[dice]--;
                         }}
                     >
-                        <span class="dice-icon {dice}"></span>
+                        <span class="dice-icon !bg-base-content {dice}"></span>
                     </button>
                 </div>
             </div>

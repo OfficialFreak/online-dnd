@@ -17,7 +17,7 @@
             class="border rounded-full px-3 text-lg"
             style="border-color: {color}">{stat_value}</span
         >
-        <span class="text-xs uppercase block text-gray-200"
+        <span class="text-xs uppercase block text-base-content/80"
             >passive {stat_name}</span
         >
     </div>

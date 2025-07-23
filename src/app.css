@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @plugin "daisyui" {
-    themes: dark --default;
+    themes: all;
+    logs: false;
 }
 
 @utility drag-none {
@@ -32,14 +33,18 @@ html, body {
 }
 
 .frosted {
-    background: rgba(28, 34, 41, 0.59);
+    background: color-mix(in srgb, var(--color-base-100), transparent 30%);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(7.5px);
     border: 1px solid rgba(28, 34, 41, 0.12);
 }
 
+.kbd {
+    color: var(--color-base-content) !important;
+}
+
 .dark-frosted {
-    background: rgba(28, 34, 41, 0.9);
+    background: color-mix(in srgb, var(--color-base-100), transparent 10%);
 }
 
 .no-scrollbar {

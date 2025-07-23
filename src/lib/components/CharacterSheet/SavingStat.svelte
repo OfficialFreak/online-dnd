@@ -27,7 +27,9 @@
         class="border rounded-box flex flex-row justify-between items-center gap-1.5 p-1 px-2 frosted dark-frosted"
         style="border-color: {color}"
     >
-        <span class="text-xs uppercase block text-gray-200">{stat_name}</span>
+        <span class="text-xs uppercase block text-base-content/80"
+            >{stat_name}</span
+        >
         <button
             class="btn btn-outline btn-sm text-xl"
             style="border-color: {color}"

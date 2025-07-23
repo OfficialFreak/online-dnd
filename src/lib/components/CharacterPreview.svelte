@@ -18,7 +18,9 @@
     }
 </script>
 
-<div class="relative grow border border-base-200 rounded-[4px] flex flex-col">
+<div
+    class="relative grow border border-base-200 rounded-[4px] flex flex-col text-white"
+>
     <div
         class="absolute inset-0 -z-1 bg-cover brightness-30 pointer-events-none rounded-[4px]"
         style="background-image: url('{character.decorations
