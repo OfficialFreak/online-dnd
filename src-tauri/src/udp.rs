@@ -124,7 +124,7 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
                         }
                     }
                     Err(e) => {
-                        backend_error(&tx, format!("Emit error: {}", e));
+                        backend_error(&tx, format!("UDP receive error: {}", e));
                         eprintln!("UDP receive error: {}", e);
                     }
                 }
@@ -178,7 +178,7 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
 
             loop {
                 if let Err(e) = socket.send_to(&[0x00u8], target) {
-                    backend_error(&tx, format!("Emit Error: {:?}", e).to_string());
+                    backend_error(&tx, format!("Heartbeat send error: {:?}", e).to_string());
                     eprintln!("Heartbeat send error: {}", e);
                 } else {
                     // backend_debug(&tx, format!("Sent heartbeat to {target:?}").to_string());
