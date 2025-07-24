@@ -157,7 +157,7 @@
             />
         </div>
     {:else}
-        <span class="min-w-max mt-2 p-1 frosted rounded-md text-xl font-bold">
+        <span class="min-w-max mt-2 p-1 frosted rounded-box text-xl font-bold">
             Keine Marker in der Initiative
         </span>
     {/each}

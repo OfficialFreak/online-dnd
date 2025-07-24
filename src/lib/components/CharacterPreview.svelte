@@ -18,7 +18,9 @@
     }
 </script>
 
-<div class="relative grow border border-base-200 rounded-[4px] flex flex-col">
+<div
+    class="relative grow border border-base-200 rounded-[4px] flex flex-col text-white"
+>
     <div
         class="absolute inset-0 -z-1 bg-cover brightness-30 pointer-events-none rounded-[4px]"
         style="background-image: url('{character.decorations
@@ -53,11 +55,11 @@
         </div>
     </div>
     <div
-        class="tooltip tooltip-bottom -my-[5px]"
+        class="tooltip tooltip-bottom -my-1"
         data-tip={`${character.currentHealth} / ${character.maxHealth}`}
     >
         <progress
-            class="progress progress-error w-full"
+            class="progress progress-error w-full px-0.5"
             value={character.currentHealth}
             max={character.maxHealth}
         ></progress>

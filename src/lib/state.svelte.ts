@@ -27,6 +27,7 @@ export const appState = $state({
     ctrlPressed: false,
     verticalSnapPoint: 1,
     mouseDown: false,
+    theme: null as string | null
 });
 
 export const gameState = $state({

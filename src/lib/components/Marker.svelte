@@ -162,7 +162,7 @@
         >
             <Display
                 alt="Marker"
-                class={"w-full aspect-square mask object-cover object-top pointer-events-auto drag-none " +
+                class={"w-full h-full mask object-cover object-top pointer-events-auto drag-none " +
                     (banner ? "mask-banner" : "mask-hexagon")}
                 hoverVideoOnly={true}
                 thumbnail={!(mapUse || banner)}
@@ -230,7 +230,7 @@
                         on:change={throttled_save}
                         options={Object.keys(effect_style_mapping)}
                         bind:selected={scene_marker.status_effects}
-                        --sms-options-bg="black"
+                        --sms-options-bg="var(--color-base-100)"
                         --sms-max-width="13rem"
                         --sms-min-height="2.5rem"
                     ></MultiSelect>

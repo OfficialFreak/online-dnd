@@ -501,7 +501,7 @@
                 <div
                     bind:this={ruler}
                     bind:clientWidth={ruler_width}
-                    class="origin-center block h-8 w-50 bg-base-100 text-white overflow-auto resize-x"
+                    class="origin-center block h-8 w-50 bg-base-100 text-base-content overflow-auto resize-x"
                 >
                     <div class="absolute bottom-0 h-full w-full handle"></div>
                     <button
