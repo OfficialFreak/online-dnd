@@ -58,8 +58,8 @@
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
-    const heart = confetti.shapeFromText({ text: "❤️", scalar: 8 });
-    const heart2 = confetti.shapeFromText({ text: "💕", scalar: 8 });
+    const bomb = confetti.shapeFromText({ text: "💣", scalar: 8 });
+    const warning = confetti.shapeFromText({ text: "⚠", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
     let confetti_function: any = $state();
 
@@ -836,33 +836,43 @@
                         return;
                     }
 
+                    let tmp_theme = appState.theme;
+
+                    appState.theme = "cyberpunk";
+
                     // @ts-ignore
                     await appState.ws.send(
                         PlayerMessage.create("Easteregg gefunden ;D", "Nils"),
                     );
 
-                    let duration = 1000;
+                    let duration = 5000;
                     let end = Date.now() + duration;
                     (function frame() {
                         confetti_function({
                             particleCount: 2,
                             angle: 60,
-                            spread: 55,
+                            spread: 80,
                             scalar: 4,
+                            startVelocity: 80,
                             origin: { x: 0 },
-                            shapes: [heart, heart2],
+                            gravity: 1,
+                            shapes: [bomb, warning],
                         });
                         confetti_function({
                             particleCount: 2,
                             angle: 120,
-                            spread: 55,
+                            spread: 80,
                             scalar: 4,
                             origin: { x: 1 },
-                            shapes: [heart, heart2],
+                            gravity: 1,
+                            startVelocity: 80,
+                            shapes: [bomb, warning],
                         });
 
                         if (Date.now() < end) {
                             requestAnimationFrame(frame);
+                        } else {
+                            appState.theme = tmp_theme;
                         }
                     })();
                 }}>🫶</button
