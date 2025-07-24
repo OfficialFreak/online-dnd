@@ -759,7 +759,7 @@
     </style>
 </svelte:head>
 
-<div data-tauri-drag-region class="titlebar z-10">
+<div data-tauri-drag-region class="titlebar rounded-br-box z-10">
     <div class="flex justify-center transition-opacity">
         <button
             onclick={reconnect}
@@ -1256,7 +1256,6 @@
         position: fixed;
         top: 0;
         left: 0;
-        right: 0;
         background: color-mix(in srgb, var(--color-base-100), transparent 40%);
         box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         backdrop-filter: blur(7.5px);
