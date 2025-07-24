@@ -1,6 +1,5 @@
 <script lang="ts">
     let { children } = $props();
-    import { getVersion } from "@tauri-apps/api/app";
     import "../app.css";
     import "@fortawesome/fontawesome-free/css/all.min.css";
     import { fileTypeFromBuffer } from "file-type";
