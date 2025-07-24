@@ -162,7 +162,7 @@
         >
             <Display
                 alt="Marker"
-                class={"w-full aspect-square mask object-cover object-top pointer-events-auto drag-none " +
+                class={"w-full h-full mask object-cover object-top pointer-events-auto drag-none " +
                     (banner ? "mask-banner" : "mask-hexagon")}
                 hoverVideoOnly={true}
                 thumbnail={!(mapUse || banner)}
