@@ -207,7 +207,7 @@
             <div
                 style="border-color: {character.decorations.themeColor
                     ?.themeColor || 'black'}"
-                class="flex flex-col gap-2 my-2 mx-1 py-1 text-center rounded-md justify-center frosted dark-frosted text-base-content/80"
+                class="flex flex-col gap-2 my-2 mx-1 py-1 text-center rounded-box justify-center frosted dark-frosted text-base-content/80"
             >
                 {#each Object.entries(character.specialSenses) as [name, distance]}
                     <span

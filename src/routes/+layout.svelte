@@ -266,6 +266,15 @@
         }
     });
 
+    $effect(() => {
+        if (!appState.store || !html || !appState.theme) return;
+        console.log("Theme:", appState.theme);
+        html?.setAttribute("data-theme", appState.theme);
+        appState.store.set("theme", { value: appState.theme }).then(() => {
+            appState.store.save();
+        });
+    });
+
     onMount(async () => {
         html = document.getElementsByTagName("html")[0];
         await ensureStore();
@@ -273,6 +282,10 @@
         appState.token = (
             (await appState.store.get("token")) as { value: string }
         ).value as string;
+        appState.theme =
+            ((await appState.store.get("theme")) as { value: string }).value ||
+            "dark";
+        html?.setAttribute("data-theme", appState.theme);
 
         audio = new Audio("speed.mp3");
         audio.loop = true;
@@ -733,6 +746,8 @@
     });
     let scrollbar_visible = $state(false);
     let selected_player = $state(gameState.name);
+
+    let theme_modal: HTMLDialogElement | null = $state(null);
 </script>
 
 <svelte:window
@@ -854,14 +869,16 @@
             >
         {/if}
         {#if gameState.dm}
-            <div class="dropdown dropdown-hover">
-                <div
-                    class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-events-none"
-                >
-                    DM
-                </div>
+            <div
+                class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-events-none"
+            >
+                DM
             </div>
         {/if}
+        <button
+            class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 ml-2"
+            onclick={() => theme_modal?.showModal()}>Aussehen</button
+        >
         {#if updating}
             <div
                 class="tooltip tooltip-bottom"
@@ -878,7 +895,7 @@
         {/if}
         {#await getVersion() then version}
             <span
-                class="self-center text-gray-500 opacity-0 peer-hover:opacity-100 transition-opacity ml-2"
+                class="self-center text-base-content opacity-0 peer-hover:opacity-100 transition-opacity ml-2"
                 >{version} {isDev ? "Development Build" : ""}
             </span>
         {/await}
@@ -896,7 +913,10 @@
                 width="15"
                 height="15"
                 viewBox="0 0 24 24"
-                ><path fill="currentColor" d="M19 13H5v-2h14z" /></svg
+                ><path
+                    fill="var(--color-base-content)"
+                    d="M19 13H5v-2h14z"
+                /></svg
             >
         </button>
         <button
@@ -911,7 +931,7 @@
                 height="15"
                 viewBox="0 0 24 24"
                 ><path
-                    fill="currentColor"
+                    fill="var(--color-base-content)"
                     d="M19 3H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 2v14H5V5z"
                 /></svg
             >
@@ -928,13 +948,89 @@
                 height="15"
                 viewBox="0 0 24 24"
                 ><path
-                    fill="currentColor"
+                    fill="var(--color-base-content)"
                     d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
                 /></svg
             >
         </button>
     </div>
 </div>
+<dialog bind:this={theme_modal} class="modal scrollbar-gutter-affected">
+    <div class="modal-box">
+        <h3 class="text-lg font-bold">Aussehen anpassen</h3>
+        <div class="flex flex-row flex-wrap gap-1">
+            {#each ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter", "dim", "nord", "sunset", "caramellatte", "abyss", "silk"] as theme}
+                <button
+                    class="border-base-content/20 hover:border-base-content/40 overflow-hidden rounded-lg border outline-2 outline-offset-2 outline-transparent flex-1/3"
+                    data-act-class="outline-base-content!"
+                    onclick={() => {
+                        appState.theme = theme;
+                    }}
+                >
+                    <div
+                        class="bg-base-100 text-base-content w-full cursor-pointer font-sans"
+                        data-theme={theme}
+                    >
+                        <div class="grid grid-cols-5 grid-rows-3">
+                            <div
+                                class="bg-base-200 col-start-1 row-span-2 row-start-1"
+                            ></div>
+                            <div
+                                class="bg-base-300 col-start-1 row-start-3"
+                            ></div>
+                            <div
+                                class="bg-base-100 col-span-4 col-start-2 row-span-3 row-start-1 flex flex-col gap-1 p-2"
+                            >
+                                <div class="font-bold">{theme}</div>
+                                <div class="flex flex-wrap gap-1">
+                                    <div
+                                        class="bg-primary flex aspect-square w-5 items-center justify-center rounded lg:w-6"
+                                    >
+                                        <div
+                                            class="text-primary-content text-sm font-bold"
+                                        >
+                                            A
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="bg-secondary flex aspect-square w-5 items-center justify-center rounded lg:w-6"
+                                    >
+                                        <div
+                                            class="text-secondary-content text-sm font-bold"
+                                        >
+                                            A
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="bg-accent flex aspect-square w-5 items-center justify-center rounded lg:w-6"
+                                    >
+                                        <div
+                                            class="text-accent-content text-sm font-bold"
+                                        >
+                                            A
+                                        </div>
+                                    </div>
+                                    <div
+                                        class="bg-neutral flex aspect-square w-5 items-center justify-center rounded lg:w-6"
+                                    >
+                                        <div
+                                            class="text-neutral-content text-sm font-bold"
+                                        >
+                                            A
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+            {/each}
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 {#if gameState.dm}
     <dialog bind:this={scene_modal} class="modal scrollbar-gutter-affected">
         <div class="modal-box">

@@ -339,7 +339,7 @@
                                 >{getCharacter(toolbarState.characterOpen)
                                     .name}</span
                             >
-                            <span class="text-xs font-bold text-gray-400"
+                            <span class="text-xs font-bold text-base-content/50"
                                 >{getCharacter(toolbarState.characterOpen)
                                     .detailedDescription}</span
                             >
@@ -366,7 +366,7 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm {appState.selectedTool ===
+                    class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
                         Tools.Pointer && 'btn-info'}"
                     aria-label="Zeiger"
                     onclick={() => {
@@ -380,7 +380,7 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm"
+                    class="btn btn-square btn-sm rounded-box"
                     aria-label="Szenen"
                     onclick={() => {
                         modals.sceneChooserModal?.showModal();
@@ -397,7 +397,8 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm {pressure && 'btn-info'}"
+                    class="btn btn-square btn-sm rounded-box {pressure &&
+                        'btn-info'}"
                     aria-label="Szenen"
                     onclick={toggle_pressure}
                     ><i class="fa-solid fa-stopwatch"></i></button
@@ -406,7 +407,8 @@
             <div class="dropdown dropdown-right dropdown-hover">
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm {fog_active && 'btn-info'}"
+                    class="btn btn-square btn-sm rounded-box {fog_active &&
+                        'btn-info'}"
                     aria-label="Fog"><i class="fa-solid fa-cloud"></i></button
                 >
                 <ul
@@ -436,13 +438,13 @@
                         </select>
                     </li>
                     <li class="flex flex-row gap-1 mt-1">
-                        <div class="tooltip tooltip-bottom p-0">
+                        <div class="tooltip tooltip-bottom p-0 rounded-box">
                             <div class="tooltip-content">
                                 Nebel hinzufügen <kbd class="kbd">F</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm {appState.selectedTool ===
+                                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
                                     Tools.AddFog && 'btn-info'}"
                                 aria-label="Nebel hinzufügen"
                                 onclick={() => {
@@ -452,13 +454,13 @@
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                         </div>
-                        <div class="tooltip tooltip-bottom p-0">
+                        <div class="tooltip tooltip-bottom p-0 rounded-box">
                             <div class="tooltip-content">
                                 Nebel entfernen <kbd class="kbd">G</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm {appState.selectedTool ===
+                                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
                                     Tools.RemoveFog && 'btn-info'}"
                                 aria-label="Nebel entfernen"
                                 onclick={() => {
@@ -468,28 +470,28 @@
                                 <i class="fa-solid fa-eraser"></i>
                             </button>
                         </div>
-                        <div class="tooltip tooltip-bottom p-0">
+                        <div class="tooltip tooltip-bottom p-0 rounded-box">
                             <div class="tooltip-content">
                                 Alles ausfüllen <kbd class="kbd">SHIFT</kbd> +
                                 <kbd class="kbd">F</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm"
+                                class="btn btn-square btn-sm rounded-box"
                                 aria-label="Alles ausfüllen"
                                 onclick={fillAll}
                             >
                                 <i class="fa-solid fa-fill-drip"></i>
                             </button>
                         </div>
-                        <div class="tooltip tooltip-bottom p-0">
+                        <div class="tooltip tooltip-bottom p-0 rounded-box">
                             <div class="tooltip-content">
                                 Alles entfernen <kbd class="kbd">SHIFT</kbd> +
                                 <kbd class="kbd">G</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm"
+                                class="btn btn-square btn-sm rounded-box"
                                 aria-label="Alles entfernen"
                                 onclick={removeAll}
                             >
@@ -505,7 +507,7 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm"
+                    class="btn btn-square btn-sm rounded-box"
                     aria-label="Marker"
                     onclick={() => {
                         modals.markerModal?.showModal();
@@ -520,7 +522,7 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm {gameState.combat &&
+                    class="btn btn-square btn-sm rounded-box {gameState.combat &&
                         'btn-info'}"
                     aria-label="Zeiger"
                     onclick={() => {
@@ -535,7 +537,7 @@
             </div>
             <button
                 tabindex="0"
-                class="btn btn-square btn-sm {toolbarState.charactersOpen &&
+                class="btn btn-square btn-sm rounded-box {toolbarState.charactersOpen &&
                     'btn-info'}"
                 aria-label="Marker"
                 onclick={() => {
@@ -552,7 +554,7 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm"
+                    class="btn btn-square btn-sm rounded-box"
                     aria-label="Charakter Aktualisieren"
                     onclick={updateCharacter}
                 >
@@ -566,7 +568,7 @@
             </div>
             <button
                 tabindex="0"
-                class="btn btn-square btn-sm {appState.selectedTool ===
+                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
                     Tools.Ruler && 'btn-info'}"
                 aria-label="Lineal"
                 onclick={() => {
