@@ -1,0 +1,503 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0DB86DC2540A11C3E2442E48 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2DFE05BD53C3E0DE3760EC32 /* Metal.framework */; };
+		12CA8D8715EB866129BF9DAF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = E58EB0D2A0F8E3313557AB88 /* LaunchScreen.storyboard */; };
+		2896FFB39A5CFC555343343F /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 10ABB55FD49541D037AC122F /* main.mm */; };
+		35C794D1A16EDC12CFC90116 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93BBD5851D5274E9E30EB673 /* Security.framework */; };
+		38C8EC5626D041E825695D3B /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B05CA653FC726A71EFF5D1A /* CoreGraphics.framework */; };
+		3C3F6A3B41FCBDD800DFADA8 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43C1D2E4AF9C8E21050EB760 /* WebKit.framework */; };
+		45388966B70FBCBF39C929DE /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C70E1AA27607F3742D6BD254 /* libapp.a */; };
+		5B74CD6627FC622712AD7079 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = E803D8F4AEB0FEC2FA37D7BE /* assets */; };
+		673BB3C272228605212D59E3 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1E866170837AA1121F6795DC /* MetalKit.framework */; };
+		73842430F11FDE084474748E /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 864BB8940D079DD6FE51AB43 /* UIKit.framework */; };
+		75BAD2D0501F40A343C04FBF /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 22601B8DE0CC02B8E0526B8D /* QuartzCore.framework */; };
+		8A79727894E219D42732835C /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = BA314902A12ECF6381A602A5 /* libapp.a */; };
+		8C595B1EE5C34A8092DFC8BE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 841BEBFD2B3CF44445399EE3 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0E75A37494B7B9AED1A03788 /* main.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.rs; sourceTree = "<group>"; };
+		10ABB55FD49541D037AC122F /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		1E866170837AA1121F6795DC /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		22601B8DE0CC02B8E0526B8D /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		25893C8DF253784F2B19FE94 /* types.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = types.rs; sourceTree = "<group>"; };
+		2DFE05BD53C3E0DE3760EC32 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		2FCB03D461CE76DC625ED560 /* udp.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = udp.rs; sourceTree = "<group>"; };
+		43C1D2E4AF9C8E21050EB760 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		4A89482FA7496D772C727B54 /* How to play DND Online fast.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "How to play DND Online fast.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A4BAAFF5AF0C50ADD366F6F /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		5B804414B45A11D78EB43BBA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6B25DFB4A4E63F762E32898E /* lib.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = lib.rs; sourceTree = "<group>"; };
+		7B05CA653FC726A71EFF5D1A /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		841BEBFD2B3CF44445399EE3 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		864BB8940D079DD6FE51AB43 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		900232F60694C978D7E68D9A /* online-dnd_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "online-dnd_iOS.entitlements"; sourceTree = "<group>"; };
+		93BBD5851D5274E9E30EB673 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		BA314902A12ECF6381A602A5 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		C70E1AA27607F3742D6BD254 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		E58EB0D2A0F8E3313557AB88 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		E803D8F4AEB0FEC2FA37D7BE /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B9C9BD63A30AEC5AC24D7B3F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				45388966B70FBCBF39C929DE /* libapp.a in Frameworks */,
+				38C8EC5626D041E825695D3B /* CoreGraphics.framework in Frameworks */,
+				0DB86DC2540A11C3E2442E48 /* Metal.framework in Frameworks */,
+				673BB3C272228605212D59E3 /* MetalKit.framework in Frameworks */,
+				75BAD2D0501F40A343C04FBF /* QuartzCore.framework in Frameworks */,
+				35C794D1A16EDC12CFC90116 /* Security.framework in Frameworks */,
+				73842430F11FDE084474748E /* UIKit.framework in Frameworks */,
+				3C3F6A3B41FCBDD800DFADA8 /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		04FFC534DB44F6A483DA0EE3 /* online-dnd */ = {
+			isa = PBXGroup;
+			children = (
+				10ABB55FD49541D037AC122F /* main.mm */,
+				6B1246FC2980FE39B0518137 /* bindings */,
+			);
+			path = "online-dnd";
+			sourceTree = "<group>";
+		};
+		21A5F36D27F1DA0B7EBF40B6 /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				E1F74920EC5B058C3BC41A67 /* debug */,
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
+		5F5946A8DA72691CEBA313ED /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7B05CA653FC726A71EFF5D1A /* CoreGraphics.framework */,
+				C70E1AA27607F3742D6BD254 /* libapp.a */,
+				2DFE05BD53C3E0DE3760EC32 /* Metal.framework */,
+				1E866170837AA1121F6795DC /* MetalKit.framework */,
+				22601B8DE0CC02B8E0526B8D /* QuartzCore.framework */,
+				93BBD5851D5274E9E30EB673 /* Security.framework */,
+				864BB8940D079DD6FE51AB43 /* UIKit.framework */,
+				43C1D2E4AF9C8E21050EB760 /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		6B1246FC2980FE39B0518137 /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				5A4BAAFF5AF0C50ADD366F6F /* bindings.h */,
+			);
+			path = bindings;
+			sourceTree = "<group>";
+		};
+		7014F7B4B940C755DB088C45 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4A89482FA7496D772C727B54 /* How to play DND Online fast.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8B1F84B9EA0BF1C171FAE877 /* Externals */ = {
+			isa = PBXGroup;
+			children = (
+				21A5F36D27F1DA0B7EBF40B6 /* arm64 */,
+			);
+			path = Externals;
+			sourceTree = "<group>";
+		};
+		A5118AEF093EF136F8AE8EBE = {
+			isa = PBXGroup;
+			children = (
+				E803D8F4AEB0FEC2FA37D7BE /* assets */,
+				841BEBFD2B3CF44445399EE3 /* Assets.xcassets */,
+				E58EB0D2A0F8E3313557AB88 /* LaunchScreen.storyboard */,
+				8B1F84B9EA0BF1C171FAE877 /* Externals */,
+				F2169EABCB1415D14029A9A9 /* online-dnd_iOS */,
+				E07A119B99602A00092BF731 /* Sources */,
+				A9C4616DE3440CD601A5ABCF /* src */,
+				5F5946A8DA72691CEBA313ED /* Frameworks */,
+				7014F7B4B940C755DB088C45 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A9C4616DE3440CD601A5ABCF /* src */ = {
+			isa = PBXGroup;
+			children = (
+				6B25DFB4A4E63F762E32898E /* lib.rs */,
+				0E75A37494B7B9AED1A03788 /* main.rs */,
+				25893C8DF253784F2B19FE94 /* types.rs */,
+				2FCB03D461CE76DC625ED560 /* udp.rs */,
+			);
+			name = src;
+			path = ../../src;
+			sourceTree = "<group>";
+		};
+		E07A119B99602A00092BF731 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				04FFC534DB44F6A483DA0EE3 /* online-dnd */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		E1F74920EC5B058C3BC41A67 /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				BA314902A12ECF6381A602A5 /* libapp.a */,
+			);
+			path = debug;
+			sourceTree = "<group>";
+		};
+		F2169EABCB1415D14029A9A9 /* online-dnd_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				5B804414B45A11D78EB43BBA /* Info.plist */,
+				900232F60694C978D7E68D9A /* online-dnd_iOS.entitlements */,
+			);
+			path = "online-dnd_iOS";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		331E4C9FAD977DF68407F07B /* online-dnd_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 10B77409CF7A47DB5622C93E /* Build configuration list for PBXNativeTarget "online-dnd_iOS" */;
+			buildPhases = (
+				DDEDA2B1742C3AA7CF72AE7C /* Build Rust Code */,
+				24C24FD57A073874844F61EC /* Sources */,
+				0AC33782E6112CECAD6C077F /* Resources */,
+				B9C9BD63A30AEC5AC24D7B3F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "online-dnd_iOS";
+			packageProductDependencies = (
+			);
+			productName = "online-dnd_iOS";
+			productReference = 4A89482FA7496D772C727B54 /* How to play DND Online fast.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1BE012634F9591B60F2FD93E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = AA4BCC223485360C50EA8DEA /* Build configuration list for PBXProject "online-dnd" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = A5118AEF093EF136F8AE8EBE;
+			minimizedProjectReferenceProxies = 1;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				331E4C9FAD977DF68407F07B /* online-dnd_iOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0AC33782E6112CECAD6C077F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8C595B1EE5C34A8092DFC8BE /* Assets.xcassets in Resources */,
+				12CA8D8715EB866129BF9DAF /* LaunchScreen.storyboard in Resources */,
+				5B74CD6627FC622712AD7079 /* assets in Resources */,
+				8A79727894E219D42732835C /* libapp.a in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		DDEDA2B1742C3AA7CF72AE7C /* Build Rust Code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a",
+				"$(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cargo tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		24C24FD57A073874844F61EC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2896FFB39A5CFC555343343F /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		683B8884D869097F9FE14DD9 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "online-dnd_iOS/online-dnd_iOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = UHE8697JK9;
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = "online-dnd_iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.online-dnd.app;
+				PRODUCT_NAME = "How to play DND Online fast";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = debug;
+		};
+		70F6381A5F3E4F0822387BCA /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "online-dnd_iOS/online-dnd_iOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = UHE8697JK9;
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = "online-dnd_iOS/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION)",
+					"$(SDKROOT)/usr/lib/swift",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
+					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.online-dnd.app;
+				PRODUCT_NAME = "How to play DND Online fast";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = release;
+		};
+		7B90F963D209135CE0ECF2A8 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = release;
+		};
+		BD0C8C10C94B5FEF862209BC /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		10B77409CF7A47DB5622C93E /* Build configuration list for PBXNativeTarget "online-dnd_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				683B8884D869097F9FE14DD9 /* debug */,
+				70F6381A5F3E4F0822387BCA /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		AA4BCC223485360C50EA8DEA /* Build configuration list for PBXProject "online-dnd" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BD0C8C10C94B5FEF862209BC /* debug */,
+				7B90F963D209135CE0ECF2A8 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1BE012634F9591B60F2FD93E /* Project object */;
+}
