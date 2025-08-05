@@ -78,9 +78,7 @@ pub fn run() {
             let socket = {
                 let mut tmp_socket =
                     UdpSocket::bind("[::]:0").expect("Could not bind to random UDP port (IPv6)");
-                if tmp_socket.send_to(b"\x00", "[ff02::1]:12345").is_ok() {
-                    println!("Using IPv6 socket");
-                } else {
+                if !tmp_socket.send_to(b"\x00", "[ff02::1]:12345").is_ok() {
                     println!("IPv6 failed, falling back to IPv4 socket");
                     tmp_socket = UdpSocket::bind("0.0.0.0:0")
                         .expect("Could not bind to random UDP port (IPv4)")
