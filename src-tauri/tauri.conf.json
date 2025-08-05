@@ -10,14 +10,12 @@
         "frontendDist": "../build"
     },
     "app": {
-        "windows": [
-            {
-                "title": "How to play DND Online fast",
-                "width": 800,
-                "height": 600,
-                "decorations": false
-            }
-        ],
+        "windows": [{
+            "title": "How to play DND Online fast",
+            "width": 800,
+            "height": 600,
+            "decorations": false
+        }],
         "security": {
             "csp": null
         }
@@ -32,7 +30,10 @@
             "icons/icon.icns",
             "icons/icon.ico"
         ],
-        "createUpdaterArtifacts": true
+        "createUpdaterArtifacts": true,
+        "iOS": {
+            "developmentTeam": "UHE8697JK9"
+        }
     },
     "plugins": {
         "updater": {
