@@ -61,7 +61,6 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
     }
 
     backend_debug(&tx, format!("UDP socket bound to {}", local_addr));
-    println!("UDP socket bound to {}", local_addr);
 
     // Start Listener-Thread
     {
