@@ -280,8 +280,11 @@
             (await appState.store.get("token")) as { value: string }
         ).value as string;
         appState.theme =
-            ((await appState.store.get("theme")) as { value: string }).value ||
-            "dark";
+            (
+                ((await appState.store.get("theme")) as {
+                    value: string;
+                } | null) || { value: null }
+            ).value || "dark";
         html?.setAttribute("data-theme", appState.theme);
 
         audio = new Audio("speed.mp3");
