@@ -90,7 +90,7 @@ const sorted_initiative = $derived(
 
 export const get_sorted_initiative = () => sorted_initiative;
 
-const own_character = $derived(getCharacter(gameState.name));
+const own_character = $derived(gameState.characters.find((char) => char.player_name === gameState.name));
 
 export const get_own_character = () => own_character;
 

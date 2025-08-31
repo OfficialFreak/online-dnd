@@ -50,3 +50,15 @@ html, body {
 .no-scrollbar {
     scrollbar-width: none;
 }
+
+.mask-banner {
+    clip-path: polygon(
+        0% 0%,
+        100% 0%,
+        100% 70%,
+        65% 85%,
+        50% 100%,
+        35% 85%,
+        0% 70%
+    );
+}

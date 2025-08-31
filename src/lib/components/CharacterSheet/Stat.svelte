@@ -15,9 +15,11 @@
 
     async function roll_check() {
         if (!roller.value || !appState.ws) return;
-        let result = await roller.value(["1d20"], modifier);
+        let tmp_modifier = modifier;
+        let tmp_name = stat_name;
+        let result = await roller.value(["1d20"], tmp_modifier);
         await appState.ws.send(
-            CheckResult.create(stat_name, result.roll_result, modifier),
+            CheckResult.create(tmp_name, result.roll_result, tmp_modifier),
         );
     }
 </script>

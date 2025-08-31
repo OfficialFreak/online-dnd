@@ -14,28 +14,26 @@
 
     async function roll_initiative() {
         if (!roller.value || !appState.ws) return;
-        let result = await roller.value(["1d20"], character.actualInitiative);
+        let name = character.name;
+        let initiative = character.actualInitiative;
+        let result = await roller.value(["1d20"], initiative);
         await appState.ws.send(
-            CheckResult.create(
-                "initiative",
-                result.roll_result,
-                character.actualInitiative,
-            ),
+            CheckResult.create("initiative", result.roll_result, initiative),
         );
         let char_init = gameState.scene?.state.initiative.find(
-            (initiative) => initiative[1] === character.name,
+            (initiative) => initiative[1] === name,
         );
         if (char_init) {
-            char_init[0] = result.roll_result + character.actualInitiative;
+            char_init[0] = result.roll_result + initiative;
         } else {
             if (
                 gameState.scene?.state.markers.some(
-                    (marker) => marker.name === character.name,
+                    (marker) => marker.name === name,
                 )
             ) {
                 gameState.scene?.state.initiative.push([
-                    result.roll_result + character.actualInitiative,
-                    character.name,
+                    result.roll_result + initiative,
+                    name,
                 ]);
             } else {
                 return;
@@ -148,7 +146,7 @@
                         ?.themeColor || 'black'}"
                     src={character.decorations.avatarUrl ||
                         "https://www.dndbeyond.com/Content/Skins/Waterdeep/images/characters/default-avatar-builder.png"}
-                    alt="Avatar"
+                    alt={character.name}
                 />
             </button>
             <span class="text-xs text-center">Heroic Inspiration</span>

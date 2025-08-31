@@ -112,7 +112,8 @@
         ? 'tooltip tooltip-right'
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
         banner &&
-        '!pointer-events-none'} {mapUse && 'hover:isolate hover:z-[9999]'}"
+        '!pointer-events-none'} {mapUse &&
+        'hover:isolate hover:z-[9999]'} group"
 >
     {#if !gameState.dm && !banner && !getCharacter(marker.name)}
         <span
@@ -138,6 +139,13 @@
             (!gameState.dm && banner && " pointer-events-none ")}
         popovertarget={marker.name?.replaceAll(" ", "-") || ""}
     >
+        {#if banner && !getCharacter(marker.name)}
+            <span
+                class="absolute bottom-0 right-1/2 translate-x-1/2 badge badge-neutral z-10 badge-xs h-fit w-full transition-opacity opacity-0 group-hover:opacity-100"
+            >
+                {marker.name}
+            </span>
+        {/if}
         {#if gameState.lockedMarkers[marker.name]}
             <span
                 class="absolute top-0 right-1/2 translate-x-1/2 badge badge-neutral z-10 badge-xs"
@@ -161,7 +169,7 @@
                 : 'background: var(--background)'}"
         >
             <Display
-                alt="Marker"
+                alt={marker.name}
                 class={"w-full h-full mask object-cover object-top pointer-events-auto drag-none " +
                     (banner ? "mask-banner" : "mask-hexagon")}
                 hoverVideoOnly={true}
@@ -332,17 +340,5 @@
 <style lang="css">
     .tooltip::after {
         content: unset !important;
-    }
-
-    .mask-banner {
-        clip-path: polygon(
-            0% 0%,
-            100% 0%,
-            100% 70%,
-            65% 85%,
-            50% 100%,
-            35% 85%,
-            0% 70%
-        );
     }
 </style>

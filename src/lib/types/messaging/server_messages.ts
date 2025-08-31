@@ -23,7 +23,8 @@ export enum MessageType {
 
 export enum EventType {
     JOINED = "joined",
-    LEFT = "left"
+    LEFT = "left",
+    SELF_JOIN = "self_join"
 }
 
 export interface BaseServerMessage {
@@ -57,6 +58,10 @@ export interface JoinEvent extends Event {
 export interface LeaveEvent extends Event {
     event_type: EventType.LEFT;
     person: string;
+}
+
+export interface SelfJoinEvent extends Event {
+    event_type: EventType.SELF_JOIN;
 }
 
 export interface RollResult extends BaseServerMessage {
@@ -202,6 +207,7 @@ export type ServerMessage =
     | InitialData 
     | JoinEvent 
     | LeaveEvent 
+    | SelfJoinEvent
     | RollResult 
     | SceneData 
     | InitiativeSceneData
@@ -234,6 +240,8 @@ export function parseServerMessage(json: string): ServerMessage {
                     return data as JoinEvent;
                 case EventType.LEFT:
                     return data as LeaveEvent;
+                case EventType.SELF_JOIN:
+                    return data as SelfJoinEvent;
                 default:
                     throw new Error(`Unknown event type: ${data.event_type}`);
             }

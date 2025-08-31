@@ -410,20 +410,6 @@
         bind:this={gridCanvas}
         bind:clientWidth={w}
         bind:clientHeight={h}
-        onmousedown={(evt) => {
-            if (!editable) return;
-            clickHandler(evt, true);
-        }}
-        onmousemove={(evt) => {
-            if (!editable) return;
-            clickHandler(evt, false);
-        }}
-        onclick={(evt) => {
-            if (!appState.ws || !editable) return;
-            if (evt.button === 0 && appState.selectedTool === Tools.Pointer) {
-                appState.ws.send(MouseLarge.create());
-            }
-        }}
         width={w as number}
         height={h as number}
         class="absolute top-0 left-0 w-full h-full z-0 opacity-50"
@@ -518,5 +504,28 @@
                 </div>
             </div>
         {/if}
+    {/if}
+    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog}
+        <button
+            aria-label="Click Capture Layer"
+            class="absolute inset-0"
+            onmousemove={(evt) => {
+                if (!editable) return;
+                clickHandler(evt, false);
+            }}
+            onmousedown={(evt) => {
+                if (!editable) return;
+                clickHandler(evt, true);
+            }}
+            onclick={(evt) => {
+                if (!appState.ws || !editable) return;
+                if (
+                    evt.button === 0 &&
+                    appState.selectedTool === Tools.Pointer
+                ) {
+                    appState.ws.send(MouseLarge.create());
+                }
+            }}
+        ></button>
     {/if}
 </div>

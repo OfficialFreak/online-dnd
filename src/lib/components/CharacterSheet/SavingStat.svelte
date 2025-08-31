@@ -14,10 +14,11 @@
 
     async function roll_save() {
         if (!roller.value || !appState.ws) return;
-        let result = await roller.value(["1d20"], modifier);
-        // TODO: Saving Throws
+        let tmp_name = stat_name;
+        let tmp_modifier = modifier;
+        let result = await roller.value(["1d20"], tmp_modifier);
         await appState.ws.send(
-            SaveResult.create(stat_name, result.roll_result, modifier),
+            SaveResult.create(tmp_name, result.roll_result, tmp_modifier),
         );
     }
 </script>

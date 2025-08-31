@@ -410,13 +410,21 @@
                                 MessageTypes.Neutral,
                             );
                             break;
+                        case EventType.SELF_JOIN:
+                            notify(
+                                `Du hast dich von einem anderen Gerät eingeloggt`,
+                                MessageTypes.Warning,
+                                0,
+                            );
+                            disconnect(new Event(""));
+                            break;
                     }
                     break;
                 case MessageType.ROLL_RESULT:
                     notify(
                         `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${message.dm_only ? " [DM Only]" : ""}`,
                         MessageTypes.Info,
-                        10_000,
+                        gameState.dm ? -1 : 5000,
                     );
                     break;
                 case MessageType.SCENE:
@@ -519,7 +527,7 @@
                     notify(
                         `${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)}${message.stat === "initiative" ? "" : " Check"}): ${message.result + bonus_string}`,
                         MessageTypes.Info,
-                        -1,
+                        gameState.dm ? -1 : 5000,
                     );
                     break;
                 case MessageType.SAVE_RESULT:
@@ -532,7 +540,7 @@
                     notify(
                         `${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)} Save): ${message.result + save_bonus_string}`,
                         MessageTypes.Info,
-                        -1,
+                        gameState.dm ? -1 : 5000,
                     );
                     break;
                 case MessageType.COMBAT_STATE:
