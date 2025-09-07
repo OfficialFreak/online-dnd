@@ -14,6 +14,8 @@
     import { PutScene } from "$lib/types/messaging/client_messages";
     import CharacterPreview from "./CharacterPreview.svelte";
     import { onMount } from "svelte";
+    // @ts-ignore
+    import confetti from "canvas-confetti";
     import Display from "./Display.svelte";
 
     let {
@@ -80,6 +82,9 @@
     };
 
     let connected_character = $derived(getCharacter(marker.name));
+    const blood = confetti.shapeFromText({
+        text: "🔴",
+    });
 </script>
 
 <div
@@ -314,6 +319,62 @@
                             ) {
                                 gameState.scene.state.turn = null;
                             }
+
+                            let marker_size =
+                                typeof columnCount === "string"
+                                    ? 0.01
+                                    : marker.size / columnCount;
+
+                            console.log("Spawning Blood sized", marker_size);
+
+                            gameState.map_confetti_function({
+                                particleCount: 3,
+                                angle: 90,
+                                spread: 360,
+                                scalar: 20 * marker_size,
+                                startVelocity: 0,
+                                ticks: 230,
+                                origin: {
+                                    x: marker.x.target + marker_size / 2,
+                                    y: marker.y.target + marker_size / 2,
+                                },
+                                gravity: 0,
+                                decay: 0.7,
+                                flat: true,
+                                shapes: [blood],
+                            });
+                            gameState.map_confetti_function({
+                                particleCount: 100,
+                                angle: 90,
+                                spread: 360,
+                                scalar: 10 * marker_size,
+                                startVelocity: 50 * marker_size,
+                                ticks: 200,
+                                origin: {
+                                    x: marker.x.target + marker_size / 2,
+                                    y: marker.y.target + marker_size / 2,
+                                },
+                                gravity: 0,
+                                decay: 0.7,
+                                flat: true,
+                                shapes: [blood],
+                            });
+                            gameState.map_confetti_function({
+                                particleCount: 30,
+                                angle: 90,
+                                spread: 360,
+                                scalar: 5 * marker_size,
+                                startVelocity: 80 * marker_size,
+                                ticks: 100,
+                                origin: {
+                                    x: marker.x.target + marker_size / 2,
+                                    y: marker.y.target + marker_size / 2,
+                                },
+                                gravity: 0,
+                                decay: 0.7,
+                                flat: true,
+                                shapes: [blood],
+                            });
 
                             gameState.scene.state.markers.splice(
                                 typeof scene_marker_index !== "number"

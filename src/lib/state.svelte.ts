@@ -44,7 +44,8 @@ export const gameState = $state({
     DMName: "",
     showMouse: false,
     largeMouse: false,
-    combat: false
+    combat: false,
+    map_confetti_function: (() => {}) as (() => {}) as (() => void) | ((args: Record<string, unknown>) => void),
 });
 
 export const mouseX = new Tween(0, {

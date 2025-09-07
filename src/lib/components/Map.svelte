@@ -25,6 +25,8 @@
     import Marker from "./Marker.svelte";
     import { MessageTypes, notify } from "../notifications.svelte";
     import Display from "./Display.svelte";
+    // @ts-ignore
+    import confetti from "canvas-confetti";
 
     let {
         file,
@@ -301,6 +303,9 @@
         gridCtx = gridCanvas.getContext("2d");
         if (!editable) return;
         fogCtx = fogCanvas.getContext("2d");
+        gameState.map_confetti_function = confetti.create(confetti_canvas, {
+            resize: true,
+        });
     });
 
     let dragOptions: DragOptions = $derived({
@@ -317,6 +322,7 @@
             if (!marker) return;
             marker.x.set(offsetX / w, { duration: 0 });
             marker.y.set(offsetY / h, { duration: 0 });
+
             appState.dragging = false;
             if (!appState.ws) return;
             if (!gameState.scene) return;
@@ -391,6 +397,7 @@
                 !gameState.characters.some((char) => char.name === marker.name),
         ),
     );
+    let confetti_canvas: HTMLCanvasElement | null = $state(null);
 </script>
 
 <div
@@ -435,6 +442,14 @@
                 />
             {/each}
         </div>
+        <!-- Effects canvas -->
+        <canvas
+            bind:this={confetti_canvas}
+            width={w as number}
+            height={h as number}
+            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+        ></canvas>
+        <!-- Fog -->
         <canvas
             bind:this={fogCanvas}
             width={w as number}

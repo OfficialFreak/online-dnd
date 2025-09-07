@@ -839,7 +839,7 @@
                 {/if}
             </div>
         </button>
-        {#if gameState.name === "Laura"}
+        {#if gameState.name === "Nuffel"}
             <button
                 class="text-sm"
                 onclick={async () => {
@@ -886,7 +886,7 @@
                             appState.theme = tmp_theme;
                         }
                     })();
-                }}>🫶</button
+                }}>🧐</button
             >
         {/if}
         {#if gameState.dm}
