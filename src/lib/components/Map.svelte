@@ -11,8 +11,6 @@
     // @ts-ignore
     import throttle from "just-throttle";
     import debounce from "just-debounce-it";
-    import { draggable } from "@neodrag/svelte";
-
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
     import {
@@ -276,7 +274,7 @@
         gridCtx = gridCanvas.getContext("2d");
         if (!editable) return;
         fogCtx = fogCanvas.getContext("2d");
-        gameState.map_confetti_function = confetti.create(confetti_canvas, {
+        appState.map_confetti_function = confetti.create(confetti_canvas, {
             resize: true,
         });
     });
@@ -492,7 +490,10 @@
                 ) {
                     if (!appState.ws) return;
                     appState.ws.send(MouseLarge.create());
-                } else if (evt.button === 0 && appState.selectedTool === Tools.Ruler) {
+                } else if (
+                    evt.button === 0 &&
+                    appState.selectedTool === Tools.Ruler
+                ) {
                     // First click sets the origin, then on mousemove: make ruler move to mouse and on second click, reset origin
                 }
             }}

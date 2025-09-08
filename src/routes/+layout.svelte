@@ -58,8 +58,8 @@
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
-    const bomb = confetti.shapeFromText({ text: "💣", scalar: 8 });
-    const warning = confetti.shapeFromText({ text: "⚠", scalar: 8 });
+    const bomb = confetti.shapeFromText({ text: "🤖🤖", scalar: 8 });
+    const warning = confetti.shapeFromText({ text: "🐛🐜🪲🪳🕷️", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
     let confetti_function: any = $state();
 
@@ -227,7 +227,9 @@
             } else {
                 notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
             }
-            setTimeout(() => {reconnecting = false}, 200);
+            setTimeout(() => {
+                reconnecting = false;
+            }, 200);
         } else {
             reconnecting = true;
             appState.ws.disconnect();
@@ -237,7 +239,9 @@
             } else {
                 notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
             }
-            setTimeout(() => {reconnecting = false}, 200);
+            setTimeout(() => {
+                reconnecting = false;
+            }, 200);
         }
     }
 
@@ -294,9 +298,9 @@
         ).value as string;
         appState.theme =
             (
-                (
-                    (await appState.store.get("theme")) as {value: string; } | null) 
-                    || { value: null }
+                ((await appState.store.get("theme")) as {
+                    value: string;
+                } | null) || { value: null }
             ).value || "dark";
         html?.setAttribute("data-theme", appState.theme);
 
@@ -477,7 +481,7 @@
                                 )))
                     ) {
                         notify("Du bist dran", MessageTypes.Info, 3_000);
-                        if(sword_ping) {
+                        if (sword_ping) {
                             sword_ping.play();
                         }
                     }
@@ -775,6 +779,7 @@
     let selected_player = $state(gameState.name);
 
     let theme_modal: HTMLDialogElement | null = $state(null);
+    let easteregg_active = $state(false);
 </script>
 
 <svelte:window
@@ -859,9 +864,11 @@
             <button
                 class="text-sm"
                 onclick={async () => {
-                    if (!appState.ws) {
+                    if (!appState.ws || easteregg_active) {
                         return;
                     }
+
+                    easteregg_active = true;
 
                     let tmp_theme = appState.theme;
 
@@ -900,9 +907,10 @@
                             requestAnimationFrame(frame);
                         } else {
                             appState.theme = tmp_theme;
+                            easteregg_active = false;
                         }
                     })();
-                }}>🧐</button
+                }}>🔥👨‍🚒</button
             >
         {/if}
         {#if gameState.dm}
@@ -1144,7 +1152,9 @@
                             max="30"
                             class="range"
                         />
-                        <div class="relative w-full h-30 pt-[30px] mt-4 overflow-hidden">
+                        <div
+                            class="relative w-full h-30 pt-[30px] mt-4 overflow-hidden"
+                        >
                             <BlurredBackground
                                 file={background_file}
                                 blur={background_blur}

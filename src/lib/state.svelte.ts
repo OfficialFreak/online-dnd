@@ -27,7 +27,8 @@ export const appState = $state({
     ctrlPressed: false,
     verticalSnapPoint: 1,
     mouseDown: false,
-    theme: null as string | null
+    theme: null as string | null,
+    map_confetti_function: (() => {}) as (() => {}) as (() => void) | ((args: Record<string, unknown>) => void)
 });
 
 export const gameState = $state({
@@ -45,7 +46,6 @@ export const gameState = $state({
     showMouse: false,
     largeMouse: false,
     combat: false,
-    map_confetti_function: (() => {}) as (() => {}) as (() => void) | ((args: Record<string, unknown>) => void),
 });
 
 export const mouseX = new Tween(0, {
