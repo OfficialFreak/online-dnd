@@ -116,9 +116,9 @@
     class="{!gameState.dm && mapUse && !getCharacter(marker.name)
         ? 'tooltip tooltip-right'
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
-        banner &&
-        '!pointer-events-none'} {mapUse &&
-        'hover:isolate hover:z-[9999]'} group"
+        banner ?
+        '!pointer-events-none' : ''} {mapUse ?
+        'hover:isolate hover:z-[9999]' : ''}"
 >
     {#if !gameState.dm && !banner && !getCharacter(marker.name)}
         <span
@@ -141,7 +141,7 @@
             : "") +
             " avatar flex " +
             (banner ? " aspect-[2/3] " : "") +
-            (!gameState.dm && banner && " pointer-events-none ")}
+            (!gameState.dm && banner ? " pointer-events-none " : ' ')}
         popovertarget={marker.name?.replaceAll(" ", "-") || ""}
     >
         {#if banner && !getCharacter(marker.name)}
@@ -168,8 +168,8 @@
                 : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
             marker.status_effects[0]
                 ? effect_style_mapping[marker.status_effects[0]][0]
-                : ''}; {banner &&
-                'transition: width 0.05s ease-out'}; {connected_character
+                : ''}; {banner ?
+                'transition: width 0.05s ease-out' : ''}; {connected_character
                 ? `background: conic-gradient(var(--background) ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg, #ff002b73 ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg) !important;`
                 : 'background: var(--background)'}"
         >
@@ -240,7 +240,7 @@
                         >Statuseffekte</legend
                     >
                     <MultiSelect
-                        on:change={throttled_save}
+                        onchange={throttled_save}
                         options={Object.keys(effect_style_mapping)}
                         bind:selected={scene_marker.status_effects}
                         --sms-options-bg="var(--color-base-100)"
@@ -306,13 +306,16 @@
                         onclick={() => {
                             if (!gameState.scene) return;
                             // Remove from initiative
-                            gameState.scene.state.initiative.splice(
-                                gameState.scene.state.initiative.findIndex(
-                                    (initiative) =>
-                                        initiative[1] === scene_marker.name,
-                                ),
-                                1,
+                            let idx = gameState.scene.state.initiative.findIndex(
+                                (initiative) =>
+                                    initiative[1] === scene_marker.name,
                             );
+                            if (idx !== -1) {
+                                gameState.scene.state.initiative.splice(
+                                    idx,
+                                    1,
+                                );
+                            }
 
                             if (
                                 gameState.scene.state.turn === scene_marker.name
@@ -324,8 +327,6 @@
                                 typeof columnCount === "string"
                                     ? 0.01
                                     : marker.size / columnCount;
-
-                            console.log("Spawning Blood sized", marker_size);
 
                             gameState.map_confetti_function({
                                 particleCount: 3,

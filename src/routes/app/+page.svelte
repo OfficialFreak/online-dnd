@@ -158,7 +158,7 @@
                               (character) =>
                                   character.name ===
                                   gameState.scene?.state.turn,
-                          ) && 'btn-info'
+                          ) ? 'btn-info' : ''
                         : 'btn-info'}"
                     onclick={advance_turn}
                 >

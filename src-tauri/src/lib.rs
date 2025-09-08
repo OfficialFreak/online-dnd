@@ -127,11 +127,11 @@ pub fn run() {
 
             let socket = {
                 let mut tmp_socket =
-                    UdpSocket::bind("[::]:0").expect("Could not bind to random UDP port (IPv6)");
-                if !tmp_socket.send_to(&[0x00u8], "[2a01:4f8:c012:a5c0::1]:41340").is_ok() { // TODO: Actually Resolve instead of hardcoding my ip in
-                    println!("IPv6 failed, falling back to IPv4 socket");
-                    tmp_socket = UdpSocket::bind("0.0.0.0:0")
-                        .expect("Could not bind to random UDP port (IPv4)")
+                    UdpSocket::bind("0.0.0.0:0").expect("Could not bind to random UDP port (IPv4)");
+                if !tmp_socket.send_to(&[0x00u8], "88.198.156.250:41340").is_ok() { // TODO: Actually Resolve instead of hardcoding my ip in
+                    println!("IPv4 failed, falling back to IPv6 socket");
+                    tmp_socket = UdpSocket::bind("[::]:0")
+                        .expect("Could not bind to random UDP port (IPv6)")
                 }
                 tmp_socket
             };

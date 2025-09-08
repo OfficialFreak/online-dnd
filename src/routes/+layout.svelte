@@ -818,12 +818,12 @@
 </svelte:head>
 
 <div data-tauri-drag-region class="titlebar z-10">
-    <div class="flex justify-center transition-opacity">
+    <div class="flex justify-center transition-opacity gap-2">
         <button
             onclick={reconnect}
             oncontextmenu={disconnect}
             aria-label="Reconnect"
-            class="cursor-pointer peer"
+            class="cursor-pointer peer -mr-2"
         >
             <div class="h-[30px] w-[30px] flex justify-center items-center">
                 {#if appState.ws}
@@ -897,7 +897,7 @@
             </div>
         {/if}
         <button
-            class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 ml-2"
+            class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
             onclick={() => theme_modal?.showModal()}>Aussehen</button
         >
         {#if updating}
@@ -908,7 +908,7 @@
                 <div
                     tabindex="0"
                     role="button"
-                    class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-events-none ml-2"
+                    class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-events-none"
                 >
                     Updatevorgang...
                 </div>
@@ -916,7 +916,7 @@
         {/if}
         {#await getVersion() then version}
             <span
-                class="self-center text-base-content opacity-0 peer-hover:opacity-100 transition-opacity ml-2"
+                class="self-center text-base-content opacity-0 peer-hover:opacity-100 transition-opacity"
                 >{version} {isDev ? "Development Build" : ""}
             </span>
         {/await}
