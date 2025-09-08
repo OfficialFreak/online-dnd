@@ -383,6 +383,13 @@
     >
     </canvas>
     {#if editable}
+        <!-- Effects canvas -->
+        <canvas
+            bind:this={confetti_canvas}
+            width={w as number}
+            height={h as number}
+            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+        ></canvas>
         <!-- Non Player Markers under the fog -->
         <div
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
@@ -402,13 +409,6 @@
                 />
             {/each}
         </div>
-        <!-- Effects canvas -->
-        <canvas
-            bind:this={confetti_canvas}
-            width={w as number}
-            height={h as number}
-            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
-        ></canvas>
         <!-- Fog -->
         <canvas
             bind:this={fogCanvas}
@@ -485,12 +485,15 @@
                 clickHandler(evt, true);
             }}
             onclick={(evt) => {
-                if (!appState.ws || !editable) return;
+                if (!editable) return;
                 if (
                     evt.button === 0 &&
                     appState.selectedTool === Tools.Pointer
                 ) {
+                    if (!appState.ws) return;
                     appState.ws.send(MouseLarge.create());
+                } else if (evt.button === 0 && appState.selectedTool === Tools.Ruler) {
+                    // First click sets the origin, then on mousemove: make ruler move to mouse and on second click, reset origin
                 }
             }}
         ></button>

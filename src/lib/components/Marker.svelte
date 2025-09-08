@@ -327,14 +327,15 @@
                                 typeof columnCount === "string"
                                     ? 0.01
                                     : marker.size / columnCount;
-
+                            
+                            const duration = 10_00;
                             gameState.map_confetti_function({
                                 particleCount: 3,
                                 angle: 90,
                                 spread: 360,
                                 scalar: 20 * marker_size,
                                 startVelocity: 0,
-                                ticks: 230,
+                                ticks: duration + 230,
                                 origin: {
                                     x: marker.x.target + marker_size / 2,
                                     y: marker.y.target + marker_size / 2,
@@ -350,7 +351,7 @@
                                 spread: 360,
                                 scalar: 10 * marker_size,
                                 startVelocity: 50 * marker_size,
-                                ticks: 200,
+                                ticks: duration + 200,
                                 origin: {
                                     x: marker.x.target + marker_size / 2,
                                     y: marker.y.target + marker_size / 2,
@@ -366,7 +367,7 @@
                                 spread: 360,
                                 scalar: 5 * marker_size,
                                 startVelocity: 80 * marker_size,
-                                ticks: 100,
+                                ticks: duration + 100,
                                 origin: {
                                     x: marker.x.target + marker_size / 2,
                                     y: marker.y.target + marker_size / 2,

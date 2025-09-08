@@ -119,7 +119,7 @@
 {#if !appState.dragging}
     {#if gameState.scene && gameState.combat}
         <div
-            class="fixed top-7 left-0 ml-14 w-[calc(100vw-5rem)] overflow-x-auto overflow-y-hidden flex justify-center pointer-events-none"
+            class="fixed top-[1.85rem] left-0 ml-14 w-[calc(100vw-5rem)] overflow-x-auto overflow-y-hidden flex justify-center pointer-events-none"
         >
             <InitiativeBar />
         </div>

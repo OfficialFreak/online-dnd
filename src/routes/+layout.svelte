@@ -215,16 +215,21 @@
         notify("Marker erstellt", MessageTypes.Success, 3000);
     }
 
+    let reconnecting = $state(false);
+
     async function reconnect() {
-        if (!url) return;
+        if (!url || reconnecting) return;
         if (!appState.ws) {
+            reconnecting = true;
             let result = await connect(url);
             if (result) {
                 notify("Verbunden", MessageTypes.Success, 1000);
             } else {
                 notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
             }
+            setTimeout(() => {reconnecting = false}, 200);
         } else {
+            reconnecting = true;
             appState.ws.disconnect();
             let result = await connect(url);
             if (result) {
@@ -232,6 +237,7 @@
             } else {
                 notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
             }
+            setTimeout(() => {reconnecting = false}, 200);
         }
     }
 
@@ -255,22 +261,6 @@
                     } catch {}
                     appState.ws = null;
                     console.log("Connection Closed :o");
-                    // If we're in the development environment, try to reconnect when we get disconnected as it is probably caused by vite reloading
-                    if(isDev) {
-                        console.log("Currently in dev, reconnecting...")
-                        connect(url as string).then((val) => {
-                            if (!val) {
-                                notify(
-                                    "Verbindung fehlgeschlagen",
-                                    MessageTypes.Error,
-                                    3000,
-                                );
-                                return;
-                            } else {
-                                notify("Verbunden", MessageTypes.Success, 1000);
-                            }
-                        });
-                    }
                 } else if (msg.type == "Close") {
                     console.log("Received:", msg);
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
@@ -304,14 +294,16 @@
         ).value as string;
         appState.theme =
             (
-                ((await appState.store.get("theme")) as {
-                    value: string;
-                } | null) || { value: null }
+                (
+                    (await appState.store.get("theme")) as {value: string; } | null) 
+                    || { value: null }
             ).value || "dark";
         html?.setAttribute("data-theme", appState.theme);
 
         audio = new Audio("speed.mp3");
         audio.loop = true;
+
+        sword_ping = new Audio("sword_sound.mp3");
 
         confetti_function = confetti.create(confetti_canvas, { resize: true });
 
@@ -485,6 +477,9 @@
                                 )))
                     ) {
                         notify("Du bist dran", MessageTypes.Info, 3_000);
+                        if(sword_ping) {
+                            sword_ping.play();
+                        }
                     }
                     gameState.scene.state.turn = message.turn;
 
@@ -690,6 +685,7 @@
     let marker_creation_modal: HTMLDialogElement | null = $state(null);
 
     let audio: HTMLAudioElement | null = $state(null);
+    let sword_ping: HTMLAudioElement | null = $state(null);
 
     $effect(() => {
         if (!audio) return;
@@ -1148,10 +1144,11 @@
                             max="30"
                             class="range"
                         />
-                        <div class="relative w-full h-30 pt-[30px] mt-4">
+                        <div class="relative w-full h-30 pt-[30px] mt-4 overflow-hidden">
                             <BlurredBackground
                                 file={background_file}
                                 blur={background_blur}
+                                position={"relative"}
                             />
                         </div>
                     {/if}
