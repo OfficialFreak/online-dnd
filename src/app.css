@@ -52,13 +52,11 @@ html, body {
 }
 
 .mask-banner {
-    clip-path: polygon(
-        0% 0%,
-        100% 0%,
-        100% 70%,
-        65% 85%,
-        50% 100%,
-        35% 85%,
-        0% 70%
-    );
+    clip-path: url(#bannerClip);
+    mask: none !important;
+}
+
+.mask-hexagon {
+    clip-path: url(#hexClip);
+    mask: none !important;
 }
