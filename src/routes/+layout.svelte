@@ -226,6 +226,12 @@
             }
         } else {
             appState.ws.disconnect();
+            let result = await connect(url);
+            if (result) {
+                notify("Verbunden", MessageTypes.Success, 1000);
+            } else {
+                notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);
+            }
         }
     }
 
@@ -241,15 +247,30 @@
     $effect(() => {
         if (appState.ws) {
             appState.ws.addListener((msg) => {
-                // Assume the worst, kill ourselves xD
                 if (typeof msg === "string") {
                     console.log("Received:", msg);
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
-                    console.log("Closed connection :o");
                     try {
                         appState.ws?.disconnect();
                     } catch {}
                     appState.ws = null;
+                    console.log("Connection Closed :o");
+                    // If we're in the development environment, try to reconnect when we get disconnected as it is probably caused by vite reloading
+                    if(isDev) {
+                        console.log("Currently in dev, reconnecting...")
+                        connect(url as string).then((val) => {
+                            if (!val) {
+                                notify(
+                                    "Verbindung fehlgeschlagen",
+                                    MessageTypes.Error,
+                                    3000,
+                                );
+                                return;
+                            } else {
+                                notify("Verbunden", MessageTypes.Success, 1000);
+                            }
+                        });
+                    }
                 } else if (msg.type == "Close") {
                     console.log("Received:", msg);
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
@@ -268,7 +289,6 @@
 
     $effect(() => {
         if (!appState.store || !html || !appState.theme) return;
-        console.log("Theme:", appState.theme);
         html?.setAttribute("data-theme", appState.theme);
         appState.store.set("theme", { value: appState.theme }).then(() => {
             appState.store.save();
@@ -416,7 +436,7 @@
                                 MessageTypes.Warning,
                                 0,
                             );
-                            disconnect(new Event(""));
+                            appState.ws?.disconnect();
                             break;
                     }
                     break;

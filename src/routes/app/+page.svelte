@@ -1,6 +1,6 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { onDestroy } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import {
         gameState,
         appState,
@@ -35,40 +35,47 @@
         }
     });
 
-    $effect(() => {
-        if (!appState.ws && appState.store && appState.token) {
-            connect(url as string).then((val) => {
-                if (!val) {
+    function try_connect() {
+        appState.store
+            .get("token")
+            .then((tmp_token: { value: string } | null) => {
+                if (!tmp_token) {
                     notify(
-                        "Verbindung fehlgeschlagen",
+                        "Keine Zugangsdaten gefunden",
                         MessageTypes.Error,
                         3000,
                     );
+                    goto("/");
                     return;
-                } else {
-                    notify("Verbunden", MessageTypes.Success, 1000);
                 }
+                appState.token = (tmp_token as { value: string }).value;
+                connect(url as string).then((val) => {
+                    if (!val) {
+                        notify(
+                            "Verbindung fehlgeschlagen",
+                            MessageTypes.Error,
+                            3000,
+                        );
+                        return;
+                    } else {
+                        notify("Verbunden", MessageTypes.Success, 1000);
+                    }
+                });
             });
-        } else if (!appState.store) {
-            load("store.json", { autoSave: false }).then((store) => {
-                appState.store = store;
-                appState.store
-                    .get("token")
-                    .then((tmp_token: { value: string } | null) => {
-                        if (!tmp_token) {
-                            notify(
-                                "Keine Zugangsdaten gefunden",
-                                MessageTypes.Error,
-                                3000,
-                            );
-                            goto("/");
-                            return;
-                        }
-                        appState.token = (tmp_token as { value: string }).value;
-                    });
-            });
+    }
+
+    onMount(() => {
+        if (!appState.ws) {
+            if (appState.store) {
+                try_connect();
+            } else {
+                load("store.json", { autoSave: false }).then((store) => {
+                    appState.store = store;
+                    try_connect();
+                });
+            }
         }
-    });
+    })
 
     async function roll(dice: string[], privacy_level: string) {
         if (!roller.value) return;
