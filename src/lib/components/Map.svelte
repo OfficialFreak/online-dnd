@@ -50,6 +50,18 @@
         set_rows(rows);
     });
 
+    let ruler_origin: { x: null | number; y: null | number } = $state({
+        x: null,
+        y: null,
+    });
+    $effect(() => {
+        if (appState.selectedTool !== Tools.Ruler) {
+            ruler_origin = { x: null, y: null };
+        }
+    });
+    let ruler_size: null | number = $state(null);
+    let ruler_angle: null | number = $state(null);
+
     let fogImg = new Image(0, 0);
     fogImg.src = "fog.jpg";
     let fogPattern: CanvasPattern | null = $state(null);
@@ -225,6 +237,26 @@
             !appState.dragging
         ) {
             throttled(currentMouseX, currentMouseY);
+        }
+
+        if (
+            editable &&
+            ruler_origin.x &&
+            ruler_origin.y &&
+            appState.selectedTool === Tools.Ruler
+        ) {
+            // Calculate Length of Ruler
+            ruler_size =
+                Math.sqrt(
+                    ((event.offsetX - x_offset) / size - ruler_origin.x) ** 2 +
+                        ((event.offsetY - y_offset) / size - ruler_origin.y) **
+                            2,
+                ) * size;
+            // Calculate angle ruler should be at
+            ruler_angle = Math.atan2(
+                (event.offsetY - y_offset) / size - ruler_origin.y,
+                (event.offsetX - x_offset) / size - ruler_origin.x,
+            );
         }
 
         if ((!appState.mouseDown && !click) || !editable || !gameState.scene)
@@ -448,29 +480,37 @@
                 <span class="badge badge-xs">{gameState.DMName}</span>
             </div>
         {/if}
-        {#if appState.selectedTool === Tools.Ruler}
+        {#if appState.selectedTool === Tools.Ruler && ((ruler_size || 0) / size) * 5 > 0.5}
             <div
                 role="banner"
-                class="absolute top-1/2 left-1/2"
-                onmousemove={(evt) => {
-                    clickHandler(evt, false);
-                }}
+                class="absolute origin-left"
+                style="top: {(ruler_origin.y || 0) *
+                    size}px; left: {(ruler_origin.x || 0) * size}px;"
             >
                 <div
-                    class="origin-center block h-8 w-50 bg-base-100 text-base-content overflow-auto"
+                    class="origin-top-left block h-8 bg-base-100 text-base-content"
+                    style="width: {ruler_size}px; transform: rotate({((ruler_angle ||
+                        0) /
+                        (2 * Math.PI)) *
+                        360}deg);"
                 >
-                    <div class="absolute bottom-0 h-full w-full handle"></div>
                     <span
-                        class="absolute top-0 left-0 w-full h-full flex justify-center items-center pointer-events-none"
+                        class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-min h-1/2 flex justify-center items-center pointer-events-none p-2 rounded-box bg-base-100 {(ruler_angle ||
+                            0) >
+                            Math.PI / 2 || (ruler_angle || 0) < -Math.PI / 2
+                            ? 'rotate-180'
+                            : ''}"
                     >
-                        Ne Zahl die Sinn ergibt
+                        {ruler_size
+                            ? ((ruler_size / size) * 5).toFixed(1)
+                            : "Unbekannt"}
                         <i class="ml-2 fa-solid fa-shoe-prints text-xs"></i>
                     </span>
                 </div>
             </div>
         {/if}
     {/if}
-    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog}
+    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler}
         <button
             aria-label="Click Capture Layer"
             class="absolute inset-0"
@@ -494,7 +534,9 @@
                     evt.button === 0 &&
                     appState.selectedTool === Tools.Ruler
                 ) {
-                    // First click sets the origin, then on mousemove: make ruler move to mouse and on second click, reset origin
+                    let x = (evt.offsetX - x_offset) / size;
+                    let y = (evt.offsetY - y_offset) / size;
+                    ruler_origin = { x: x, y: y };
                 }
             }}
         ></button>

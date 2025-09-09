@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
+use std::net::{SocketAddr, UdpSocket};
 use std::sync::mpsc;
 use std::{sync::Arc, thread, time::Duration};
 use tauri::{AppHandle, Emitter};
@@ -41,7 +41,7 @@ fn backend_debug(tx: &mpsc::Sender<(String, String)>, msg: String) {
         });
 }
 
-pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
+pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>, remote: SocketAddr) {
     let (tx, rx): (
         mpsc::Sender<(String, String)>,
         mpsc::Receiver<(String, String)>,
@@ -59,8 +59,6 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
         SocketAddr::V4(_) => backend_debug(&tx, "Using IPv4".to_string()),
         SocketAddr::V6(_) => backend_debug(&tx, "Using IPv6".to_string()),
     }
-
-    backend_debug(&tx, format!("UDP socket bound to {}", local_addr));
 
     // Start Listener-Thread
     {
@@ -135,48 +133,10 @@ pub fn start_udp(app: AppHandle, socket: Arc<UdpSocket>) {
     {
         let socket = Arc::clone(&socket);
         let tx = tx.clone();
-        let app = app.clone();
         thread::spawn(move || {
             backend_debug(&tx, "UDP Heartbeat Thread started".to_string());
-            let mut target = match "wiegraebe.dev:41340".to_socket_addrs() {
-                Ok(socket_addr) => socket_addr,
-                Err(e) => {
-                    app.emit("backend-error", e.to_string())
-                        .unwrap_or_else(|e| {
-                            eprintln!("Emit error: {}", e);
-                        });
-                    return;
-                }
-            };
-
-            backend_debug(&tx, format!("Resolved domain to: {:?}", target).to_string());
-
-            let target = match local_addr {
-                SocketAddr::V4(_) => match target.find(|a| a.is_ipv4()) {
-                    Some(ipv4_addr) => Some(ipv4_addr),
-                    None => {
-                        println!("No Ipv4 Address available");
-                        backend_error(&tx, "No IPv4 Address available".to_string());
-                        None
-                    }
-                },
-                SocketAddr::V6(_) => match target.find(|a| a.is_ipv6()) {
-                    Some(ipv6_addr) => Some(ipv6_addr),
-                    None => {
-                        println!("No Ipv6 Address available");
-                        backend_error(&tx, "No IPv6 Address available".to_string());
-                        None
-                    }
-                },
-            };
-
-            if target.is_none() {
-                return;
-            };
-            let target = target.unwrap();
-
             loop {
-                if let Err(e) = socket.send_to(&[0x00u8], target) {
+                if let Err(e) = socket.send_to(&[0x00u8], remote) {
                     backend_error(&tx, format!("Heartbeat send error: {:?}", e).to_string());
                     eprintln!("Heartbeat send error: {}", e);
                 } else {

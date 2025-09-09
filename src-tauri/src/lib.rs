@@ -1,4 +1,4 @@
-use std::net::UdpSocket;
+use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::{sync::Arc, sync::Mutex};
 #[cfg(not(debug_assertions))]
 use tauri::Emitter;
@@ -15,6 +15,7 @@ use types::FrontendState;
 // UDP Socket State
 struct UdpState {
     socket: Mutex<Arc<UdpSocket>>,
+    remote: SocketAddr,
 }
 
 // Create the command:
@@ -46,7 +47,7 @@ fn send_mouse_position(x: f32, y: f32, udp_state: State<UdpState>) {
 
     // Send via UDP
     if let Ok(socket) = udp_state.socket.lock() {
-        match socket.send_to(&data, "wiegraebe.dev:41340") {
+        match socket.send_to(&data, udp_state.remote) {
             Ok(_) => {}
             Err(e) => eprintln!("Failed to send UDP packet: {}", e),
         }
@@ -64,7 +65,7 @@ fn send_marker_position(x: f32, y: f32, marker_name: String, udp_state: State<Ud
 
     // Send via UDP
     if let Ok(socket) = udp_state.socket.lock() {
-        match socket.send_to(&data, "wiegraebe.dev:41340") {
+        match socket.send_to(&data, udp_state.remote) {
             Ok(_) => {}
             Err(e) => eprintln!("Failed to send UDP packet: {}", e),
         }
@@ -125,28 +126,64 @@ pub fn run() {
             let _ = app;
             let app_handle = app.handle().clone();
 
-            let socket = {
-                let mut tmp_socket =
-                    UdpSocket::bind("0.0.0.0:0").expect("Could not bind to random UDP port (IPv4)");
-                if !tmp_socket.send_to(&[0x00u8], "88.198.156.250:41340").is_ok() { // TODO: Actually Resolve instead of hardcoding my ip in
-                    println!("IPv4 failed, falling back to IPv6 socket");
-                    tmp_socket = UdpSocket::bind("[::]:0")
-                        .expect("Could not bind to random UDP port (IPv6)")
-                }
-                tmp_socket
-            };
+            let targets = "wiegraebe.dev:41340".to_socket_addrs().unwrap();
 
+            let mut tmp_socket = None;
+            let mut tmp_addr = None;
+            for addr in targets {
+                if addr.is_ipv4() {
+                    tmp_socket = Some(
+                        UdpSocket::bind("0.0.0.0:0")
+                            .expect("Could not bind to random UDP port (IPv4)"),
+                    );
+                    tmp_addr = Some(addr.clone());
+                    if !tmp_socket
+                        .as_ref()
+                        .unwrap()
+                        .send_to(&[0x00u8], addr)
+                        .is_ok()
+                    {
+                        println!("IPv4 failed");
+                    } else {
+                        println!("IPv4 successful");
+                        break;
+                    }
+                } else if addr.is_ipv6() {
+                    tmp_socket = Some(
+                        UdpSocket::bind("[::]:0")
+                            .expect("Could not bind to random UDP port (IPv6)"),
+                    );
+                    tmp_addr = Some(addr.clone());
+                    if !tmp_socket
+                        .as_ref()
+                        .unwrap()
+                        .send_to(&[0x00u8], addr)
+                        .is_ok()
+                    {
+                        println!("IPv6 failed");
+                    } else {
+                        println!("IPv6 successful");
+                        break;
+                    }
+                } else {
+                    panic!("Unsupported address family {:?}", addr);
+                }
+            }
+
+            let addr = tmp_addr.unwrap();
+            let socket = tmp_socket.expect("No connection could be established");
             let socket = Arc::new(socket);
 
             app.manage(UdpState {
                 socket: Mutex::new(Arc::clone(&socket)),
+                remote: addr,
             });
 
             app.manage(FrontendState {
                 ready: Mutex::new(false),
             });
 
-            start_udp(app_handle, Arc::clone(&socket));
+            start_udp(app_handle, Arc::clone(&socket), addr);
 
             Ok(())
         })
