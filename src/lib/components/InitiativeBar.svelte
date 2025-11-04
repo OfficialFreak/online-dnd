@@ -44,6 +44,7 @@
                 columnCount={columnCount -
                     (gameState.scene?.state.turn === marker?.name ? 4 : 0)}
                 dragOptions={{
+                    disabled: !gameState.dm,
                     axis: "x",
                     onDragStart: () => {
                         dragging_marker = marker.name;

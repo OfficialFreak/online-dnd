@@ -31,7 +31,7 @@
 
     onDestroy(() => {
         if (appState.ws) {
-            appState.ws.disconnect();
+            appState.ws.disconnect().catch(() => {});
         }
     });
 
@@ -75,7 +75,7 @@
                 });
             }
         }
-    })
+    });
 
     async function roll(dice: string[], privacy_level: string) {
         if (!roller.value) return;
@@ -165,7 +165,9 @@
                               (character) =>
                                   character.name ===
                                   gameState.scene?.state.turn,
-                          ) ? 'btn-info' : ''
+                          )
+                            ? 'btn-info'
+                            : ''
                         : 'btn-info'}"
                     onclick={advance_turn}
                 >

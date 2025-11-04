@@ -160,7 +160,7 @@
 
                 if (typeof idx !== "number") break;
                 if (idx === 0) {
-                    idx = get_sorted_initiative()?.length || 1 - 1;
+                    idx = (get_sorted_initiative()?.length || 1) - 1;
                 } else {
                     idx--;
                 }
@@ -367,7 +367,9 @@
                 <button
                     tabindex="0"
                     class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
-                        Tools.Pointer ? 'btn-info' : ''}"
+                    Tools.Pointer
+                        ? 'btn-info'
+                        : ''}"
                     aria-label="Zeiger"
                     onclick={() => {
                         selectTool(Tools.Pointer);
@@ -397,8 +399,9 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {pressure ?
-                        'btn-info' : ''}"
+                    class="btn btn-square btn-sm rounded-box {pressure
+                        ? 'btn-info'
+                        : ''}"
                     aria-label="Szenen"
                     onclick={toggle_pressure}
                     ><i class="fa-solid fa-stopwatch"></i></button
@@ -407,8 +410,9 @@
             <div class="dropdown dropdown-right dropdown-hover">
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {fog_active ?
-                        'btn-info' : ''}"
+                    class="btn btn-square btn-sm rounded-box {fog_active
+                        ? 'btn-info'
+                        : ''}"
                     aria-label="Fog"><i class="fa-solid fa-cloud"></i></button
                 >
                 <ul
@@ -445,7 +449,9 @@
                             <button
                                 tabindex="0"
                                 class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
-                                    Tools.AddFog ? 'btn-info' : ''}"
+                                Tools.AddFog
+                                    ? 'btn-info'
+                                    : ''}"
                                 aria-label="Nebel hinzufügen"
                                 onclick={() => {
                                     selectTool(Tools.AddFog);
@@ -461,7 +467,9 @@
                             <button
                                 tabindex="0"
                                 class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
-                                    Tools.RemoveFog ? 'btn-info' : ''}"
+                                Tools.RemoveFog
+                                    ? 'btn-info'
+                                    : ''}"
                                 aria-label="Nebel entfernen"
                                 onclick={() => {
                                     selectTool(Tools.RemoveFog);
@@ -522,8 +530,9 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {gameState.combat ?
-                        'btn-info' : ''}"
+                    class="btn btn-square btn-sm rounded-box {gameState.combat
+                        ? 'btn-info'
+                        : ''}"
                     aria-label="Zeiger"
                     onclick={() => {
                         toggleCombat();
@@ -537,8 +546,9 @@
             </div>
             <button
                 tabindex="0"
-                class="btn btn-square btn-sm rounded-box {toolbarState.charactersOpen ?
-                    'btn-info' : ''}"
+                class="btn btn-square btn-sm rounded-box {toolbarState.charactersOpen
+                    ? 'btn-info'
+                    : ''}"
                 aria-label="Marker"
                 onclick={() => {
                     toolbarState.charactersOpen = !toolbarState.charactersOpen;
@@ -569,7 +579,9 @@
             <button
                 tabindex="0"
                 class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
-                    Tools.Ruler ? 'btn-info' : ''}"
+                Tools.Ruler
+                    ? 'btn-info'
+                    : ''}"
                 aria-label="Lineal"
                 onclick={() => {
                     selectTool(Tools.Ruler);

@@ -14,6 +14,7 @@
         mouseY,
         modals,
         get_own_character,
+        resetGamestate,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
     import { open } from "@tauri-apps/plugin-dialog";
@@ -58,8 +59,6 @@
 
     const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
     const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
-    const bomb = confetti.shapeFromText({ text: "🤖🤖", scalar: 8 });
-    const warning = confetti.shapeFromText({ text: "🐛🐜🪲🪳🕷️", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
     let confetti_function: any = $state();
 
@@ -232,7 +231,9 @@
             }, 200);
         } else {
             reconnecting = true;
-            appState.ws.disconnect();
+            try {
+                await appState.ws.disconnect();
+            } catch {}
             let result = await connect(url);
             if (result) {
                 notify("Verbunden", MessageTypes.Success, 1000);
@@ -247,7 +248,9 @@
 
     async function disconnect(evt: any) {
         evt.preventDefault();
-        appState.ws?.disconnect();
+        try {
+            await appState.ws?.disconnect();
+        } catch {}
         appState.token = "";
         await ensureStore();
         appState.store.set("token", { value: "" });
@@ -260,19 +263,17 @@
                 if (typeof msg === "string") {
                     console.log("Received:", msg);
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
-                    try {
-                        appState.ws?.disconnect();
-                    } catch {}
+                    appState.ws?.disconnect().catch(() => {});
                     appState.ws = null;
                     console.log("Connection Closed :o");
+                    resetGamestate();
                 } else if (msg.type == "Close") {
                     console.log("Received:", msg);
                     notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
                     console.log("Closed connection :o");
-                    try {
-                        appState.ws?.disconnect();
-                    } catch {}
+                    appState.ws?.disconnect().catch(() => {});
                     appState.ws = null;
+                    resetGamestate();
                 } else {
                     // @ts-ignore
                     console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
@@ -432,7 +433,7 @@
                                 MessageTypes.Warning,
                                 0,
                             );
-                            appState.ws?.disconnect();
+                            appState.ws?.disconnect().catch(() => {});
                             break;
                     }
                     break;
@@ -779,7 +780,6 @@
     let selected_player = $state(gameState.name);
 
     let theme_modal: HTMLDialogElement | null = $state(null);
-    let easteregg_active = $state(false);
 </script>
 
 <svelte:window
@@ -860,59 +860,6 @@
                 {/if}
             </div>
         </button>
-        {#if gameState.name === "Nuffel"}
-            <button
-                class="text-sm"
-                onclick={async () => {
-                    if (!appState.ws || easteregg_active) {
-                        return;
-                    }
-
-                    easteregg_active = true;
-
-                    let tmp_theme = appState.theme;
-
-                    appState.theme = "cyberpunk";
-
-                    // @ts-ignore
-                    await appState.ws.send(
-                        PlayerMessage.create("Easteregg gefunden ;D", "Nils"),
-                    );
-
-                    let duration = 5000;
-                    let end = Date.now() + duration;
-                    (function frame() {
-                        confetti_function({
-                            particleCount: 2,
-                            angle: 60,
-                            spread: 80,
-                            scalar: 4,
-                            startVelocity: 80,
-                            origin: { x: 0 },
-                            gravity: 1,
-                            shapes: [bomb, warning],
-                        });
-                        confetti_function({
-                            particleCount: 2,
-                            angle: 120,
-                            spread: 80,
-                            scalar: 4,
-                            origin: { x: 1 },
-                            gravity: 1,
-                            startVelocity: 80,
-                            shapes: [bomb, warning],
-                        });
-
-                        if (Date.now() < end) {
-                            requestAnimationFrame(frame);
-                        } else {
-                            appState.theme = tmp_theme;
-                            easteregg_active = false;
-                        }
-                    })();
-                }}>🔥👨‍🚒</button
-            >
-        {/if}
         {#if gameState.dm}
             <div
                 class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-events-none"

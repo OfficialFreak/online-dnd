@@ -47,10 +47,6 @@
                 ? "auto"
                 : "none";
         markerElement.style.setProperty(
-            "anchor-name",
-            `--${marker.name?.replaceAll(" ", "-") || ""}`,
-        );
-        markerElement.style.setProperty(
             "--y-translate",
             `${0.8 - 0.8 / appState.zoom}rem`,
         );
@@ -112,7 +108,9 @@
         },
     }}
     id={(banner ? "banner-" : !mapUse ? "nomapuse-" : "") + marker.name}
-    class="{!gameState.dm && mapUse && !getCharacter(marker.name)
+    class="{banner ? 'group' : ''} {!gameState.dm &&
+    mapUse &&
+    !getCharacter(marker.name)
         ? 'tooltip tooltip-right'
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
     banner
@@ -141,7 +139,6 @@
             " avatar flex " +
             (banner ? " aspect-[2/3] " : "") +
             (!gameState.dm && banner ? " pointer-events-none " : " ")}
-        popovertarget={marker.name?.replaceAll(" ", "-") || ""}
     >
         {#if banner && !getCharacter(marker.name)}
             <span

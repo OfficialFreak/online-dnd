@@ -1,9 +1,14 @@
-import type { SceneData, Scene, User, MarkerTemplate } from "$lib/types/messaging/server_messages";
+import type {
+    SceneData,
+    Scene,
+    User,
+    MarkerTemplate,
+} from "$lib/types/messaging/server_messages";
 import { load } from "@tauri-apps/plugin-store";
 import type WebSocket from "@tauri-apps/plugin-websocket";
 import { circOut } from "svelte/easing";
 import { Tween } from "svelte/motion";
-import {SvelteSet} from "svelte/reactivity";	
+import { SvelteSet } from "svelte/reactivity";
 import { PutScene } from "./types/messaging/client_messages";
 
 export enum Tools {
@@ -28,7 +33,9 @@ export const appState = $state({
     verticalSnapPoint: 1,
     mouseDown: false,
     theme: null as string | null,
-    map_confetti_function: (() => {}) as (() => {}) as (() => void) | ((args: Record<string, unknown>) => void)
+    map_confetti_function: (() => {}) as () => {} as
+        | (() => void)
+        | ((args: Record<string, unknown>) => void),
 });
 
 export const gameState = $state({
@@ -48,14 +55,31 @@ export const gameState = $state({
     combat: false,
 });
 
+export const resetGamestate = () => {
+    gameState.name = "Unknown Player";
+    gameState.dm = false;
+    gameState.scene = null;
+    gameState.scenes = [];
+    gameState.resources = new SvelteSet();
+    gameState.pressure = false;
+    gameState.users = [];
+    gameState.lockedMarkers = {};
+    gameState.markerLib = [];
+    gameState.characters = [];
+    gameState.DMName = "";
+    gameState.showMouse = false;
+    gameState.largeMouse = false;
+    gameState.combat = false;
+};
+
 export const mouseX = new Tween(0, {
     duration: 50,
-    easing: circOut
+    easing: circOut,
 });
 
 export const mouseY = new Tween(0, {
     duration: 50,
-    easing: circOut
+    easing: circOut,
 });
 
 export const modals: Record<string, HTMLDialogElement | null> = $state({
@@ -66,18 +90,18 @@ export const modals: Record<string, HTMLDialogElement | null> = $state({
 
 export const toolbarState = $state({
     charactersOpen: false,
-    characterOpen: ""
-})
-
-export const fogState = $state({
-    selected_player: "all"
+    characterOpen: "",
 });
 
-export const roller: any = $state({value: null});
+export const fogState = $state({
+    selected_player: "all",
+});
+
+export const roller: any = $state({ value: null });
 
 export async function ensureStore() {
     if (!appState.store) {
-        appState.store = await load('store.json', { autoSave: false });
+        appState.store = await load("store.json", { autoSave: false });
     }
 }
 
@@ -91,7 +115,9 @@ const sorted_initiative = $derived(
 
 export const get_sorted_initiative = () => sorted_initiative;
 
-const own_character = $derived(gameState.characters.find((char) => char.player_name === gameState.name));
+const own_character = $derived(
+    gameState.characters.find((char) => char.player_name === gameState.name),
+);
 
 export const get_own_character = () => own_character;
 
@@ -99,8 +125,7 @@ export async function advance_turn() {
     if (
         !gameState.combat ||
         !(
-            gameState.dm ||
-            own_character?.name === gameState.scene?.state.turn
+            gameState.dm || own_character?.name === gameState.scene?.state.turn
         ) ||
         !gameState.scene
     )

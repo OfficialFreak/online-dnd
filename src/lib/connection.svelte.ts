@@ -3,7 +3,9 @@ import { appState } from "./state.svelte";
 
 async function connect(url: string) {
     if (appState.ws) {
-        appState.ws.disconnect();
+        try {
+            await appState.ws.disconnect();
+        } catch {}
     }
     try {
         appState.ws = await WebSocket.connect(url);
@@ -15,7 +17,9 @@ async function connect(url: string) {
         appState.ws.send = function (data: string) {
             try {
                 console.log(`Sent ${JSON.parse(data).type}:`, JSON.parse(data));
-            } catch {console.log("Sent:", data)}
+            } catch {
+                console.log("Sent:", data);
+            }
             return originalSend(data);
         };
         return true;
@@ -25,4 +29,4 @@ async function connect(url: string) {
     }
 }
 
-export {connect}
+export { connect };
