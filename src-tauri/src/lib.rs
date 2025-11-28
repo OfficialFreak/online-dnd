@@ -1,74 +1,59 @@
-use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
-use std::{sync::Arc, sync::Mutex};
+use std::net::{ToSocketAddrs, UdpSocket};
+use tauri::{Manager, State, Window};
+use tokio::sync::mpsc;
+
 #[cfg(not(debug_assertions))]
 use tauri::Emitter;
-use tauri::{Manager, State, Window};
 #[cfg(not(debug_assertions))]
 use tauri_plugin_updater::UpdaterExt;
 
-mod udp;
-use udp::*;
+mod quic;
+use quic::{start_quic_client, QuicCommand};
 
 mod types;
 use types::FrontendState;
 
-// UDP Socket State
-struct UdpState {
-    socket: Mutex<Arc<UdpSocket>>,
-    remote: SocketAddr,
+struct QuicState {
+    tx: mpsc::Sender<QuicCommand>,
 }
 
-// Create the command:
-// This command must be async so that it doesn't run on the main thread.
 #[tauri::command]
 async fn close_splashscreen(window: Window) {
-    // Close splashscreen
-    match window.get_webview_window("splashscreen") {
-        Some(splashscreen) => {
-            splashscreen.close().unwrap();
-            // Show main window
-            window
-                .get_webview_window("main")
-                .expect("no window labeled 'main' found")
-                .show()
-                .unwrap();
-        }
-        None => (),
-    };
+    if let Some(splashscreen) = window.get_webview_window("splashscreen") {
+        splashscreen.close().unwrap();
+        window
+            .get_webview_window("main")
+            .expect("no main window")
+            .show()
+            .unwrap();
+    }
 }
 
 #[tauri::command]
-fn send_mouse_position(x: f32, y: f32, udp_state: State<UdpState>) {
-    // UDP Sending Logic
-    let mut data = Vec::with_capacity(9);
-    data.extend_from_slice(&[0x01u8]);
-    data.extend_from_slice(&x.to_le_bytes());
-    data.extend_from_slice(&y.to_le_bytes());
-
-    // Send via UDP
-    if let Ok(socket) = udp_state.socket.lock() {
-        match socket.send_to(&data, udp_state.remote) {
-            Ok(_) => {}
-            Err(e) => eprintln!("Failed to send UDP packet: {}", e),
+fn send_mouse_position(x: f32, y: f32, state: State<QuicState>) {
+    // try_send is non-blocking.
+    if let Err(e) = state.tx.try_send(QuicCommand::SendMousePos { x, y }) {
+        match e {
+            mpsc::error::TrySendError::Full(_) => {
+                // Ignore full channel for mouse movement (dropping frames is fine)
+                // println!("Dropped mouse packet (channel full)");
+            }
+            mpsc::error::TrySendError::Closed(_) => {
+                eprintln!("CRITICAL: QUIC Channel Closed. Client might have crashed.");
+            }
         }
     }
 }
 
 #[tauri::command]
-fn send_marker_position(x: f32, y: f32, marker_name: String, udp_state: State<UdpState>) {
-    // UDP Sending Logic
-    let mut data = Vec::with_capacity(9);
-    data.extend_from_slice(&[0x02u8]);
-    data.extend_from_slice(&x.to_le_bytes());
-    data.extend_from_slice(&y.to_le_bytes());
-    data.extend_from_slice(&marker_name.as_bytes());
-
-    // Send via UDP
-    if let Ok(socket) = udp_state.socket.lock() {
-        match socket.send_to(&data, udp_state.remote) {
-            Ok(_) => {}
-            Err(e) => eprintln!("Failed to send UDP packet: {}", e),
-        }
+fn send_marker_position(x: f32, y: f32, marker_name: String, state: State<QuicState>) {
+    // For markers, we prefer blocking send or logging error because this is important data
+    if let Err(e) = state.tx.try_send(QuicCommand::SendMarkerPos {
+        x,
+        y,
+        name: marker_name,
+    }) {
+        eprintln!("Failed to send marker: {:?}", e);
     }
 }
 
@@ -89,24 +74,9 @@ fn is_dev() -> bool {
 async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
     if let Some(update) = app.updater()?.check().await? {
         app.emit("update-started", None::<bool>).unwrap();
-        let mut downloaded = 0;
-
-        update
-            .download_and_install(
-                |chunk_length, content_length| {
-                    downloaded += chunk_length;
-                    println!("downloaded {downloaded} from {content_length:?}");
-                },
-                || {
-                    println!("download finished");
-                },
-            )
-            .await?;
-
-        println!("update installed");
+        update.download_and_install(|_, _| {}, || {}).await?;
         app.restart();
     }
-
     Ok(())
 }
 
@@ -118,72 +88,42 @@ pub fn run() {
             {
                 let handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
-                    update(handle).await.unwrap();
+                    let _ = update(handle).await;
                 });
             }
 
-            #[cfg(debug_assertions)]
-            let _ = app;
             let app_handle = app.handle().clone();
 
-            let targets = "wiegraebe.dev:41340".to_socket_addrs().unwrap();
+            // Resolve Target
+            let targets = "dnd.wiegraebe.dev:41340".to_socket_addrs().unwrap();
+            let mut chosen_addr = None;
 
-            let mut tmp_socket = None;
-            let mut tmp_addr = None;
             for addr in targets {
-                if addr.is_ipv4() {
-                    tmp_socket = Some(
-                        UdpSocket::bind("0.0.0.0:0")
-                            .expect("Could not bind to random UDP port (IPv4)"),
-                    );
-                    tmp_addr = Some(addr.clone());
-                    if !tmp_socket
-                        .as_ref()
-                        .unwrap()
-                        .send_to(&[0x00u8], addr)
-                        .is_ok()
-                    {
-                        println!("IPv4 failed");
-                    } else {
-                        println!("IPv4 successful");
-                        break;
-                    }
-                } else if addr.is_ipv6() {
-                    tmp_socket = Some(
-                        UdpSocket::bind("[::]:0")
-                            .expect("Could not bind to random UDP port (IPv6)"),
-                    );
-                    tmp_addr = Some(addr.clone());
-                    if !tmp_socket
-                        .as_ref()
-                        .unwrap()
-                        .send_to(&[0x00u8], addr)
-                        .is_ok()
-                    {
-                        println!("IPv6 failed");
-                    } else {
-                        println!("IPv6 successful");
-                        break;
-                    }
+                let bind_addr = if addr.is_ipv4() {
+                    "0.0.0.0:0"
                 } else {
-                    panic!("Unsupported address family {:?}", addr);
+                    "[::]:0"
+                };
+                if let Ok(socket) = UdpSocket::bind(bind_addr) {
+                    if socket.send_to(&[0x00], addr).is_ok() {
+                        println!("Selected address: {}", addr);
+                        chosen_addr = Some(addr);
+                        break;
+                    }
                 }
             }
 
-            let addr = tmp_addr.unwrap();
-            let socket = tmp_socket.expect("No connection could be established");
-            let socket = Arc::new(socket);
+            let addr = chosen_addr.expect("Could not resolve or reach server");
 
-            app.manage(UdpState {
-                socket: Mutex::new(Arc::clone(&socket)),
-                remote: addr,
-            });
+            // Increased channel size to 500 to prevent 'Channel Full' on rapid mouse moves
+            let (tx, rx) = mpsc::channel(500);
 
+            app.manage(QuicState { tx });
             app.manage(FrontendState {
-                ready: Mutex::new(false),
+                ready: std::sync::Mutex::new(false),
             });
 
-            start_udp(app_handle, Arc::clone(&socket), addr);
+            start_quic_client(app_handle, addr, rx);
 
             Ok(())
         })

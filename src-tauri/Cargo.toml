@@ -28,6 +28,9 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-http = "2"
 tauri-plugin-drpc = "0.1.6"
+quiche = "0.24.6"
+tokio = "1.48.0"
+ring = "0.17.14"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
