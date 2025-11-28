@@ -123,7 +123,7 @@ pub fn run() {
                 ready: std::sync::Mutex::new(false),
             });
 
-            start_quic_client(app_handle, addr, rx);
+            start_quic_client(app_handle, addr, rx, "thiswillgetchangedinthefuture".into());
 
             Ok(())
         })

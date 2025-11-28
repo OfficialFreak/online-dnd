@@ -25,6 +25,7 @@ enum MessageType {
     Heartbeat = 0,
     MousePosition = 1,
     MarkerPosition = 2,
+    Login = 255,
 }
 
 #[derive(Debug)]
@@ -44,9 +45,14 @@ fn backend_error(app: &AppHandle, msg: String) {
     let _ = app.emit("backend-error", msg);
 }
 
-pub fn start_quic_client(app: AppHandle, remote: SocketAddr, rx: mpsc::Receiver<QuicCommand>) {
+pub fn start_quic_client(
+    app: AppHandle,
+    remote: SocketAddr,
+    rx: mpsc::Receiver<QuicCommand>,
+    auth_token: String,
+) {
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_quic_loop(app.clone(), remote, rx).await {
+        if let Err(e) = run_quic_loop(app.clone(), remote, rx, auth_token).await {
             backend_error(&app, format!("Critical QUIC error: {}", e));
         }
     });
@@ -56,6 +62,7 @@ async fn run_quic_loop(
     app: AppHandle,
     remote: SocketAddr,
     mut rx: mpsc::Receiver<QuicCommand>,
+    auth_token: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // 1. Bind
     let bind_addr = match remote {
@@ -174,6 +181,15 @@ async fn run_quic_loop(
                         if !is_connected && conn.is_established() {
                             is_connected = true;
                             backend_debug(&app, "QUIC Handshake Complete! Connected.".into());
+
+                            // --- SEND LOGIN PACKET ---
+                            let mut login_data = Vec::new();
+                            login_data.push(MessageType::Login as u8);
+                            login_data.extend_from_slice(auth_token.as_bytes());
+
+                            if let Err(e) = conn.dgram_send(&login_data) {
+                                backend_error(&app, format!("Failed to queue Login: {:?}", e));
+                            }
                         }
 
                         while let Ok(dgram_len) = conn.dgram_recv(&mut out) {
