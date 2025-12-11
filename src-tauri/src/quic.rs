@@ -1,6 +1,9 @@
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::Serialize;
+use std::fs::File;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::net::SocketAddr;
+use std::path::Path;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::net::UdpSocket;
@@ -43,6 +46,26 @@ fn backend_debug(app: &AppHandle, msg: String) {
 fn backend_error(app: &AppHandle, msg: String) {
     eprintln!("[QUIC_ERROR] {}", msg);
     let _ = app.emit("backend-error", msg);
+}
+
+fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
+}
+
+fn create_qlog_file(scid: &quiche::ConnectionId, path: &str) -> Option<Box<dyn std::io::Write + Send + Sync>> {
+    let filename = format!("{}.qlog", calculate_hash(&String::from_utf8_lossy(&scid.to_ascii_lowercase())));
+    let full_path = Path::new(path).join(filename);
+
+    println!("{full_path:?}");
+    match File::create(&full_path) {
+        Ok(f) => Some(Box::new(f)),
+        Err(e) => {
+            eprintln!("Fehler beim Erstellen der qlog-Datei: {:?}", e);
+            None
+        }
+    }
 }
 
 pub fn start_quic_client(
@@ -95,6 +118,14 @@ async fn run_quic_loop(
 
     let local_addr = socket.local_addr()?;
     let mut conn = quiche::connect(None, &scid, local_addr, remote, &mut config)?;
+
+    if let Some(qlog_writer) = create_qlog_file(&scid, r"C:\Users\npfre\Documents\GitHub\online-dnd\logs\") {
+        conn.set_qlog(
+            qlog_writer,
+            "My Rust QUIC Client".to_string(),
+            format!("Client trace for id {}", calculate_hash(&String::from_utf8_lossy(&scid.to_ascii_lowercase())))
+        );
+    }
 
     backend_debug(&app, format!("Starting handshake with {}...", remote));
 
