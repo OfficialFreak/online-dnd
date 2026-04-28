@@ -122,6 +122,20 @@ export class Character {
                         }
                     } catch {}
                 }
+
+                if (modifier.type === "bonus") {
+                    try {
+                        if (modifier.subType === "passive-perception") {
+                            stats.perception += modifier.value;
+                        }
+                        if (modifier.subType === "passive-investigation") {
+                            stats.investigation += modifier.value;
+                        }
+                        if (modifier.subType === "passive-insight") {
+                            stats.insight += modifier.value;
+                        }
+                    } catch {}
+                }
             }
         }
 
@@ -208,44 +222,106 @@ export class Character {
     }
 
     get armorClass(): number {
-        // item.equiped
-        // item.definition.armorClass
-        // item.definition.armorTypeId (1 is light, 2 is medium, 3 is heavy)
-        let armor_class = 0;
+        let base_ac = 0;
+        let shield_bonus = 0;
+        let item_ac_bonus = 0; // Für magische Boni auf Items
+
+        // 1. Basis-AC und Schild-Bonus aus dem Inventar ermitteln
         for (const item of this.inventory) {
-            if (item.equipped && item.definition.armorClass) {
-                switch (item.definition.armorTypeId) {
-                    case 1:
-                        armor_class +=
-                            this.statModifiers.dexterity +
-                            item.definition.armorClass;
-                        break;
-                    case 2:
-                        armor_class +=
-                            Math.min(this.statModifiers.dexterity, 2) +
-                            item.definition.armorClass;
-                        break;
-                    case 3:
-                        armor_class += item.definition.armorClass;
-                        break;
+            if (item.equipped) {
+                // Haupt-Rüstung (Light, Medium, Heavy)
+                if (
+                    item.definition.armorTypeId >= 1 &&
+                    item.definition.armorTypeId <= 3 &&
+                    item.definition.armorClass
+                ) {
+                    switch (item.definition.armorTypeId) {
+                        case 1: // Light Armor
+                            base_ac =
+                                this.statModifiers.dexterity +
+                                item.definition.armorClass;
+                            break;
+                        case 2: // Medium Armor
+                            base_ac =
+                                Math.min(this.statModifiers.dexterity, 2) +
+                                item.definition.armorClass;
+                            break;
+                        case 3: // Heavy Armor
+                            base_ac = item.definition.armorClass;
+                            break;
+                    }
+                }
+
+                // Schild (Typ 4)
+                if (
+                    item.definition.armorTypeId === 4 &&
+                    item.definition.armorClass
+                ) {
+                    shield_bonus += item.definition.armorClass;
+                }
+
+                // Magische Boni auf Items (z.B. Infusionen oder +1 Items)
+                let itemModifiers =
+                    item.grantedModifiers ||
+                    item.definition?.grantedModifiers ||
+                    [];
+                for (const mod of itemModifiers) {
+                    if (mod.type === "bonus" && mod.subType === "armor-class") {
+                        item_ac_bonus += mod.value;
+                    }
                 }
             }
         }
-        if (armor_class > 0) {
-            return armor_class;
+
+        let final_ac = 0;
+
+        // 2. Unarmored Defense prüfen, falls keine Rüstung getragen wird
+        if (base_ac > 0) {
+            final_ac = base_ac;
+        } else {
+            // Wenn keine Rüstung an ist: 10 + dex
+            let unarmored_base = 10 + this.statModifiers.dexterity;
+            let unarmored_defense = this.modifiers.class?.find(
+                (modifier: any) => modifier.modifierTypeId === 9,
+            );
+            if (unarmored_defense) {
+                unarmored_base += Object.values(this.statModifiers)[
+                    unarmored_defense.statId - 1
+                ];
+            }
+            final_ac = unarmored_base;
         }
-        // Modifier für Rüstungsklasse (10 + dex + stärke) <- muss ich noch beachten unter feat
-        // Wenn ich keine Rüstung anhabe: 10 + dex
-        let base_armor = 10 + this.statModifiers.dexterity;
-        let unarmored_defense = this.modifiers.class.find(
-            (modifier: any) => modifier.modifierTypeId === 9,
+
+        // 3. Globale AC Boni aus der modifiers-Liste addieren
+        for (const [modifier_origin, modifiers] of Object.entries(
+            this.modifiers,
+        )) {
+            if (!modifiers) continue;
+            for (const modifier of modifiers as any) {
+                if (
+                    modifier.type === "bonus" &&
+                    modifier.subType === "armor-class"
+                ) {
+                    final_ac += modifier.value;
+                }
+            }
+        }
+
+        // =================================================================
+        // EXPLIZITER EDGE CASE: Artificer "Enhanced Defense" Infusion
+        // =================================================================
+        let artificerClass = this.classes.find(
+            (c: any) => c.definition.name === "Artificer",
         );
-        if (unarmored_defense) {
-            base_armor += Object.values(this.statModifiers)[
-                unarmored_defense.statId - 1
-            ];
+
+        if (artificerClass && artificerClass.level >= 2 && base_ac > 0) {
+            let enhancedDefenseBonus = artificerClass.level >= 10 ? 2 : 1;
+            final_ac += enhancedDefenseBonus;
         }
-        return base_armor;
+        // =================================================================
+
+        // 4. Alles zusammenrechnen (Basis + Schild + Item-Boni + Globale Boni)
+        return final_ac + shield_bonus + item_ac_bonus;
     }
 
     get actualInitiative(): number {
