@@ -78,15 +78,27 @@ async fn run_quic_loop(
     // 2. Configure
     let mut config = quiche::Config::new(quiche::PROTOCOL_VERSION)?;
     config.set_application_protos(&[b"dnd-online"])?;
-    config.set_max_idle_timeout(5000);
-    config.set_max_recv_udp_payload_size(1350);
-    config.set_max_send_udp_payload_size(1350);
+    config.set_max_idle_timeout(30000);
+    config.set_max_recv_udp_payload_size(1200);
+    config.set_max_send_udp_payload_size(1200);
+    config.discover_pmtu(true);
     config.set_initial_max_data(10_000_000);
     config.set_initial_max_streams_bidi(0);
     config.set_initial_max_streams_uni(0);
     config.set_disable_active_migration(true);
     config.enable_dgram(true, 50, 200);
-    config.verify_peer(false);
+    config.verify_peer(true);
+
+    // Load Let's Encrypt Root Certificate
+    let cert_path = std::env::temp_dir().join("dnd_isrgrootx1.pem");
+    if !cert_path.exists() {
+        let _ = std::fs::write(&cert_path, include_bytes!("isrgrootx1.pem"));
+    }
+    if let Some(path_str) = cert_path.to_str() {
+        if let Err(e) = config.load_verify_locations_from_file(path_str) {
+            backend_error(&app, format!("Failed to load certs: {:?}", e));
+        }
+    }
 
     // 3. Connect
     let mut scid = [0; quiche::MAX_CONN_ID_LEN];
@@ -94,12 +106,18 @@ async fn run_quic_loop(
     let scid = quiche::ConnectionId::from_ref(&scid);
 
     let local_addr = socket.local_addr()?;
-    let mut conn = quiche::connect(None, &scid, local_addr, remote, &mut config)?;
+    let mut conn = quiche::connect(
+        Some("dnd.wiegraebe.dev"),
+        &scid,
+        local_addr,
+        remote,
+        &mut config,
+    )?;
 
     backend_debug(&app, format!("Starting handshake with {}...", remote));
 
     let mut buf = [0; 65535];
-    let mut out = [0; 1350];
+    let mut out = [0; 1200];
 
     // Initial Handshake Packet
     let (write, send_info) = conn.send(&mut out)?;
@@ -110,13 +128,19 @@ async fn run_quic_loop(
     // Track state to log when we actually connect
     let mut is_connected = false;
 
+    let timer = time::sleep(Duration::from_millis(0));
+    tokio::pin!(timer);
+
     loop {
         let timeout = conn.timeout();
+        if let Some(t) = timeout {
+            timer.as_mut().reset(tokio::time::Instant::now() + t);
+        }
 
         tokio::select! {
             _ = async {
-                if let Some(t) = timeout {
-                    time::sleep(t).await;
+                if timeout.is_some() {
+                    timer.as_mut().await;
                 } else {
                     std::future::pending::<()>().await;
                 }
@@ -159,7 +183,9 @@ async fn run_quic_loop(
 
                         // CHECK FOR SEND ERRORS
                         if let Err(e) = res {
-                            backend_error(&app, format!("dgram_send failed: {:?}", e));
+                            if e != quiche::Error::Done {
+                                backend_error(&app, format!("dgram_send failed: {:?}", e));
+                            }
                         }
                     } else {
                         // THIS IS LIKELY YOUR PROBLEM
@@ -171,7 +197,13 @@ async fn run_quic_loop(
             }
 
             read_result = socket.recv_from(&mut buf) => {
-                let (len, from) = read_result?;
+                let (len, from) = match read_result {
+                    Ok(res) => res,
+                    Err(e) => {
+                        backend_debug(&app, format!("UDP recv error: {}", e));
+                        continue;
+                    }
+                };
                 let pkt_buf = &mut buf[..len];
                 let recv_info = quiche::RecvInfo { from, to: local_addr };
 
@@ -187,8 +219,9 @@ async fn run_quic_loop(
                             login_data.push(MessageType::Login as u8);
                             login_data.extend_from_slice(auth_token.as_bytes());
 
-                            if let Err(e) = conn.dgram_send(&login_data) {
-                                backend_error(&app, format!("Failed to queue Login: {:?}", e));
+                            // Login via Uni-Stream (ID 2) verlässlich senden
+                            if let Err(e) = conn.stream_send(2, &login_data, true) {
+                                backend_error(&app, format!("Failed to send Login via stream: {:?}", e));
                             }
                         }
 
@@ -210,12 +243,15 @@ async fn run_quic_loop(
         loop {
             match conn.send(&mut out) {
                 Ok((write, send_info)) => {
-                    socket.send_to(&out[..write], send_info.to).await?;
+                    if let Err(e) = socket.send_to(&out[..write], send_info.to).await {
+                        backend_debug(&app, format!("UDP send_to error: {}", e));
+                        break;
+                    }
                 }
                 Err(quiche::Error::Done) => break,
                 Err(e) => {
                     backend_error(&app, format!("QUIC Send Error: {:?}", e));
-                    conn.close(false, 0x1, b"fail")?;
+                    let _ = conn.close(false, 0x1, b"fail");
                     break;
                 }
             }
