@@ -2,15 +2,22 @@
     import { CheckResult } from "$lib/types/messaging/client_messages";
     import {
         appState,
+        character_marker,
         gameState,
         roller,
         update_initiative,
     } from "../state.svelte";
+    import { dragSource } from "../drag.svelte";
     import SavingStat from "./CharacterSheet/SavingStat.svelte";
     import Sense from "./CharacterSheet/Sense.svelte";
     import Stat from "./CharacterSheet/Stat.svelte";
 
     let { character } = $props();
+
+    // The DM drags the portrait onto the map to place the character's marker
+    let marker = $derived(
+        gameState.dm ? character_marker(character.name) : undefined,
+    );
 
     async function roll_initiative() {
         if (!roller.value || !appState.ws) return;
@@ -138,7 +145,13 @@
         <div
             class="row-span-2 col-start-3 row-start-1 flex flex-col gap-1 items-center"
         >
-            <button>
+            <button
+                class={marker
+                    ? "cursor-grab active:cursor-grabbing select-none touch-none"
+                    : ""}
+                title={marker ? "Auf die Karte ziehen" : undefined}
+                use:dragSource={marker ? { kind: "marker", marker } : null}
+            >
                 <!-- class="cursor-pointer" disabled -->
                 <img
                     class="w-full object-center object-cover rounded-box border aspect-3/4"

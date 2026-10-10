@@ -37,6 +37,8 @@ export const appState = $state({
     zoom: 1,
     /** Zooms the map around the window center, set by the map that is shown */
     zoom_by: null as ((factor: number) => void) | null,
+    /** Height divided by width of the shown map */
+    map_aspect: null as number | null,
     ctrlPressed: false,
     mouseDown: false,
     theme: null as string | null,
@@ -239,7 +241,12 @@ export async function add_marker(marker: MarkerTemplate, x = 0, y = 0) {
     }
     new_marker.name = new_marker.name + (i === 1 ? "" : ` ${i.toString()}`);
     gameState.scene.state.markers.push(new_marker);
+    await save_scene();
+}
 
+/** Sends the whole active scene, e.g. after adding or moving markers */
+async function save_scene() {
+    if (!appState.ws || !gameState.scene) return;
     let serialized_fog: SceneState["fog_squares"] = {};
     for (const [person, values] of Object.entries(
         gameState.scene.state.fog_squares,
@@ -256,6 +263,68 @@ export async function add_marker(marker: MarkerTemplate, x = 0, y = 0) {
             },
         }),
     );
+}
+
+/** The marker of a character, it has the character's name */
+export function character_marker(name: string) {
+    return gameState.markerLib.find((marker) => marker.name === name);
+}
+
+/** Puts the markers of all characters in a circle around the middle of the map */
+export async function place_party() {
+    const scene = gameState.scene;
+    if (!appState.ws || !scene) return;
+
+    const party = gameState.characters
+        .map((character) => character_marker(character.name))
+        .filter((marker) => marker !== undefined);
+    if (party.length === 0) {
+        notify(
+            "Für die Charaktere gibt es noch keine Marker",
+            MessageTypes.Warning,
+            3000,
+        );
+        return;
+    }
+
+    // Everything in grid cells, the map is `columns` cells wide
+    const columns = scene.columns;
+    const rows = appState.map_aspect
+        ? columns * appState.map_aspect
+        : scene.rows - 1;
+    const biggest = Math.max(...party.map((marker) => marker.size));
+    // Far enough out that neighbours don't overlap
+    const radius =
+        party.length === 1
+            ? 0
+            : Math.max(biggest, (party.length * biggest * 1.3) / (2 * Math.PI));
+
+    party.forEach((template, i) => {
+        const angle = -Math.PI / 2 + (2 * Math.PI * i) / party.length;
+        const x =
+            (columns / 2 + radius * Math.cos(angle) - template.size / 2) /
+            columns;
+        const y =
+            (rows / 2 + radius * Math.sin(angle) - template.size / 2) / rows;
+
+        const existing = scene.state.markers.find(
+            (marker) => marker.name === template.name,
+        );
+        if (existing) {
+            existing.x.set(x);
+            existing.y.set(y);
+        } else {
+            scene.state.markers.push({
+                ...template,
+                x: new Tween(x, { duration: 50, easing: circOut }),
+                y: new Tween(y, { duration: 50, easing: circOut }),
+                status_effects: [],
+            });
+        }
+    });
+
+    await save_scene();
+    notify("Party platziert", MessageTypes.Success, 2000);
 }
 
 export async function activate_scene(name: string) {

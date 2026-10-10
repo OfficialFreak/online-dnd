@@ -356,6 +356,10 @@
     );
     let map_element: HTMLDivElement | null = $state(null);
 
+    $effect(() => {
+        if (editable && w && h) appState.map_aspect = h / w;
+    });
+
     const MIN_ZOOM = 0.3;
     const MAX_ZOOM = 5;
 

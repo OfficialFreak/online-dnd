@@ -53,8 +53,8 @@ function findDropTarget(x: number, y: number) {
     return null;
 }
 
-/** Makes an element something that can be dragged onto a drop target. */
-export function dragSource(node: HTMLElement, payload: DragPayload) {
+/** Makes an element something that can be dragged onto a drop target. Pass null to disable. */
+export function dragSource(node: HTMLElement, payload: DragPayload | null) {
     let current = payload;
     let start: { x: number; y: number; pointerId: number } | null = null;
     let suppressClick = false;
@@ -71,10 +71,12 @@ export function dragSource(node: HTMLElement, payload: DragPayload) {
     }
 
     function onPointerDown(e: PointerEvent) {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || !current) return;
         // Buttons inside the source keep working as usual
-        if ((e.target as HTMLElement).closest("button, input, select, a"))
-            return;
+        const control = (e.target as HTMLElement).closest(
+            "button, input, select, a",
+        );
+        if (control && control !== node && node.contains(control)) return;
         start = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
         // Capturing keeps hover menus of map markers from opening while dragging over them
         try {
@@ -88,8 +90,9 @@ export function dragSource(node: HTMLElement, payload: DragPayload) {
         if (!start || e.pointerId !== start.pointerId) return;
         if (!dragState.payload) {
             if (
+                !current ||
                 Math.hypot(e.clientX - start.x, e.clientY - start.y) <
-                DRAG_THRESHOLD
+                    DRAG_THRESHOLD
             )
                 return;
             dragState.payload = current;
@@ -133,7 +136,7 @@ export function dragSource(node: HTMLElement, payload: DragPayload) {
     node.addEventListener("dragstart", onNativeDragStart);
 
     return {
-        update(payload: DragPayload) {
+        update(payload: DragPayload | null) {
             current = payload;
         },
         destroy() {

@@ -1,10 +1,16 @@
 <script lang="ts">
     import { ImportCharacter } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "../notifications.svelte";
-    import { appState, gameState } from "../state.svelte";
+    import { appState, character_marker, gameState } from "../state.svelte";
+    import { dragSource } from "../drag.svelte";
     import StatusEffectBar from "./StatusEffectBar.svelte";
 
     let { character, callback = null } = $props();
+
+    // The DM drags the portrait onto the map to place the character's marker
+    let marker = $derived(
+        gameState.dm ? character_marker(character.name) : undefined,
+    );
 
     async function updateCharacter() {
         if (!appState.ws) return;
@@ -29,15 +35,19 @@
     ></div>
     <div class="p-1 flex flex-row gap-2 items-center">
         <div
-            class="h-22 aspect-square p-1 mask mask-hexagon"
+            class="h-22 aspect-square p-1 mask mask-hexagon {marker
+                ? 'cursor-grab active:cursor-grabbing select-none touch-none'
+                : ''}"
             style="background: {character.decorations.themeColor?.themeColor ||
                 'black'}"
+            title={marker ? "Auf die Karte ziehen" : undefined}
+            use:dragSource={marker ? { kind: "marker", marker } : null}
         >
             <img
                 src={character.decorations.avatarUrl ||
                     "https://www.dndbeyond.com/Content/Skins/Waterdeep/images/characters/default-avatar-builder.png"}
                 alt={character.name}
-                class="mask mask-hexagon h-20 aspect-square object-cover object-top"
+                class="mask mask-hexagon h-20 aspect-square object-cover object-top drag-none"
             />
         </div>
         <div class="flex flex-col h-full w-full justify-center">

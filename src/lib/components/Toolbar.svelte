@@ -12,8 +12,9 @@
         previous_turn,
         get_own_character,
         togglePanel,
+        place_party,
     } from "../state.svelte";
-    import { dragSource, fileDropState } from "../drag.svelte";
+    import { fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
     import MarkerPanel from "./MarkerPanel.svelte";
@@ -282,39 +283,18 @@
                     <h1 class="text-3xl font-bold">Charaktere</h1>
                     {#if gameState.dm}
                         <p class="text-sm text-base-content/60 mt-2">
-                            Zieh einen Charakter auf die Karte, um seinen Marker
-                            dort zu platzieren.
+                            Zieh das Porträt eines Charakters auf die Karte, um
+                            seinen Marker dort zu platzieren.
                         </p>
                     {/if}
                     <div class="flex flex-row flex-wrap gap-2 mt-2">
                         {#each gameState.characters as character}
-                            {@const marker = gameState.dm
-                                ? gameState.markerLib.find(
-                                      (marker) => marker.name === character.name,
-                                  )
-                                : undefined}
-                            {#if marker}
-                                <div
-                                    class="grow flex cursor-grab active:cursor-grabbing select-none touch-none"
-                                    use:dragSource={{ kind: "marker", marker }}
-                                >
-                                    <CharacterPreview
-                                        {character}
-                                        callback={() => {
-                                            toolbarState.characterOpen =
-                                                character.name;
-                                        }}
-                                    ></CharacterPreview>
-                                </div>
-                            {:else}
-                                <CharacterPreview
-                                    {character}
-                                    callback={() => {
-                                        toolbarState.characterOpen =
-                                            character.name;
-                                    }}
-                                ></CharacterPreview>
-                            {/if}
+                            <CharacterPreview
+                                {character}
+                                callback={() => {
+                                    toolbarState.characterOpen = character.name;
+                                }}
+                            ></CharacterPreview>
                         {/each}
                         {#if gameState.dm}
                             <button
@@ -323,6 +303,15 @@
                                     modals.characterImportModal?.showModal();
                                 }}>Charakter Importieren</button
                             >
+                            <button
+                                class="btn"
+                                disabled={!gameState.scene}
+                                title="Stellt alle Charaktere im Kreis in die Mitte der Karte"
+                                onclick={place_party}
+                            >
+                                <i class="fa-solid fa-people-group"></i>
+                                Party platzieren
+                            </button>
                         {/if}
                     </div>
                 </div>
