@@ -71,6 +71,11 @@
             : null,
     );
 
+    // Keep in sync with MAX_UPLOAD_SIZE in dnd-online-server/src/constants.rs
+    const MAX_UPLOAD_MB = 50;
+
+    let uploading = $state(false);
+
     /** Uploads a file and returns the asset name it is stored under, or null if the upload failed. */
     async function upload_file(
         selectedFilePath: string,
@@ -98,6 +103,17 @@
             );
             return null;
         }
+
+        // Fail fast: the upload would be rejected anyway, and huge files are slow to hand over to Tauri
+        if (fileContent.byteLength > MAX_UPLOAD_MB * 1_000_000) {
+            notify(
+                `Die Datei ist zu groß (maximal ${MAX_UPLOAD_MB} MB).`,
+                MessageTypes.Error,
+                8000,
+            );
+            return null;
+        }
+
         const fileType = await fileTypeFromBuffer(fileContent);
 
         if (fileType && fileType.mime.startsWith("video/")) {
@@ -157,9 +173,23 @@
         const selected = await open({
             multiple: false,
             filters: [
-                { name: "All Files", extensions: ["*"] },
-                // You can add specific filters if needed:
-                // { name: 'Images', extensions: ['png', 'jpg'] }
+                {
+                    name: "Bilder & Videos",
+                    extensions: [
+                        "png",
+                        "jpg",
+                        "jpeg",
+                        "webp",
+                        "gif",
+                        "bmp",
+                        "avif",
+                        "mp4",
+                        "webm",
+                        "mov",
+                        "mkv",
+                    ],
+                },
+                { name: "Alle Dateien", extensions: ["*"] },
             ],
         });
 
@@ -173,7 +203,13 @@
             return;
         }
 
-        const asset = await upload_file(selected, selectedFileName);
+        uploading = true;
+        let asset: string | null;
+        try {
+            asset = await upload_file(selected, selectedFileName);
+        } finally {
+            uploading = false;
+        }
         if (!asset) return;
 
         if (image_use === "scene") {
@@ -1069,10 +1105,18 @@
                 {#if !scene_file}
                     <button
                         class="btn btn-neutral mt-4"
+                        disabled={uploading}
                         onclick={() => {
                             user_upload("scene");
-                        }}>Map hochladen</button
+                        }}
                     >
+                        {#if uploading}
+                            <span class="loading loading-spinner"></span>
+                            Wird hochgeladen…
+                        {:else}
+                            Map hochladen
+                        {/if}
+                    </button>
                 {:else}
                     <legend class="fieldset-legend">Spalten</legend>
                     <input
@@ -1113,10 +1157,18 @@
                     {#if !background_file}
                         <button
                             class="btn btn-neutral mt-4"
+                            disabled={uploading}
                             onclick={() => {
                                 user_upload("background");
-                            }}>Hintergrundbild hochladen</button
+                            }}
                         >
+                            {#if uploading}
+                                <span class="loading loading-spinner"></span>
+                                Wird hochgeladen…
+                            {:else}
+                                Hintergrundbild hochladen
+                            {/if}
+                        </button>
                         <p class="fieldset-label">
                             Hintergrundbilder sind optional
                         </p>
@@ -1347,10 +1399,18 @@
                 {#if !marker_file}
                     <button
                         class="btn btn-neutral mt-4"
+                        disabled={uploading}
                         onclick={() => {
                             user_upload("marker");
-                        }}>Marker-Bild</button
+                        }}
                     >
+                        {#if uploading}
+                            <span class="loading loading-spinner"></span>
+                            Wird hochgeladen…
+                        {:else}
+                            Marker-Bild
+                        {/if}
+                    </button>
                 {:else}
                     <Marker
                         columnCount="100%"
