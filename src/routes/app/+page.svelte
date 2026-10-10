@@ -116,7 +116,11 @@
         editable={true}
     />
 {/if}
-{#if !appState.dragging}
+<!-- Hidden instead of unmounted while dragging a marker, so tools keep their state -->
+<div
+    class="contents"
+    style:visibility={appState.dragging ? "hidden" : null}
+>
     {#if gameState.scene && gameState.combat}
         <div
             class="fixed top-[1.85rem] left-0 ml-14 w-[calc(100vw-5rem)] overflow-x-auto overflow-y-hidden flex justify-center pointer-events-none"
@@ -176,5 +180,5 @@
             </div>
         </div>
     {/if}
-{/if}
+</div>
 <DiceRoller />

@@ -165,7 +165,17 @@
             );
             return null;
         }
-        return response.text();
+
+        const asset = await response.text().catch(() => "");
+        if (!asset) {
+            notify(
+                "Hochladen fehlgeschlagen: Der Server hat keinen Dateinamen zurückgegeben.",
+                MessageTypes.Error,
+                8000,
+            );
+            return null;
+        }
+        return asset;
     }
 
     async function user_upload(image_use: "scene" | "background" | "marker") {
@@ -237,22 +247,32 @@
         marker_file = "";
     }
 
+    // The server stores these as integers and rejects anything else
+    function to_int(value: unknown, fallback: number, min = -Infinity) {
+        const number = Math.round(Number(value));
+        return Number.isFinite(number) ? Math.max(number, min) : fallback;
+    }
+
     async function create_scene() {
-        if (!appState.ws) {
+        if (!appState.ws || !scene_file) {
+            return;
+        }
+        if (!scene_name.trim()) {
+            notify("Bitte gib der Szene einen Namen", MessageTypes.Error, 3000);
             return;
         }
 
         // @ts-ignore
         await appState.ws.send(
             PutScene.create(
-                scene_name,
-                scene_file as string,
+                scene_name.trim(),
+                scene_file,
                 background_file as string,
-                background_blur,
-                scene_columns,
-                scene_rows,
-                scene_x_offset,
-                scene_y_offset,
+                to_int(background_blur, 10, 0),
+                to_int(scene_columns, 10, 1),
+                to_int(scene_rows, 10, 1),
+                to_int(scene_x_offset, 0),
+                to_int(scene_y_offset, 0),
                 {
                     fog_squares: {},
                     markers: [],
@@ -268,11 +288,19 @@
     }
 
     async function create_marker() {
-        if (!appState.ws) return;
+        if (!appState.ws || !marker_file) return;
+        if (!marker_name.trim()) {
+            notify("Bitte gib dem Marker einen Namen", MessageTypes.Error, 3000);
+            return;
+        }
+        const size = Number(marker_size);
 
-        // @ts-ignore
         await appState.ws.send(
-            PutMarker.create(marker_name, marker_file, marker_size),
+            PutMarker.create(
+                marker_name.trim(),
+                marker_file,
+                Number.isFinite(size) && size > 0 ? size : 1,
+            ),
         );
 
         // Reset variables after
@@ -324,28 +352,23 @@
     }
 
     $effect(() => {
-        if (appState.ws) {
-            appState.ws.addListener((msg) => {
-                if (typeof msg === "string") {
-                    console.log("Received:", msg);
-                    notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
-                    appState.ws?.disconnect().catch(() => {});
-                    appState.ws = null;
-                    console.log("Connection Closed :o");
-                    resetGamestate();
-                } else if (msg.type == "Close") {
-                    console.log("Received:", msg);
-                    notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
-                    console.log("Closed connection :o");
-                    appState.ws?.disconnect().catch(() => {});
-                    appState.ws = null;
-                    resetGamestate();
-                } else {
-                    // @ts-ignore
-                    console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
-                }
-            });
-        }
+        const ws = appState.ws;
+        if (!ws) return;
+        // Events of an old socket must not tear down a newer connection
+        return ws.addListener((msg) => {
+            if (appState.ws !== ws) return;
+            if (typeof msg === "string" || msg.type == "Close") {
+                console.log("Received:", msg);
+                notify("Verbindung abgebrochen", MessageTypes.Error, 2000);
+                console.log("Connection Closed :o");
+                ws.disconnect().catch(() => {});
+                appState.ws = null;
+                resetGamestate();
+            } else {
+                // @ts-ignore
+                console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
+            }
+        });
     });
 
     $effect(() => {
@@ -360,9 +383,13 @@
         html = document.getElementsByTagName("html")[0];
         await ensureStore();
         appState.store = appState.store;
-        appState.token = (
-            (await appState.store.get("token")) as { value: string }
-        ).value as string;
+        // Nothing is stored yet on the very first launch
+        appState.token =
+            (
+                (await appState.store.get("token")) as
+                    | { value: string }
+                    | undefined
+            )?.value ?? null;
         appState.theme =
             (
                 ((await appState.store.get("theme")) as {
@@ -414,9 +441,10 @@
     }
 
     $effect(() => {
-        if (!appState.ws) return;
-        appState.ws.addListener((msg) => {
-            if (msg.type != "Text") return;
+        const ws = appState.ws;
+        if (!ws) return;
+        const unlisten = ws.addListener((msg) => {
+            if (appState.ws !== ws || msg.type != "Text") return;
             let message = parseServerMessage(msg.data);
             switch (message.type) {
                 case MessageType.MESSAGE:
@@ -486,6 +514,14 @@
                             let left_person = gameState.users.find(
                                 (user) => user.name === message.person,
                             );
+                            // Markers they were dragging can be moved again
+                            for (const [marker_name, locked_by] of Object.entries(
+                                gameState.lockedMarkers,
+                            )) {
+                                if (locked_by === message.person) {
+                                    delete gameState.lockedMarkers[marker_name];
+                                }
+                            }
                             if (!left_person) return;
                             left_person.active = false;
                             notify(
@@ -499,7 +535,7 @@
                                 MessageTypes.Warning,
                                 0,
                             );
-                            appState.ws?.disconnect().catch(() => {});
+                            ws.disconnect().catch(() => {});
                             break;
                     }
                     break;
@@ -538,8 +574,8 @@
 
                     if (
                         gameState.scene.state.initiative.length > 0 &&
-                        ((gameState.scene.state.turn !== message.turn &&
-                            !gameState.dm &&
+                        gameState.scene.state.turn !== message.turn &&
+                        ((!gameState.dm &&
                             get_own_character()?.name === message.turn) ||
                             (gameState.dm &&
                                 !gameState.characters.some(
@@ -578,6 +614,18 @@
                     break;
                 case MessageType.MARKER_FREED:
                     delete gameState.lockedMarkers[message.marker_name];
+                    // The final position, live positions over QUIC may have been lost
+                    if (
+                        gameState.scene &&
+                        typeof message.x === "number" &&
+                        typeof message.y === "number"
+                    ) {
+                        const freed_marker = gameState.scene.state.markers.find(
+                            (marker) => marker.name === message.marker_name,
+                        );
+                        freed_marker?.x.set(message.x);
+                        freed_marker?.y.set(message.y);
+                    }
                     break;
                 case MessageType.UPDATE_FOG:
                     if (!gameState.scene) return;
@@ -635,7 +683,8 @@
             }
         });
         // Request initial
-        appState.ws.send(InitialMessage.create());
+        ws.send(InitialMessage.create());
+        return unlisten;
     });
 
     async function select_scene(name: string) {
@@ -821,12 +870,13 @@
     listen(
         "marker-position",
         (event: { payload: { x: number; y: number; marker_name: string } }) => {
-            if (!gameState.scene) return;
-            let idx = gameState.scene.state.markers.findIndex(
+            // The marker may be gone already, e.g. after a scene switch mid-drag
+            const marker = gameState.scene?.state.markers.find(
                 (marker) => marker.name === event.payload.marker_name,
             );
-            gameState.scene.state.markers[idx].x.target = event.payload.x;
-            gameState.scene.state.markers[idx].y.target = event.payload.y;
+            if (!marker) return;
+            marker.x.target = event.payload.x;
+            marker.y.target = event.payload.y;
         },
     );
 
@@ -843,7 +893,8 @@
         scrollbar_visible = html.scrollHeight > html.clientHeight;
     });
     let scrollbar_visible = $state(false);
-    let selected_player = $state(gameState.name);
+    // Picked in the import dialog; gameState.name isn't known yet when this runs
+    let selected_player = $state("");
 
     let theme_modal: HTMLDialogElement | null = $state(null);
 </script>
@@ -1351,6 +1402,7 @@
                     class="select select-sm !bg-[var(--color-base-100)]"
                     bind:value={selected_player}
                 >
+                    <option value="" disabled>Spieler wählen</option>
                     {#each gameState.users as player}
                         <option value={player.name}
                             >{#if player.active}🟢{:else}🔴{/if}

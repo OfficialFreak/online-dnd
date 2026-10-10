@@ -160,6 +160,9 @@ export interface MarkerLocked extends BaseServerMessage {
 export interface MarkerFreed extends BaseServerMessage {
     type: MessageType.MARKER_FREED;
     marker_name: string;
+    /** Final position, missing when the lock is released because the dragging user left */
+    x?: number;
+    y?: number;
 }
 
 export interface UpdateFog extends BaseServerMessage {

@@ -131,18 +131,28 @@ export async function advance_turn() {
     )
         return;
 
-    // Advance turn
-    let index = sorted_initiative?.findIndex(
+    if (!sorted_initiative?.length) return;
+
+    // Advance turn. If it is nobody's turn (or the marker left the initiative), start at the top.
+    const index = sorted_initiative.findIndex(
         (initiative) => initiative[1] === gameState.scene?.state.turn,
     );
+    const next = index === -1 ? 0 : (index + 1) % sorted_initiative.length;
+    gameState.scene.state.turn = sorted_initiative[next][1];
+    await update_initiative();
+}
 
-    if (typeof index !== "number" || !sorted_initiative) return;
-    if (index === sorted_initiative.length - 1) {
-        index = 0;
-    } else {
-        index++;
-    }
-    gameState.scene.state.turn = sorted_initiative[index][1];
+/** Goes back one turn, used by the DM to undo an accidental advance */
+export async function previous_turn() {
+    if (!gameState.combat || !gameState.dm || !gameState.scene) return;
+    if (!sorted_initiative?.length) return;
+
+    const index = sorted_initiative.findIndex(
+        (initiative) => initiative[1] === gameState.scene?.state.turn,
+    );
+    const previous =
+        index <= 0 ? sorted_initiative.length - 1 : index - 1;
+    gameState.scene.state.turn = sorted_initiative[previous][1];
     await update_initiative();
 }
 

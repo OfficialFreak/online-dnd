@@ -50,6 +50,8 @@
                         dragging_marker = marker.name;
                     },
                     onDragEnd: async (evt: any) => {
+                        // Otherwise this banner never animates again
+                        dragging_marker = undefined;
                         if (sorted_markers.length === 0) return;
                         for (const [
                             index,

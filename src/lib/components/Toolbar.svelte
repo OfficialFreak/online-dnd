@@ -8,9 +8,8 @@
         getCharacter,
         modals,
         Tools,
-        update_initiative,
         advance_turn,
-        get_sorted_initiative,
+        previous_turn,
         get_own_character,
     } from "../state.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
@@ -31,44 +30,22 @@
         }
     }
 
+    // Fog editing needs an array for every player. Existing fog is never reset here:
+    // players may have different fog on purpose, and wiping it would be saved with the next stroke.
     $effect(() => {
-        if (
-            fog_active &&
-            gameState.scene &&
-            fogState.selected_player === "all"
-        ) {
-            let all_compatible = false;
-            if (gameState.users.length > 0) {
-                all_compatible = true;
-                let fog = JSON.stringify(
-                    gameState.scene.state.fog_squares[gameState.users[0].name],
-                );
-                for (const player of gameState.users) {
-                    if (
-                        fog !==
-                        JSON.stringify(
-                            gameState.scene.state.fog_squares[player.name],
-                        )
-                    ) {
-                        all_compatible = false;
-                        break;
-                    }
-                }
-            }
-            if (all_compatible) return;
-            gameState.scene.state.fog_squares = {};
-            for (const player of gameState.users) {
-                gameState.scene.state.fog_squares[player.name] =
-                    new Array<number>(
-                        Math.ceil(
-                            (gameState.scene.columns * gameState.scene.rows) /
-                                32,
-                        ),
-                    );
-                gameState.scene.state.fog_squares[player.name].fill(0);
-            }
+        if (!fog_active || !gameState.scene) return;
+        for (const player of gameState.users) {
+            if (gameState.scene.state.fog_squares[player.name]) continue;
+            gameState.scene.state.fog_squares[player.name] = empty_fog();
         }
     });
+
+    function empty_fog(): number[] {
+        if (!gameState.scene) return [];
+        return new Array<number>(
+            Math.ceil((gameState.scene.columns * gameState.scene.rows) / 32),
+        ).fill(0);
+    }
 
     async function hotkeyHandler(evt: any) {
         const activeElement = document.activeElement;
@@ -83,6 +60,14 @@
         if (evt.ctrlKey) {
             appState.ctrlPressed = true;
         }
+
+        // Ctrl+C and friends belong to the system, only zoom uses Ctrl
+        if (
+            (evt.ctrlKey || evt.metaKey || evt.altKey) &&
+            evt.code !== "BracketRight" &&
+            evt.code !== "Slash"
+        )
+            return;
 
         switch (evt.code) {
             case "KeyK":
@@ -150,25 +135,7 @@
                 }
                 break;
             case "ArrowLeft":
-                if (!gameState.combat || !gameState.dm || !gameState.scene)
-                    break;
-                // Go back a turn
-                let idx = get_sorted_initiative()?.findIndex(
-                    (initiative) =>
-                        initiative[1] === gameState.scene?.state.turn,
-                );
-
-                if (typeof idx !== "number") break;
-                if (idx === 0) {
-                    idx = (get_sorted_initiative()?.length || 1) - 1;
-                } else {
-                    idx--;
-                }
-                gameState.scene.state.turn = (
-                    get_sorted_initiative() as [number, string][]
-                )[idx][1];
-                await update_initiative();
-
+                await previous_turn();
                 break;
             case "ArrowRight":
                 await advance_turn();
@@ -201,8 +168,8 @@
     }
 
     async function updateCharacter() {
-        if (!appState.ws) return;
         const own_character = get_own_character();
+        if (!appState.ws || !own_character) return;
         await appState.ws.send(
             ImportCharacter.create(
                 own_character.readonlyUrl,
@@ -251,7 +218,7 @@
                 ? gameState.users.map((user) => user.name)
                 : [fogState.selected_player];
         for (const player of edit_players) {
-            gameState.scene.state.fog_squares[player].fill(0);
+            gameState.scene.state.fog_squares[player] = empty_fog();
         }
         saveSceneFog();
     }
@@ -272,12 +239,10 @@
         scroll_container.scrollTop = 0;
     });
 
-    let pressure = $state(false);
+    // The server echoes this back to everyone, which updates gameState.pressure
     async function toggle_pressure() {
         if (!appState.ws) return;
-
-        pressure = !pressure;
-        await appState.ws.send(TogglePressure.create(pressure));
+        await appState.ws.send(TogglePressure.create(!gameState.pressure));
     }
 </script>
 
@@ -285,6 +250,10 @@
     onkeydown={hotkeyHandler}
     onkeyup={(e) => {
         if (!e.ctrlKey) appState.ctrlPressed = false;
+    }}
+    onblur={() => {
+        // The keyup never arrives when Ctrl is released in another window
+        appState.ctrlPressed = false;
     }}
     on:wheel|nonpassive={wheelHandler}
 />
@@ -391,7 +360,7 @@
             </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
-                    {#if pressure}
+                    {#if gameState.pressure}
                         Chill Pill
                     {:else}
                         Pressure
@@ -399,10 +368,10 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {pressure
+                    class="btn btn-square btn-sm rounded-box {gameState.pressure
                         ? 'btn-info'
                         : ''}"
-                    aria-label="Szenen"
+                    aria-label="Pressure"
                     onclick={toggle_pressure}
                     ><i class="fa-solid fa-stopwatch"></i></button
                 >

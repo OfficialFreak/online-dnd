@@ -23,6 +23,7 @@
         columnCount,
         mapUse = true,
         banner = false,
+        interactive = true,
     } = $props();
     let markerElement: HTMLDivElement | null = $state(null);
     let scene_marker = $derived(
@@ -41,9 +42,10 @@
     $effect(() => {
         if (!markerElement) return;
         markerElement.style.pointerEvents =
-            appState.selectedTool === Tools.Ruler ||
-            appState.selectedTool === Tools.Pointer ||
-            appState.selectedTool === Tools.None
+            interactive &&
+            (appState.selectedTool === Tools.Ruler ||
+                appState.selectedTool === Tools.Pointer ||
+                appState.selectedTool === Tools.None)
                 ? "auto"
                 : "none";
         markerElement.style.setProperty(
@@ -61,8 +63,12 @@
         { leading: false, trailing: true },
     );
 
-    // svelte-ignore state_referenced_locally
-    let old_name = scene_marker.name;
+    // The name before the rename input changed it. Components get reused for other
+    // markers when the list changes, so this follows the shown marker.
+    let old_name = "";
+    $effect.pre(() => {
+        old_name = scene_marker.name;
+    });
 
     const effect_style_mapping = {
         knocked: ["--background: #8e3a38;", "filter: grayscale(0.8);", null],
@@ -231,7 +237,12 @@
                         min="1"
                         max={gameState.scene?.columns || Infinity}
                         bind:value={scene_marker.size}
-                        onchange={throttled_save}
+                        onchange={() => {
+                            if (!(Number(scene_marker.size) > 0)) {
+                                scene_marker.size = 1;
+                            }
+                            throttled_save();
+                        }}
                     />
                     <legend class="fieldset-legend pointer-events-none"
                         >Statuseffekte</legend
@@ -267,27 +278,19 @@
                         <button
                             class="btn btn-soft btn-warning flex-1"
                             onclick={async () => {
-                                if (
-                                    gameState.scene?.state.initiative.length ===
-                                    1
-                                ) {
-                                    gameState.scene?.state.initiative.pop();
-                                } else {
-                                    console.log("Trying to find marker");
-                                    if (!gameState.scene) return;
-                                    console.log("Scene is available");
-                                    let idx =
-                                        gameState.scene.state.initiative.findIndex(
-                                            (initiative) =>
-                                                initiative[1] ===
-                                                scene_marker.name,
-                                        );
-
-                                    if (idx === -1) return;
-                                    gameState.scene?.state.initiative.splice(
-                                        idx,
-                                        1,
+                                if (!gameState.scene) return;
+                                let idx =
+                                    gameState.scene.state.initiative.findIndex(
+                                        (initiative) =>
+                                            initiative[1] === scene_marker.name,
                                     );
+                                if (idx === -1) return;
+                                gameState.scene.state.initiative.splice(idx, 1);
+                                if (
+                                    gameState.scene.state.turn ===
+                                    scene_marker.name
+                                ) {
+                                    gameState.scene.state.turn = null;
                                 }
 
                                 await update_initiative();

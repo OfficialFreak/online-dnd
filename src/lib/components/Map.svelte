@@ -103,7 +103,8 @@
         }
     }
 
-    function isFogAt(fog: Array<number>, x: number, y: number) {
+    function isFogAt(fog: Array<number> | undefined, x: number, y: number) {
+        if (!fog || x < 0 || y < 0 || x >= columns) return false;
         const index = y * columns + x;
         return (fog[Math.floor(index / 32)] & (1 << (31 - (index % 32)))) !== 0;
     }
@@ -111,9 +112,12 @@
     $effect(() => {
         if (!editable) return;
 
-        if (fogCtx && fog_squares && rows) {
+        if (fogCtx) {
             fogCtx.globalCompositeOperation = "source-over";
             fogCtx.clearRect(0, 0, w, h);
+        }
+
+        if (fogCtx && fog_squares && rows) {
 
             // Draw Fog
             fogCtx.beginPath();
@@ -263,8 +267,12 @@
             return;
 
         if (
-            appState.selectedTool === Tools.AddFog ||
-            appState.selectedTool === Tools.RemoveFog
+            (appState.selectedTool === Tools.AddFog ||
+                appState.selectedTool === Tools.RemoveFog) &&
+            x >= 0 &&
+            x < columns &&
+            y >= 0 &&
+            y < rows
         ) {
             let edit_players =
                 fogState.selected_player === "all"
@@ -318,18 +326,16 @@
             appState.ws.send(MarkerLocked.create(currentNode.id));
         },
         onDragEnd: ({ offsetX, offsetY, currentNode }) => {
-            if (!gameState.scene) return;
-            let marker = gameState.scene.state.markers.find(
+            // Reset first: the marker may have been deleted or renamed mid-drag,
+            // and the hidden UI and the lock for others must not get stuck
+            appState.dragging = false;
+            let marker = gameState.scene?.state.markers.find(
                 (marker) => marker.name === currentNode.id,
             );
-            if (!marker) return;
-            marker.x.set(offsetX / w, { duration: 0 });
-            marker.y.set(offsetY / h, { duration: 0 });
+            marker?.x.set(offsetX / w, { duration: 0 });
+            marker?.y.set(offsetY / h, { duration: 0 });
 
-            appState.dragging = false;
-            if (!appState.ws) return;
-            if (!gameState.scene) return;
-            appState.ws.send(
+            appState.ws?.send(
                 MarkerFreed.create(currentNode.id, offsetX / w, offsetY / h),
             );
         },
@@ -388,6 +394,16 @@
         ),
     );
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
+
+    /** Whether the center of a marker lies in the fog */
+    function in_fog(marker: any) {
+        const marker_px = (marker.size / columns) * window.innerWidth;
+        return isFogAt(
+            fog_squares,
+            Math.floor((marker.x.current * w + marker_px / 2 - x_offset) / size),
+            Math.floor((marker.y.current * h + marker_px / 2 - y_offset) / size),
+        );
+    }
 </script>
 
 <div
@@ -425,6 +441,7 @@
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
         >
             {#each non_player_markers as marker}
+                {@const hidden = !gameState.dm && in_fog(marker)}
                 <Marker
                     {marker}
                     dragOptions={{
@@ -433,9 +450,11 @@
                             x: marker.x.current * w,
                             y: marker.y.current * h,
                         },
-                        disabled: !!gameState.lockedMarkers[marker.name],
+                        disabled:
+                            hidden || !!gameState.lockedMarkers[marker.name],
                     }}
                     columnCount={columns}
+                    interactive={!hidden}
                 />
             {/each}
         </div>
@@ -484,8 +503,9 @@
             <div
                 role="banner"
                 class="absolute origin-left"
-                style="top: {(ruler_origin.y || 0) *
-                    size}px; left: {(ruler_origin.x || 0) * size}px;"
+                style="top: {(ruler_origin.y || 0) * size +
+                    y_offset}px; left: {(ruler_origin.x || 0) * size +
+                    x_offset}px;"
             >
                 <div
                     class="origin-top-left block h-8 bg-base-100 text-base-content"

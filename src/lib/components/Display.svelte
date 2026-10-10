@@ -10,7 +10,7 @@
 
     let hovering = $state(false);
     let thumbnail_asset_name = $derived(asset + "_thumbnail.webp");
-    let video = $derived(asset.endsWith(".mp4"));
+    let video = $derived(asset.toLowerCase().endsWith(".mp4"));
     let still = $derived(video ? asset + "_still.webp" : asset);
 
     let video_element: HTMLVideoElement | null = $state(null);
