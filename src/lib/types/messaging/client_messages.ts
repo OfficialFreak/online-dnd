@@ -159,6 +159,18 @@ export class MousePosition {
     }
 }
 
+export class Blood {
+    /** x and y are the removed marker's top left corner, size its width, all as fractions of the map */
+    static create(x: number, y: number, size: number): string {
+        return JSON.stringify({
+            type: "blood",
+            x: x,
+            y: y,
+            size: size
+        });
+    }
+}
+
 export class MouseLarge {
     static create(): string {
         return JSON.stringify({

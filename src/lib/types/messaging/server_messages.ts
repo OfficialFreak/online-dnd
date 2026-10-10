@@ -18,7 +18,8 @@ export enum MessageType {
     CHARACTERS = "characters",
     CHECK_RESULT = "check_result",
     SAVE_RESULT = "save_result",
-    COMBAT_STATE = "combat_state"
+    COMBAT_STATE = "combat_state",
+    BLOOD = "blood"
 }
 
 export enum EventType {
@@ -179,6 +180,13 @@ export interface MouseLarge extends BaseServerMessage {
     type: MessageType.MOUSE_LARGE;
 }
 
+export interface Blood extends BaseServerMessage {
+    type: MessageType.BLOOD;
+    x: number;
+    y: number;
+    size: number;
+}
+
 export interface Characters extends BaseServerMessage {
     type: MessageType.CHARACTERS;
     characters: any;
@@ -223,6 +231,7 @@ export type ServerMessage =
     | UpdateFog 
     | MarkerLib 
     | MouseLarge 
+    | Blood
     | Characters 
     | CheckResult 
     | SaveResult
@@ -272,6 +281,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MarkerLib;
         case MessageType.MOUSE_LARGE:
             return data as MouseLarge;
+        case MessageType.BLOOD:
+            return data as Blood;
         case MessageType.CHARACTERS:
             return data as Characters;
         case MessageType.CHECK_RESULT:

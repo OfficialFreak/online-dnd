@@ -11,10 +11,9 @@
     import MultiSelect from "svelte-multiselect";
     // @ts-ignore
     import throttle from "just-throttle";
-    import { PutScene } from "$lib/types/messaging/client_messages";
+    import { Blood, PutScene } from "$lib/types/messaging/client_messages";
     import CharacterPreview from "./CharacterPreview.svelte";
-    // @ts-ignore
-    import confetti from "canvas-confetti";
+    import { spill_blood } from "$lib/effects";
     import Display from "./Display.svelte";
 
     let {
@@ -83,9 +82,6 @@
     };
 
     let connected_character = $derived(getCharacter(marker.name));
-    const blood = confetti.shapeFromText({
-        text: "🔴",
-    });
 </script>
 
 <div
@@ -326,55 +322,15 @@
                                     ? 0.01
                                     : marker.size / columnCount;
 
-                            const duration = 10_00;
-                            appState.map_confetti_function({
-                                particleCount: 3,
-                                angle: 90,
-                                spread: 360,
-                                scalar: 20 * marker_size,
-                                startVelocity: 0,
-                                ticks: duration + 230,
-                                origin: {
-                                    x: marker.x.target + marker_size / 2,
-                                    y: marker.y.target + marker_size / 2,
-                                },
-                                gravity: 0,
-                                decay: 0.7,
-                                flat: true,
-                                shapes: [blood],
-                            });
-                            appState.map_confetti_function({
-                                particleCount: 100,
-                                angle: 90,
-                                spread: 360,
-                                scalar: 10 * marker_size,
-                                startVelocity: 50 * marker_size,
-                                ticks: duration + 200,
-                                origin: {
-                                    x: marker.x.target + marker_size / 2,
-                                    y: marker.y.target + marker_size / 2,
-                                },
-                                gravity: 0,
-                                decay: 0.7,
-                                flat: true,
-                                shapes: [blood],
-                            });
-                            appState.map_confetti_function({
-                                particleCount: 30,
-                                angle: 90,
-                                spread: 360,
-                                scalar: 5 * marker_size,
-                                startVelocity: 80 * marker_size,
-                                ticks: duration + 100,
-                                origin: {
-                                    x: marker.x.target + marker_size / 2,
-                                    y: marker.y.target + marker_size / 2,
-                                },
-                                gravity: 0,
-                                decay: 0.7,
-                                flat: true,
-                                shapes: [blood],
-                            });
+                            // Everyone sees the blood, not just the DM
+                            spill_blood(marker.x.target, marker.y.target, marker_size);
+                            appState.ws?.send(
+                                Blood.create(
+                                    marker.x.target,
+                                    marker.y.target,
+                                    marker_size,
+                                ),
+                            );
 
                             gameState.scene.state.markers.splice(
                                 typeof scene_marker_index !== "number"

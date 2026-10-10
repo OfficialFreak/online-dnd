@@ -8,6 +8,7 @@
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { getCurrentWebview } from "@tauri-apps/api/webview";
     import { fileDropState } from "$lib/drag.svelte";
+    import { spill_blood } from "$lib/effects";
     import {
         gameState,
         appState,
@@ -729,6 +730,9 @@
                     mouse_timeout = setTimeout(() => {
                         gameState.showMouse = false;
                     }, 500);
+                    break;
+                case MessageType.BLOOD:
+                    spill_blood(message.x, message.y, message.size);
                     break;
                 case MessageType.CHARACTERS:
                     gameState.characters = message.characters.map(
