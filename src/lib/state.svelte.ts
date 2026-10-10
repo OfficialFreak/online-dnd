@@ -56,9 +56,8 @@ export const gameState = $state({
     lockedMarkers: {} as Record<string, string>,
     markerLib: [] as MarkerTemplate[],
     characters: [] as any[],
+    /** Shown on pointers from old clients, which don't send whose pointer it is */
     DMName: "",
-    showMouse: false,
-    largeMouse: false,
     combat: false,
 });
 
@@ -74,20 +73,54 @@ export const resetGamestate = () => {
     gameState.markerLib = [];
     gameState.characters = [];
     gameState.DMName = "";
-    gameState.showMouse = false;
-    gameState.largeMouse = false;
     gameState.combat = false;
+    for (const name of Object.keys(pointers)) delete pointers[name];
 };
 
-export const mouseX = new Tween(0, {
-    duration: 50,
-    easing: circOut,
-});
+export type Pointer = {
+    x: Tween<number>;
+    y: Tween<number>;
+    visible: boolean;
+    large: boolean;
+};
 
-export const mouseY = new Tween(0, {
-    duration: 50,
-    easing: circOut,
-});
+/** The pointers of the DMs, by name. There can be more than one DM. */
+export const pointers: Record<string, Pointer> = $state({});
+const pointer_timeouts = new Map<
+    string,
+    { hide?: ReturnType<typeof setTimeout>; shrink?: ReturnType<typeof setTimeout> }
+>();
+
+/**
+ * Shows a DM's pointer for a moment. x and y are fractions of the map, without them
+ * the pointer stays where it was. A large pointer is a click to get attention.
+ */
+export function show_pointer(name: string, x?: number, y?: number, large = false) {
+    if (!pointers[name]) {
+        pointers[name] = {
+            x: new Tween(x ?? 0, { duration: 50, easing: circOut }),
+            y: new Tween(y ?? 0, { duration: 50, easing: circOut }),
+            visible: false,
+            large: false,
+        };
+    }
+    const pointer = pointers[name];
+    if (x !== undefined && y !== undefined) {
+        pointer.x.target = x;
+        pointer.y.target = y;
+    }
+    pointer.visible = true;
+
+    const timeouts = pointer_timeouts.get(name) ?? {};
+    clearTimeout(timeouts.hide);
+    timeouts.hide = setTimeout(() => (pointer.visible = false), 500);
+    if (large) {
+        pointer.large = true;
+        clearTimeout(timeouts.shrink);
+        timeouts.shrink = setTimeout(() => (pointer.large = false), 1000);
+    }
+    pointer_timeouts.set(name, timeouts);
+}
 
 export const modals: Record<string, HTMLDialogElement | null> = $state({
     sceneCreationModal: null,

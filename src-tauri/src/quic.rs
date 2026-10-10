@@ -11,6 +11,8 @@ use tokio::time;
 struct Coordinates {
     x: f32,
     y: f32,
+    /// Whose pointer it is, empty if the sender's app is older than this field
+    name: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -30,7 +32,7 @@ enum MessageType {
 
 #[derive(Debug)]
 pub enum QuicCommand {
-    SendMousePos { x: f32, y: f32 },
+    SendMousePos { x: f32, y: f32, name: String },
     SendMarkerPos { x: f32, y: f32, name: String },
 }
 
@@ -208,11 +210,13 @@ async fn run_quic_loop(
                 if let Some(command) = cmd {
                     if conn.is_established() {
                         let res = match command {
-                            QuicCommand::SendMousePos { x, y } => {
-                                let mut data = Vec::with_capacity(9);
+                            QuicCommand::SendMousePos { x, y, name } => {
+                                // The name tells the pointers of several DMs apart
+                                let mut data = Vec::with_capacity(9 + name.len());
                                 data.push(MessageType::MousePosition as u8);
                                 data.extend_from_slice(&x.to_le_bytes());
                                 data.extend_from_slice(&y.to_le_bytes());
+                                data.extend_from_slice(name.as_bytes());
                                 conn.dgram_send(&data)
                             },
                             QuicCommand::SendMarkerPos { x, y, name } => {
@@ -319,10 +323,11 @@ fn handle_datagram(app: &AppHandle, data: &[u8]) {
     }
 
     match data[0] {
-        x if x == MessageType::MousePosition as u8 && data.len() == 9 => {
+        x if x == MessageType::MousePosition as u8 && data.len() >= 9 => {
             let x = f32::from_le_bytes(data[1..5].try_into().unwrap());
             let y = f32::from_le_bytes(data[5..9].try_into().unwrap());
-            let _ = app.emit("mouse-position", Coordinates { x, y });
+            let name = String::from_utf8_lossy(&data[9..]).to_string();
+            let _ = app.emit("mouse-position", Coordinates { x, y, name });
         }
         x if x == MessageType::MarkerPosition as u8 && data.len() >= 9 => {
             let x = f32::from_le_bytes(data[1..5].try_into().unwrap());

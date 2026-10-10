@@ -178,6 +178,8 @@ export interface MarkerLib extends BaseServerMessage {
 
 export interface MouseLarge extends BaseServerMessage {
     type: MessageType.MOUSE_LARGE;
+    /** Whose pointer, missing from older servers */
+    user?: string;
 }
 
 export interface Blood extends BaseServerMessage {

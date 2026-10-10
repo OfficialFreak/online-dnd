@@ -29,9 +29,13 @@ async fn close_splashscreen(window: Window) {
 }
 
 #[tauri::command]
-fn send_mouse_position(x: f32, y: f32, state: State<QuicState>) {
+fn send_mouse_position(x: f32, y: f32, name: Option<String>, state: State<QuicState>) {
     // try_send is non-blocking.
-    if let Err(e) = state.tx.try_send(QuicCommand::SendMousePos { x, y }) {
+    if let Err(e) = state.tx.try_send(QuicCommand::SendMousePos {
+        x,
+        y,
+        name: name.unwrap_or_default(),
+    }) {
         match e {
             mpsc::error::TrySendError::Full(_) => {
                 // Ignore full channel for mouse movement (dropping frames is fine)

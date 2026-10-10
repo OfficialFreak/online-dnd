@@ -13,8 +13,7 @@
         gameState,
         appState,
         ensureStore,
-        mouseX,
-        mouseY,
+        show_pointer,
         modals,
         get_own_character,
         resetGamestate,
@@ -517,8 +516,6 @@
         setActivity(discordActivity);
     }
 
-    let mouse_timeout: any = $state(null);
-    let large_mouse_timeout: any = $state(null);
 
     function choose(choices: string[]) {
         var index = Math.floor(Math.random() * choices.length);
@@ -720,16 +717,7 @@
                     gameState.markerLib = message.markers;
                     break;
                 case MessageType.MOUSE_LARGE:
-                    gameState.largeMouse = true;
-                    clearTimeout(large_mouse_timeout);
-                    large_mouse_timeout = setTimeout(() => {
-                        gameState.largeMouse = false;
-                    }, 1000);
-                    gameState.showMouse = true;
-                    clearTimeout(mouse_timeout);
-                    mouse_timeout = setTimeout(() => {
-                        gameState.showMouse = false;
-                    }, 500);
+                    show_pointer(message.user ?? "", undefined, undefined, true);
                     break;
                 case MessageType.BLOOD:
                     spill_blood(message.x, message.y, message.size);
@@ -861,16 +849,13 @@
         console.log(`Backend Debug: ${event.payload}`);
     });
 
-    listen("mouse-position", (event: { payload: { x: number; y: number } }) => {
-        if (gameState.dm) return;
-        mouseX.target = event.payload.x;
-        mouseY.target = event.payload.y;
-        gameState.showMouse = true;
-        clearTimeout(mouse_timeout);
-        mouse_timeout = setTimeout(() => {
-            gameState.showMouse = false;
-        }, 500);
-    });
+    listen(
+        "mouse-position",
+        (event: { payload: { x: number; y: number; name: string } }) => {
+            // Without a name it comes from an older client
+            show_pointer(event.payload.name, event.payload.x, event.payload.y);
+        },
+    );
 
     listen(
         "marker-position",

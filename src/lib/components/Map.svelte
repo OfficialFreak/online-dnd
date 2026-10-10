@@ -6,8 +6,8 @@
         appState,
         fogState,
         gameState,
-        mouseX,
-        mouseY,
+        pointers,
+        type Pointer,
         Tools,
     } from "../state.svelte";
     import { dropTarget, type DragPayload } from "$lib/drag.svelte";
@@ -176,18 +176,21 @@
         }
     });
 
-    let mouse_in_fog = $derived(
-        gameState.scene &&
+    // Players don't see a DM's pointer in the fog, DMs see through the fog anyway
+    function pointer_in_fog(pointer: Pointer) {
+        return (
+            !gameState.dm &&
             isFogAt(
                 fog_squares,
-                Math.floor((mouseX.current * w - x_offset) / size),
-                Math.floor((mouseY.current * h - y_offset) / size),
-            ),
-    );
+                Math.floor((pointer.x.current * w - x_offset) / size),
+                Math.floor((pointer.y.current * h - y_offset) / size),
+            )
+        );
+    }
 
     let throttled = throttle(
         (x: number, y: number) => {
-            invoke("send_mouse_position", { x: x, y: y });
+            invoke("send_mouse_position", { x: x, y: y, name: gameState.name });
         },
         11, // 90 Hz
         { leading: false, trailing: true },
@@ -619,19 +622,21 @@
                 />
             {/each}
         </div>
-        {#if gameState.showMouse && !mouse_in_fog && !gameState.dm}
-            <div
-                transition:fade
-                class="absolute pointer-events-none top-0 left-0 origin-top-left"
-                style="transform: translate({mouseX.current *
-                    w}px, {mouseY.current * h}px) scale({gameState.largeMouse
-                    ? '2'
-                    : '1'});"
-            >
-                <i class="fa-solid fa-arrow-pointer"></i>
-                <span class="badge badge-xs">{gameState.DMName}</span>
-            </div>
-        {/if}
+        {#each Object.entries(pointers) as [name, pointer] (name)}
+            {#if pointer.visible && !pointer_in_fog(pointer)}
+                <div
+                    transition:fade
+                    class="absolute pointer-events-none top-0 left-0 origin-top-left"
+                    style="transform: translate({pointer.x.current *
+                        w}px, {pointer.y.current * h}px) scale({pointer.large
+                        ? '2'
+                        : '1'});"
+                >
+                    <i class="fa-solid fa-arrow-pointer"></i>
+                    <span class="badge badge-xs">{name || gameState.DMName}</span>
+                </div>
+            {/if}
+        {/each}
         {#if appState.selectedTool === Tools.Ruler && ((ruler_size || 0) / size) * 5 > 0.5}
             <div
                 role="banner"
