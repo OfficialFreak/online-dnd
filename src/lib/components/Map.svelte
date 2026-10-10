@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, tick } from "svelte";
     import {
         activate_scene,
         add_marker,
@@ -81,11 +81,6 @@
         if (pattern) {
             fogPattern = pattern;
         }
-    });
-
-    $effect(() => {
-        if (!editable) return;
-        appState.verticalSnapPoint = window.innerHeight / h;
     });
 
     function setFogAt(
@@ -348,33 +343,106 @@
         grid: appState.ctrlPressed ? grid : undefined,
     });
 
-    let translate_thingy = $derived(
-        appState.zoom > 1 ? 50 * (1 - 1 / appState.zoom) : 0,
+    // Zoom scales the map from its top left corner, so zooming in makes the page
+    // scrollable to the right and bottom. Below 100% it shrinks towards its center.
+    let zoom_offset_x = $derived(
+        editable && appState.zoom < 1 ? (w * (1 - appState.zoom)) / 2 : 0,
     );
-    $effect(() => {
-        if (editable && appState.zoom !== appState.prevZoom) {
-            // Calculate zoom ratio
-            const zoomRatio = appState.zoom / appState.prevZoom;
+    let zoom_offset_y = $derived(
+        editable && appState.zoom < 1 ? (h * (1 - appState.zoom)) / 2 : 0,
+    );
+    let map_element: HTMLDivElement | null = $state(null);
 
-            // Get current scroll position
-            const scrollTop = document.documentElement.scrollTop;
-            const scrollLeft = document.documentElement.scrollLeft;
+    const MIN_ZOOM = 0.3;
+    const MAX_ZOOM = 5;
 
-            // Calculate viewport center point
-            const viewportCenterX = w / 2;
-            const viewportCenterY = h / 2;
-
-            // Calculate new scroll position to maintain center point
-            const newScrollLeft =
-                (scrollLeft + viewportCenterX) * zoomRatio - viewportCenterX;
-            const newScrollTop =
-                (scrollTop + viewportCenterY) * zoomRatio - viewportCenterY;
-
-            // Apply new scroll position
-            document.documentElement.scrollTop = newScrollTop;
-            document.documentElement.scrollLeft = newScrollLeft;
+    /** Zooms so that the map point under (client_x, client_y) stays under it. */
+    function zoom_to(new_zoom: number, client_x: number, client_y: number) {
+        if (!map_element) return;
+        const old_zoom = appState.zoom;
+        new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), MAX_ZOOM);
+        // Stop at 100% and at "fills the window height" when passing them. The
+        // tolerance keeps rounding errors from stopping again right after a stop.
+        const fit_height = (window.innerHeight - 30) / h;
+        for (const stop of [1, fit_height]) {
+            const at_stop = Math.abs(old_zoom - stop) < 0.001;
+            const passes = (old_zoom - stop) * (new_zoom - stop) < 0;
+            if (Math.abs(new_zoom - stop) < 0.001 || (passes && !at_stop)) {
+                new_zoom = stop;
+            }
         }
+        if (new_zoom === old_zoom) return;
+
+        const rect = map_element.getBoundingClientRect();
+        const map_x = (client_x - rect.left) / old_zoom;
+        const map_y = (client_y - rect.top) / old_zoom;
+        appState.zoom = new_zoom;
+
+        tick().then(() => {
+            if (!map_element) return;
+            const new_rect = map_element.getBoundingClientRect();
+            window.scrollBy(
+                new_rect.left + map_x * new_zoom - client_x,
+                new_rect.top + map_y * new_zoom - client_y,
+            );
+        });
+    }
+
+    $effect(() => {
+        if (!editable) return;
+
+        // Ctrl+wheel zooms. Touchpad pinches arrive as Ctrl+wheel too, but in many small
+        // steps instead of the big steps of a mouse wheel. Without Ctrl, wheels and two
+        // finger swipes scroll the page, which pans the zoomed map.
+        const on_wheel = (event: WheelEvent) => {
+            if (!event.ctrlKey) return;
+            event.preventDefault();
+            const delta =
+                event.deltaMode === WheelEvent.DOM_DELTA_LINE
+                    ? event.deltaY * 40
+                    : event.deltaY;
+            const factor =
+                Math.abs(delta) >= 50
+                    ? delta < 0
+                        ? 1.15
+                        : 1 / 1.15
+                    : Math.exp(-delta / 100);
+            zoom_to(appState.zoom * factor, event.clientX, event.clientY);
+        };
+        // Not passive, otherwise the whole window would zoom instead
+        window.addEventListener("wheel", on_wheel, { passive: false });
+        appState.zoom_by = (factor: number) =>
+            zoom_to(
+                appState.zoom * factor,
+                window.innerWidth / 2,
+                window.innerHeight / 2,
+            );
+
+        return () => {
+            window.removeEventListener("wheel", on_wheel);
+            appState.zoom_by = null;
+        };
     });
+
+    // Dragging with the middle mouse button pans the map
+    let pan_start: { x: number; y: number } | null = null;
+
+    function start_pan(event: PointerEvent) {
+        if (!editable || event.button !== 1) return;
+        event.preventDefault();
+        pan_start = { x: event.clientX, y: event.clientY };
+        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    }
+
+    function pan(event: PointerEvent) {
+        if (!pan_start) return;
+        window.scrollBy(pan_start.x - event.clientX, pan_start.y - event.clientY);
+        pan_start = { x: event.clientX, y: event.clientY };
+    }
+
+    function end_pan() {
+        pan_start = null;
+    }
 
     let rotate_active = $state(false);
 
@@ -462,14 +530,20 @@
     }
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
     class="w-full relative select-none overflow-hidden"
+    bind:this={map_element}
     use:dropTarget={editable && gameState.dm
         ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
         : null}
-    style="transform: scale({editable ? appState.zoom : 1}) translate({editable
-        ? translate_thingy
-        : 0}%, {editable ? translate_thingy : 0}%)"
+    onpointerdown={start_pan}
+    onpointermove={pan}
+    onpointerup={end_pan}
+    onpointercancel={end_pan}
+    style="transform-origin: 0 0; transform: {editable
+        ? `translate(${zoom_offset_x}px, ${zoom_offset_y}px) scale(${appState.zoom})`
+        : 'none'}"
 >
     <Display
         asset={file}

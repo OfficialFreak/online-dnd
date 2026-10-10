@@ -51,6 +51,18 @@
         ).fill(0);
     }
 
+    // Ctrl + these zooms: + and - (German and US layouts, numpad) and 0 to reset
+    const ZOOM_KEYS = [
+        "BracketRight",
+        "Equal",
+        "NumpadAdd",
+        "Slash",
+        "Minus",
+        "NumpadSubtract",
+        "Digit0",
+        "Numpad0",
+    ];
+
     async function hotkeyHandler(evt: any) {
         const activeElement = document.activeElement;
 
@@ -68,8 +80,7 @@
         // Ctrl+C and friends belong to the system, only zoom uses Ctrl
         if (
             (evt.ctrlKey || evt.metaKey || evt.altKey) &&
-            evt.code !== "BracketRight" &&
-            evt.code !== "Slash"
+            !(evt.ctrlKey && ZOOM_KEYS.includes(evt.code))
         )
             return;
 
@@ -126,16 +137,28 @@
             case "KeyC":
                 togglePanel("characters");
                 break;
+            // "+" is BracketRight and "-" is Slash on German keyboards
             case "BracketRight":
+            case "Equal":
+            case "NumpadAdd":
                 if (evt.ctrlKey) {
-                    appState.prevZoom = appState.zoom;
-                    appState.zoom *= 1.25;
+                    evt.preventDefault();
+                    appState.zoom_by?.(1.25);
                 }
                 break;
             case "Slash":
-                if (evt.ctrlKey && appState.zoom > 0.3) {
-                    appState.prevZoom = appState.zoom;
-                    appState.zoom /= 1.25;
+            case "Minus":
+            case "NumpadSubtract":
+                if (evt.ctrlKey) {
+                    evt.preventDefault();
+                    appState.zoom_by?.(1 / 1.25);
+                }
+                break;
+            case "Digit0":
+            case "Numpad0":
+                if (evt.ctrlKey) {
+                    evt.preventDefault();
+                    appState.zoom_by?.(1 / appState.zoom);
                 }
                 break;
             case "ArrowLeft":
@@ -144,30 +167,6 @@
             case "ArrowRight":
                 await advance_turn();
                 break;
-        }
-    }
-
-    function wheelHandler(evt: any) {
-        if (evt.ctrlKey) {
-            evt.preventDefault();
-
-            const snapThreshold = 0.05;
-
-            const zoomSensitivity = 0.001;
-            const zoomChange = 1 - evt.deltaY * zoomSensitivity;
-
-            const newZoom = appState.zoom * zoomChange;
-
-            if (newZoom > 0.3) {
-                appState.prevZoom = appState.zoom;
-                appState.zoom =
-                    Math.abs(newZoom - 1) < snapThreshold
-                        ? 1
-                        : Math.abs(newZoom - appState.verticalSnapPoint) <
-                            snapThreshold
-                          ? appState.verticalSnapPoint
-                          : newZoom;
-            }
         }
     }
 
@@ -259,7 +258,6 @@
         // The keyup never arrives when Ctrl is released in another window
         appState.ctrlPressed = false;
     }}
-    on:wheel|nonpassive={wheelHandler}
 />
 
 <div

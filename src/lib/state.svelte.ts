@@ -34,10 +34,10 @@ export const appState = $state({
     baseUrl: "dnd.wiegraebe.dev",
     selectedTool: Tools.None,
     dragging: false,
-    prevZoom: 1,
     zoom: 1,
+    /** Zooms the map around the window center, set by the map that is shown */
+    zoom_by: null as ((factor: number) => void) | null,
     ctrlPressed: false,
-    verticalSnapPoint: 1,
     mouseDown: false,
     theme: null as string | null,
     map_confetti_function: (() => {}) as () => {} as
