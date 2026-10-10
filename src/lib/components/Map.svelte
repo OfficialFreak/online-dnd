@@ -1,6 +1,8 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import {
+        activate_scene,
+        add_marker,
         appState,
         fogState,
         gameState,
@@ -8,6 +10,7 @@
         mouseY,
         Tools,
     } from "../state.svelte";
+    import { dropTarget, type DragPayload } from "$lib/drag.svelte";
     // @ts-ignore
     import throttle from "just-throttle";
     import debounce from "just-debounce-it";
@@ -404,10 +407,66 @@
             Math.floor((marker.y.current * h + marker_px / 2 - y_offset) / size),
         );
     }
+
+    function on_drop(
+        payload: DragPayload,
+        event: PointerEvent,
+        map_element: HTMLElement,
+    ) {
+        if (payload.kind === "scene") {
+            activate_scene(payload.scene.name);
+            return;
+        }
+
+        // Everything in screen pixels, i.e. already scaled by the zoom
+        const rect = map_element.getBoundingClientRect();
+        const marker_px =
+            (payload.marker.size / columns) * window.innerWidth * appState.zoom;
+        // Center the marker on the cursor, like the drag preview
+        let left = event.clientX - rect.left - marker_px / 2;
+        let top = event.clientY - rect.top - marker_px / 2;
+
+        if (event.ctrlKey) {
+            const cell = rect.width / columns;
+            const scale = rect.width / w;
+            left =
+                Math.round((left - x_offset * scale) / cell) * cell +
+                x_offset * scale;
+            top =
+                Math.round((top - y_offset * scale) / cell) * cell +
+                y_offset * scale;
+        }
+
+        left = Math.min(Math.max(left, 0), rect.width - marker_px);
+        top = Math.min(Math.max(top, 0), rect.height - marker_px);
+        const x = left / rect.width;
+        const y = top / rect.height;
+
+        // A character only has one marker: move it there instead of adding "Name 2"
+        const character_marker = gameState.characters.some(
+            (character) => character.name === payload.marker.name,
+        )
+            ? gameState.scene?.state.markers.find(
+                  (marker) => marker.name === payload.marker.name,
+              )
+            : undefined;
+        if (character_marker) {
+            character_marker.x.set(x);
+            character_marker.y.set(y);
+            // Saves the position and moves it for everyone else
+            appState.ws?.send(MarkerFreed.create(character_marker.name, x, y));
+            return;
+        }
+
+        add_marker(payload.marker, x, y);
+    }
 </script>
 
 <div
     class="w-full relative select-none overflow-hidden"
+    use:dropTarget={editable && gameState.dm
+        ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
+        : null}
     style="transform: scale({editable ? appState.zoom : 1}) translate({editable
         ? translate_thingy
         : 0}%, {editable ? translate_thingy : 0}%)"

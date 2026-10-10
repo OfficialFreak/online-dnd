@@ -11,9 +11,13 @@
         advance_turn,
         previous_turn,
         get_own_character,
+        togglePanel,
     } from "../state.svelte";
+    import { dragSource, fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
+    import MarkerPanel from "./MarkerPanel.svelte";
+    import ScenePanel from "./ScenePanel.svelte";
     import {
         CombatState,
         ImportCharacter,
@@ -82,7 +86,7 @@
                 break;
             case "KeyS":
                 if (gameState.dm) {
-                    modals.sceneChooserModal?.showModal();
+                    togglePanel("scenes");
                 }
                 break;
             case "KeyR":
@@ -116,11 +120,11 @@
                 break;
             case "KeyM":
                 if (gameState.dm) {
-                    modals.markerModal?.showModal();
+                    togglePanel("markers");
                 }
                 break;
             case "KeyC":
-                toolbarState.charactersOpen = !toolbarState.charactersOpen;
+                togglePanel("characters");
                 break;
             case "BracketRight":
                 if (evt.ctrlKey) {
@@ -261,23 +265,58 @@
 <div
     class="fixed top-10 left-2 bottom-16 flex flex-row gap-1 pointer-events-none"
 >
-    {#if toolbarState.charactersOpen}
+    {#if toolbarState.panel}
         <div
-            class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col"
+            class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col transition-shadow {fileDropState.over &&
+            fileDropState.over === toolbarState.panel
+                ? 'ring-4 ring-info'
+                : ''}"
             transition:fly|global={{ x: -50, duration: 200 }}
             bind:this={scroll_container}
+            data-file-drop={toolbarState.panel}
         >
-            {#if !toolbarState.characterOpen}
+            {#if toolbarState.panel === "markers"}
+                <MarkerPanel />
+            {:else if toolbarState.panel === "scenes"}
+                <ScenePanel />
+            {:else if !toolbarState.characterOpen}
                 <div class="p-2 px-4">
                     <h1 class="text-3xl font-bold">Charaktere</h1>
+                    {#if gameState.dm}
+                        <p class="text-sm text-base-content/60 mt-2">
+                            Zieh einen Charakter auf die Karte, um seinen Marker
+                            dort zu platzieren.
+                        </p>
+                    {/if}
                     <div class="flex flex-row flex-wrap gap-2 mt-2">
                         {#each gameState.characters as character}
-                            <CharacterPreview
-                                {character}
-                                callback={() => {
-                                    toolbarState.characterOpen = character.name;
-                                }}
-                            ></CharacterPreview>
+                            {@const marker = gameState.dm
+                                ? gameState.markerLib.find(
+                                      (marker) => marker.name === character.name,
+                                  )
+                                : undefined}
+                            {#if marker}
+                                <div
+                                    class="grow flex cursor-grab active:cursor-grabbing select-none touch-none"
+                                    use:dragSource={{ kind: "marker", marker }}
+                                >
+                                    <CharacterPreview
+                                        {character}
+                                        callback={() => {
+                                            toolbarState.characterOpen =
+                                                character.name;
+                                        }}
+                                    ></CharacterPreview>
+                                </div>
+                            {:else}
+                                <CharacterPreview
+                                    {character}
+                                    callback={() => {
+                                        toolbarState.characterOpen =
+                                            character.name;
+                                    }}
+                                ></CharacterPreview>
+                            {/if}
                         {/each}
                         {#if gameState.dm}
                             <button
@@ -351,10 +390,13 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box"
+                    class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                    'scenes'
+                        ? 'btn-info'
+                        : ''}"
                     aria-label="Szenen"
                     onclick={() => {
-                        modals.sceneChooserModal?.showModal();
+                        togglePanel("scenes");
                     }}><i class="fa-solid fa-map"></i></button
                 >
             </div>
@@ -484,10 +526,13 @@
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box"
+                    class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                    'markers'
+                        ? 'btn-info'
+                        : ''}"
                     aria-label="Marker"
                     onclick={() => {
-                        modals.markerModal?.showModal();
+                        togglePanel("markers");
                     }}
                 >
                     <i class="fa-solid fa-location-pin"></i>
@@ -515,12 +560,13 @@
             </div>
             <button
                 tabindex="0"
-                class="btn btn-square btn-sm rounded-box {toolbarState.charactersOpen
+                class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                'characters'
                     ? 'btn-info'
                     : ''}"
-                aria-label="Marker"
+                aria-label="Charaktere"
                 onclick={() => {
-                    toolbarState.charactersOpen = !toolbarState.charactersOpen;
+                    togglePanel("characters");
                 }}
             >
                 <i class="fa-solid fa-user"></i>

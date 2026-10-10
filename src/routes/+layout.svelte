@@ -6,6 +6,8 @@
     import { fileTypeFromBuffer } from "file-type";
 
     import { getCurrentWindow } from "@tauri-apps/api/window";
+    import { getCurrentWebview } from "@tauri-apps/api/webview";
+    import { fileDropState } from "$lib/drag.svelte";
     import {
         gameState,
         appState,
@@ -23,25 +25,16 @@
     import { onMount } from "svelte";
     import Map from "$lib/components/Map.svelte";
     import {
-        ActivateScene,
-        DeleteMarker,
-        DeleteScene,
         ImportCharacter,
         InitialMessage,
-        PlayerMessage,
-        PreloadResource,
         PutMarker,
         PutScene,
-        TogglePressure,
     } from "$lib/types/messaging/client_messages";
     import {
         EventType,
         MessageType,
         parseServerMessage,
-        type MarkerTemplate,
-        type SceneState,
     } from "$lib/types/messaging/server_messages";
-    import { SvelteMap } from "svelte/reactivity";
     // @ts-ignore
     import confetti from "canvas-confetti";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
@@ -178,9 +171,53 @@
         return asset;
     }
 
-    async function user_upload(image_use: "scene" | "background" | "marker") {
-        // Open file dialog and get selected file path
-        const selected = await open({
+    function file_name_of(path: string) {
+        return path.split(/[/\\]/).pop() || "";
+    }
+
+    function file_stem_of(path: string) {
+        return file_name_of(path).replace(/\.[^.]+$/, "");
+    }
+
+    /** Uploads a local file and returns its asset name, or null if it failed. */
+    async function upload_path(path: string): Promise<string | null> {
+        const file_name = file_name_of(path);
+        if (!file_name) {
+            notify("Ungültiger Dateiname", MessageTypes.Error, 3000);
+            return null;
+        }
+
+        uploading = true;
+        try {
+            return await upload_file(path, file_name);
+        } finally {
+            uploading = false;
+        }
+    }
+
+    /** Uploads a file for one of the creation dialogs. Without a path a file dialog is shown. */
+    async function user_upload(
+        image_use: "scene" | "background" | "marker",
+        path?: string,
+    ) {
+        const selected = path ?? (await pick_file());
+        // User canceled the selection
+        if (selected === null) return;
+
+        const asset = await upload_path(selected);
+        if (!asset) return;
+
+        if (image_use === "scene") {
+            scene_file = asset;
+        } else if (image_use === "marker") {
+            marker_file = asset;
+        } else {
+            background_file = asset;
+        }
+    }
+
+    async function pick_file() {
+        return await open({
             multiple: false,
             filters: [
                 {
@@ -202,33 +239,63 @@
                 { name: "Alle Dateien", extensions: ["*"] },
             ],
         });
+    }
 
-        // User canceled the selection
-        if (selected === null) return;
+    /** Files dropped from the OS onto the marker or scene panel */
+    async function handle_file_drop(target: string | null, paths: string[]) {
+        if (!gameState.dm || paths.length === 0) return;
 
-        // Extract file name from path
-        const selectedFileName = selected.split(/[/\\]/).pop();
-        if (!selectedFileName) {
-            notify("Ungültiger Dateiname", MessageTypes.Error, 3000);
-            return;
-        }
-
-        uploading = true;
-        let asset: string | null;
-        try {
-            asset = await upload_file(selected, selectedFileName);
-        } finally {
-            uploading = false;
-        }
-        if (!asset) return;
-
-        if (image_use === "scene") {
-            scene_file = asset;
-        } else if (image_use === "marker") {
-            marker_file = asset;
+        if (target === "scenes") {
+            reset_scene_vars();
+            scene_name = file_stem_of(paths[0]);
+            modals.sceneCreationModal?.showModal();
+            await user_upload("scene", paths[0]);
+        } else if (target === "markers" && paths.length === 1) {
+            reset_marker_vars();
+            marker_name = file_stem_of(paths[0]);
+            modals.markerCreationModal?.showModal();
+            await user_upload("marker", paths[0]);
+        } else if (target === "markers") {
+            // Several files at once become markers right away
+            notify(
+                `${paths.length} Dateien werden hochgeladen…`,
+                MessageTypes.Info,
+                3000,
+            );
+            let created = 0;
+            for (const path of paths) {
+                const asset = await upload_path(path);
+                if (!asset || !appState.ws) continue;
+                await appState.ws.send(
+                    PutMarker.create(file_stem_of(path), asset, 1),
+                );
+                created++;
+            }
+            if (created > 0) {
+                notify(
+                    `${created} Marker erstellt`,
+                    MessageTypes.Success,
+                    3000,
+                );
+            }
         } else {
-            background_file = asset;
+            notify(
+                "Zieh Bilder auf das Marker- oder Szenen-Panel, um sie hochzuladen.",
+                MessageTypes.Info,
+                4000,
+            );
         }
+    }
+
+    function file_drop_target_at(position: { x: number; y: number }) {
+        const element = document.elementFromPoint(
+            position.x / window.devicePixelRatio,
+            position.y / window.devicePixelRatio,
+        );
+        return (
+            element?.closest<HTMLElement>("[data-file-drop]")?.dataset
+                .fileDrop ?? null
+        );
     }
 
     function reset_scene_vars() {
@@ -284,6 +351,7 @@
 
         // Reset variables after
         reset_scene_vars();
+        modals.sceneCreationModal?.close();
         notify("Szene erstellt", MessageTypes.Success, 3000);
     }
 
@@ -305,6 +373,7 @@
 
         // Reset variables after
         reset_marker_vars();
+        modals.markerCreationModal?.close();
         notify("Marker erstellt", MessageTypes.Success, 3000);
     }
 
@@ -404,6 +473,21 @@
         sword_ping = new Audio("sword_sound.mp3");
 
         confetti_function = confetti.create(confetti_canvas, { resize: true });
+
+        await getCurrentWebview().onDragDropEvent((event) => {
+            const payload = event.payload;
+            if (payload.type === "leave") {
+                fileDropState.over = null;
+            } else if (payload.type === "drop") {
+                fileDropState.over = null;
+                handle_file_drop(
+                    file_drop_target_at(payload.position),
+                    payload.paths,
+                );
+            } else if (gameState.dm) {
+                fileDropState.over = file_drop_target_at(payload.position);
+            }
+        });
 
         await start("1394274196603011223");
         isDev = await invoke("is_dev");
@@ -687,97 +771,16 @@
         return unlisten;
     });
 
-    async function select_scene(name: string) {
-        if (!appState.ws) return;
-        await appState.ws.send(ActivateScene.create(name));
-        notify("Szene aktiviert", MessageTypes.Success, 1500);
-    }
-
-    async function delete_scene(name: string) {
-        if (!appState.ws) return;
-        await appState.ws.send(DeleteScene.create(name));
-        notify("Szene gelöscht", MessageTypes.Success, 3000);
-    }
-
-    async function add_marker(marker: MarkerTemplate) {
-        if (!appState.ws || !gameState.scene) return;
-        let new_marker = {
-            ...marker,
-            x: new Tween(0, {
-                duration: 50,
-                easing: circOut,
-            }),
-            y: new Tween(0, {
-                duration: 50,
-                easing: circOut,
-            }),
-            status_effects: [],
-        };
-        let i = 1;
-        while (
-            gameState.scene.state.markers.some(
-                (marker) =>
-                    marker.name ===
-                    new_marker.name + (i === 1 ? "" : ` ${i.toString()}`),
-            )
-        ) {
-            i++;
-        }
-        new_marker.name = new_marker.name + (i === 1 ? "" : ` ${i.toString()}`);
-        gameState.scene.state.markers.push(new_marker);
-
-        let serialized_fog: SceneState["fog_squares"] = {};
-        for (const [person, values] of Object.entries(
-            gameState.scene.state.fog_squares,
-        )) {
-            // @ts-ignore
-            serialized_fog[person] = Array.from(values);
-        }
-
-        await appState.ws.send(
-            PutScene.update({
-                ...gameState.scene,
-                state: {
-                    ...gameState.scene.state,
-                    fog_squares: serialized_fog,
-                },
-            }),
-        );
-        notify("Marker in die Szene eingefügt", MessageTypes.Success, 3000);
-    }
-
-    async function remove_marker(marker: MarkerTemplate) {
-        if (!appState.ws) return;
-        await appState.ws.send(DeleteMarker.create(marker.name));
-        notify("Marker entfernt", MessageTypes.Success, 3000);
-    }
-
-    const preloadCooldownMap: SvelteMap<string, number> = $state(
-        new SvelteMap(),
-    );
-    const COOLDOWN_MS = 10_000;
-
-    export function shouldPreload(url: string): boolean {
-        const now = Date.now();
-        const lastTime = preloadCooldownMap.get(url) ?? 0;
-
-        if (now - lastTime >= COOLDOWN_MS) {
-            preloadCooldownMap.set(url, now);
-            return true;
-        }
-
-        return false;
-    }
-
-    async function send_preload(file: string) {
-        if (!appState.ws) return;
-        if (!shouldPreload(file)) return;
-
-        await appState.ws.send(PreloadResource.create(file));
-    }
-
     async function importCharacter() {
         if (!appState.ws) return;
+        if (!character_url.trim() || !selected_player) {
+            notify(
+                "Bitte gib eine Charakter-URL an und wähle einen Spieler",
+                MessageTypes.Error,
+                3000,
+            );
+            return;
+        }
 
         await appState.ws.send(
             ImportCharacter.create(character_url, selected_player),
@@ -801,8 +804,6 @@
     let marker_size = $state(1);
     let marker_file = $state("");
 
-    let scene_modal: HTMLDialogElement | null = $state(null);
-    let marker_creation_modal: HTMLDialogElement | null = $state(null);
 
     let audio: HTMLAudioElement | null = $state(null);
     let sword_ping: HTMLAudioElement | null = $state(null);
@@ -1141,7 +1142,9 @@
     </form>
 </dialog>
 {#if gameState.dm}
-    <dialog bind:this={scene_modal} class="modal scrollbar-gutter-affected">
+    <dialog
+        bind:this={modals.sceneCreationModal}
+        class="modal scrollbar-gutter-affected">
         <div class="modal-box">
             <h3 class="text-lg font-bold">Szene erstellen</h3>
             <fieldset class="fieldset">
@@ -1258,129 +1261,6 @@
         </form>
     </dialog>
     <dialog
-        bind:this={modals.sceneChooserModal}
-        class="modal scrollbar-gutter-affected"
-    >
-        <div class="modal-box">
-            <h3 class="text-lg font-bold">Szenen</h3>
-            <ul class="list bg-base-100 rounded-box shadow-md">
-                {#each gameState.scenes as previewScene}
-                    <li
-                        class="list-row flex flex-row items-center justify-between"
-                        onmouseenter={() => {
-                            send_preload(previewScene.map_file);
-                        }}
-                    >
-                        <div class="w-20">
-                            <Map
-                                file={previewScene.map_file}
-                                columns={previewScene.columns}
-                                x_offset={previewScene.x_offset}
-                                y_offset={previewScene.y_offset}
-                                fog_squares={{}}
-                                markers={[]}
-                            />
-                        </div>
-                        <div class="flex-1">
-                            <h3 class="text-base font-bold">
-                                {previewScene.name}
-                            </h3>
-                        </div>
-                        <div>
-                            <button
-                                class="btn btn-ghost"
-                                onclick={() => {
-                                    select_scene(previewScene.name);
-                                }}
-                            >
-                                Aktivieren
-                            </button>
-                            <button
-                                class="btn btn-soft btn-error"
-                                onclick={() => {
-                                    delete_scene(previewScene.name);
-                                }}
-                            >
-                                Löschen
-                            </button>
-                        </div>
-                    </li>
-                {/each}
-                <li>
-                    <button
-                        class="btn btn-ghost w-full"
-                        onclick={() => {
-                            scene_modal?.showModal();
-                        }}>Szene erstellen</button
-                    >
-                </li>
-            </ul>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-            <button class="outline-0">close</button>
-        </form>
-    </dialog>
-    <dialog
-        bind:this={modals.markerModal}
-        class="modal scrollbar-gutter-affected"
-    >
-        <div class="modal-box">
-            <h3 class="text-lg font-bold">Marker Bibliothek</h3>
-            <ul class="list bg-base-100 rounded-box shadow-md">
-                {#each gameState.markerLib as marker}
-                    <li
-                        class="list-row flex flex-row items-center justify-between"
-                    >
-                        <div
-                            class="relative flex flex-col gap-1 items-center w-20"
-                        >
-                            <Marker
-                                columnCount="100%"
-                                dragOptions={{ disabled: true }}
-                                {marker}
-                                mapUse={false}
-                            />
-                            <span class="text-center">{marker.name}</span>
-                            <span
-                                class="badge absolute top-0 -right-1/2 -translate-x-1/2"
-                            >
-                                <i
-                                    class="fa-solid fa-up-right-and-down-left-from-center"
-                                ></i>
-                                {marker.size}
-                            </span>
-                        </div>
-                        <div class="flex flex-row gap-2">
-                            <button
-                                class="btn btn-ghost"
-                                onclick={() => {
-                                    add_marker(marker);
-                                }}>Hinzufügen</button
-                            >
-                            <button
-                                class="btn btn-soft btn-error"
-                                onclick={() => {
-                                    remove_marker(marker);
-                                }}>Löschen</button
-                            >
-                        </div>
-                    </li>
-                {/each}
-                <li>
-                    <button
-                        class="btn btn-ghost w-full"
-                        onclick={() => {
-                            marker_creation_modal?.showModal();
-                        }}>Marker erstellen</button
-                    >
-                </li>
-            </ul>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-            <button class="outline-0">close</button>
-        </form>
-    </dialog>
-    <dialog
         bind:this={modals.characterImportModal}
         class="modal scrollbar-gutter-affected"
     >
@@ -1423,7 +1303,7 @@
         </form>
     </dialog>
     <dialog
-        bind:this={marker_creation_modal}
+        bind:this={modals.markerCreationModal}
         class="modal scrollbar-gutter-affected"
     >
         <div class="modal-box">

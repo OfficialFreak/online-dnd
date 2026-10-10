@@ -1,5 +1,6 @@
 import type {
     SceneData,
+    SceneState,
     Scene,
     User,
     MarkerTemplate,
@@ -9,7 +10,13 @@ import type WebSocket from "@tauri-apps/plugin-websocket";
 import { circOut } from "svelte/easing";
 import { Tween } from "svelte/motion";
 import { SvelteSet } from "svelte/reactivity";
-import { PutScene } from "./types/messaging/client_messages";
+import {
+    ActivateScene,
+    DeleteMarker,
+    DeleteScene,
+    PutScene,
+} from "./types/messaging/client_messages";
+import { MessageTypes, notify } from "./notifications.svelte";
 
 export enum Tools {
     None,
@@ -83,15 +90,21 @@ export const mouseY = new Tween(0, {
 });
 
 export const modals: Record<string, HTMLDialogElement | null> = $state({
-    markerModal: null,
-    sceneChooserModal: null,
+    sceneCreationModal: null,
+    markerCreationModal: null,
     characterImportModal: null,
 });
 
+export type Panel = "characters" | "markers" | "scenes";
+
 export const toolbarState = $state({
-    charactersOpen: false,
+    panel: null as Panel | null,
     characterOpen: "",
 });
+
+export function togglePanel(panel: Panel) {
+    toolbarState.panel = toolbarState.panel === panel ? null : panel;
+}
 
 export const fogState = $state({
     selected_player: "all",
@@ -164,4 +177,68 @@ export async function update_initiative() {
             gameState.scene.state.turn,
         ),
     );
+}
+
+/** Puts a marker from the library into the active scene. x and y are fractions of the map size. */
+export async function add_marker(marker: MarkerTemplate, x = 0, y = 0) {
+    if (!appState.ws || !gameState.scene) return;
+    let new_marker = {
+        ...marker,
+        x: new Tween(x, {
+            duration: 50,
+            easing: circOut,
+        }),
+        y: new Tween(y, {
+            duration: 50,
+            easing: circOut,
+        }),
+        status_effects: [],
+    };
+    let i = 1;
+    while (
+        gameState.scene.state.markers.some(
+            (marker) =>
+                marker.name ===
+                new_marker.name + (i === 1 ? "" : ` ${i.toString()}`),
+        )
+    ) {
+        i++;
+    }
+    new_marker.name = new_marker.name + (i === 1 ? "" : ` ${i.toString()}`);
+    gameState.scene.state.markers.push(new_marker);
+
+    let serialized_fog: SceneState["fog_squares"] = {};
+    for (const [person, values] of Object.entries(
+        gameState.scene.state.fog_squares,
+    )) {
+        serialized_fog[person] = Array.from(values);
+    }
+
+    await appState.ws.send(
+        PutScene.update({
+            ...gameState.scene,
+            state: {
+                ...gameState.scene.state,
+                fog_squares: serialized_fog,
+            },
+        }),
+    );
+}
+
+export async function activate_scene(name: string) {
+    if (!appState.ws) return;
+    await appState.ws.send(ActivateScene.create(name));
+    notify("Szene aktiviert", MessageTypes.Success, 1500);
+}
+
+export async function delete_scene(name: string) {
+    if (!appState.ws) return;
+    await appState.ws.send(DeleteScene.create(name));
+    notify("Szene gelöscht", MessageTypes.Success, 3000);
+}
+
+export async function delete_marker_template(name: string) {
+    if (!appState.ws) return;
+    await appState.ws.send(DeleteMarker.create(name));
+    notify("Marker gelöscht", MessageTypes.Success, 3000);
 }

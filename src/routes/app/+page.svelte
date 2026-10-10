@@ -22,6 +22,7 @@
     import InitiativeBar from "$lib/components/InitiativeBar.svelte";
     import { fade } from "svelte/transition";
     import StatusEffectBar from "$lib/components/StatusEffectBar.svelte";
+    import DragGhost from "$lib/components/DragGhost.svelte";
 
     let url: string | null = $derived(
         appState.token
@@ -182,3 +183,4 @@
     {/if}
 </div>
 <DiceRoller />
+<DragGhost />
