@@ -71,17 +71,33 @@
             : null,
     );
 
+    /** Uploads a file and returns the asset name it is stored under, or null if the upload failed. */
     async function upload_file(
         selectedFilePath: string,
         selectedFileName: string,
-    ) {
-        if (!selectedFilePath || !appState.token) {
-            notify("Es ist ein Bild notwendig", MessageTypes.Error, 3000);
-            throw new Error(`Upload failed: no file selected`);
+    ): Promise<string | null> {
+        if (!appState.token) {
+            notify(
+                "Hochladen fehlgeschlagen: Du bist nicht angemeldet.",
+                MessageTypes.Error,
+                5000,
+            );
+            return null;
         }
 
         // Read the file as binary
-        const fileContent = await readFile(selectedFilePath);
+        let fileContent: Uint8Array;
+        try {
+            fileContent = await readFile(selectedFilePath);
+        } catch (e) {
+            console.error("Reading upload failed", e);
+            notify(
+                "Die Datei konnte nicht gelesen werden.",
+                MessageTypes.Error,
+                5000,
+            );
+            return null;
+        }
         const fileType = await fileTypeFromBuffer(fileContent);
 
         if (fileType && fileType.mime.startsWith("video/")) {
@@ -98,25 +114,45 @@
         formData.append("file", blob, selectedFileName);
 
         // Make the request using Tauri's fetch
-        const response = await fetch(
-            `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets?key=${encodeURIComponent(appState.token)}`,
-            {
-                method: "POST",
-                body: formData,
-            },
-        );
+        let response: Response;
+        try {
+            response = await fetch(
+                `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets?key=${encodeURIComponent(appState.token)}`,
+                {
+                    method: "POST",
+                    body: formData,
+                },
+            );
+        } catch (e) {
+            console.error("Upload request failed", e);
+            notify(
+                "Hochladen fehlgeschlagen: Der Server ist nicht erreichbar.",
+                MessageTypes.Error,
+                8000,
+            );
+            return null;
+        }
 
         if (!response.ok) {
-            notify("Hochladen fehlgeschlagen", MessageTypes.Error, 3000);
-            throw new Error(
+            // The server answers with a message meant for the user
+            const reason = await response.text().catch(() => "");
+            console.error(
                 `Upload failed: ${response.status} ${response.statusText}`,
+                reason,
             );
-        } else {
-            return response.text();
+            notify(
+                reason
+                    ? `Hochladen fehlgeschlagen: ${reason}`
+                    : `Hochladen fehlgeschlagen (Fehler ${response.status}).`,
+                MessageTypes.Error,
+                8000,
+            );
+            return null;
         }
+        return response.text();
     }
 
-    async function user_upload(image_use: string) {
+    async function user_upload(image_use: "scene" | "background" | "marker") {
         // Open file dialog and get selected file path
         const selected = await open({
             multiple: false,
@@ -127,31 +163,25 @@
             ],
         });
 
-        if (selected === null) {
-            // User canceled the selection
-            notify("Es ist ein Bild notwendig", MessageTypes.Error, 3000);
-            throw new Error(`Upload failed: no file selected`);
-        }
-
-        let selectedFilePath = selected;
+        // User canceled the selection
+        if (selected === null) return;
 
         // Extract file name from path
-        let selectedFileName = selectedFilePath.split(/[/\\]/).pop();
+        const selectedFileName = selected.split(/[/\\]/).pop();
         if (!selectedFileName) {
             notify("Ungültiger Dateiname", MessageTypes.Error, 3000);
-            throw new Error("Invalid file name");
+            return;
         }
 
-        selectedFileName = await upload_file(
-            selectedFilePath,
-            selectedFileName,
-        );
+        const asset = await upload_file(selected, selectedFileName);
+        if (!asset) return;
+
         if (image_use === "scene") {
-            scene_file = selectedFileName;
+            scene_file = asset;
         } else if (image_use === "marker") {
-            marker_file = selectedFileName;
+            marker_file = asset;
         } else {
-            background_file = selectedFileName;
+            background_file = asset;
         }
     }
 
