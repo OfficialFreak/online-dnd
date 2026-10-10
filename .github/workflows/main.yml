@@ -47,6 +47,7 @@ jobs:
               run: npm install # change this to npm, pnpm or bun depending on which one you use.
 
             - uses: tauri-apps/tauri-action@v0
+              id: tauri
               env:
                   GITHUB_TOKEN: ${{ secrets.G_TOKEN }}
                   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -57,3 +58,10 @@ jobs:
                   releaseDraft: true
                   prerelease: false
                   args: ${{ matrix.args }}
+
+            # The release is created as a draft so players don't get the update before all
+            # files (including latest.json for the updater) are uploaded. Publish it now.
+            - name: publish release
+              env:
+                  GH_TOKEN: ${{ secrets.G_TOKEN }}
+              run: gh release edit "app-v${{ steps.tauri.outputs.appVersion }}" --draft=false --repo "${{ github.repository }}"
