@@ -45,25 +45,69 @@ fn backend_error(app: &AppHandle, msg: String) {
     let _ = app.emit("backend-error", msg);
 }
 
-pub fn start_quic_client(
-    app: AppHandle,
-    remote: SocketAddr,
-    rx: mpsc::Receiver<QuicCommand>,
-    auth_token: String,
-) {
+const SERVER: &str = "dnd.wiegraebe.dev:41340";
+const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
+
+enum LoopEnd {
+    /// The app is shutting down, the command channel is gone
+    AppClosed,
+    /// The connection timed out or was closed, e.g. after a server restart
+    ConnectionClosed { was_connected: bool },
+}
+
+/// Keeps a QUIC connection to the server alive, reconnecting whenever it drops.
+/// Without this, the DM's pointer and live marker moves stop until the app restarts.
+pub fn start_quic_client(app: AppHandle, mut rx: mpsc::Receiver<QuicCommand>, auth_token: String) {
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_quic_loop(app.clone(), remote, rx, auth_token).await {
-            backend_error(&app, format!("Critical QUIC error: {}", e));
+        let mut retry_delay = Duration::from_secs(1);
+        loop {
+            let end = match resolve_server().await {
+                Some(remote) => run_quic_loop(&app, remote, &mut rx, &auth_token)
+                    .await
+                    .map_err(|e| e.to_string()),
+                None => Err(format!("Could not resolve or reach {}", SERVER)),
+            };
+
+            match end {
+                Ok(LoopEnd::AppClosed) => break,
+                Ok(LoopEnd::ConnectionClosed { was_connected }) => {
+                    if was_connected {
+                        retry_delay = Duration::from_secs(1);
+                    }
+                }
+                Err(e) => backend_debug(&app, format!("QUIC error: {}", e)),
+            }
+
+            backend_debug(&app, format!("Reconnecting QUIC in {:?}", retry_delay));
+            time::sleep(retry_delay).await;
+            retry_delay = (retry_delay * 2).min(MAX_RETRY_DELAY);
+
+            // Positions queued while disconnected are outdated by now
+            while rx.try_recv().is_ok() {}
         }
     });
 }
 
+/// Picks the first server address (IPv4 or IPv6) we can actually send to
+async fn resolve_server() -> Option<SocketAddr> {
+    for addr in tokio::net::lookup_host(SERVER).await.ok()? {
+        let bind_addr = if addr.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" };
+        if let Ok(socket) = UdpSocket::bind(bind_addr).await {
+            if socket.send_to(&[0x00], addr).await.is_ok() {
+                return Some(addr);
+            }
+        }
+    }
+    None
+}
+
 async fn run_quic_loop(
-    app: AppHandle,
+    app: &AppHandle,
     remote: SocketAddr,
-    mut rx: mpsc::Receiver<QuicCommand>,
-    auth_token: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+    rx: &mut mpsc::Receiver<QuicCommand>,
+    auth_token: &str,
+) -> Result<LoopEnd, Box<dyn std::error::Error>> {
+    let app = app.clone();
     // 1. Bind
     let bind_addr = match remote {
         SocketAddr::V4(_) => "0.0.0.0:0",
@@ -192,7 +236,7 @@ async fn run_quic_loop(
                         backend_debug(&app, "Skipping send: Handshake not yet established".into());
                     }
                 } else {
-                    break;
+                    return Ok(LoopEnd::AppClosed);
                 }
             }
 
@@ -262,11 +306,11 @@ async fn run_quic_loop(
                 &app,
                 format!("Connection closed. Stats: {:?}", conn.stats()),
             );
-            break;
+            return Ok(LoopEnd::ConnectionClosed {
+                was_connected: is_connected,
+            });
         }
     }
-
-    Ok(())
 }
 
 fn handle_datagram(app: &AppHandle, data: &[u8]) {

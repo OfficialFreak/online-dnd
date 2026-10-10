@@ -1,4 +1,3 @@
-use std::net::{ToSocketAddrs, UdpSocket};
 use tauri::{Manager, State, Window};
 use tokio::sync::mpsc;
 
@@ -94,27 +93,6 @@ pub fn run() {
 
             let app_handle = app.handle().clone();
 
-            // Resolve Target
-            let targets = "dnd.wiegraebe.dev:41340".to_socket_addrs().unwrap();
-            let mut chosen_addr = None;
-
-            for addr in targets {
-                let bind_addr = if addr.is_ipv4() {
-                    "0.0.0.0:0"
-                } else {
-                    "[::]:0"
-                };
-                if let Ok(socket) = UdpSocket::bind(bind_addr) {
-                    if socket.send_to(&[0x00], addr).is_ok() {
-                        println!("Selected address: {}", addr);
-                        chosen_addr = Some(addr);
-                        break;
-                    }
-                }
-            }
-
-            let addr = chosen_addr.expect("Could not resolve or reach server");
-
             // Increased channel size to 500 to prevent 'Channel Full' on rapid mouse moves
             let (tx, rx) = mpsc::channel(500);
 
@@ -123,7 +101,8 @@ pub fn run() {
                 ready: std::sync::Mutex::new(false),
             });
 
-            start_quic_client(app_handle, addr, rx, "thiswillgetchangedinthefuture".into());
+            // Resolves the server itself, so the app also starts while offline
+            start_quic_client(app_handle, rx, "thiswillgetchangedinthefuture".into());
 
             Ok(())
         })
