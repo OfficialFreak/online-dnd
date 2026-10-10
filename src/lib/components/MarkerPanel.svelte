@@ -50,12 +50,12 @@
                 use:dragSource={{ kind: "marker", marker }}
             >
                 <div
-                    class="mask mask-hexagon aspect-square w-full bg-neutral p-[6%] pointer-events-none"
+                    class="mask mask-hexagon aspect-square w-full bg-neutral p-[6%] pointer-events-none overflow-hidden"
                 >
                     <Display
                         asset={marker.file}
                         alt={marker.name}
-                        class="w-full h-full mask mask-hexagon object-cover object-top drag-none"
+                        class="w-full aspect-square mask mask-hexagon object-cover object-top drag-none"
                     />
                 </div>
                 <span

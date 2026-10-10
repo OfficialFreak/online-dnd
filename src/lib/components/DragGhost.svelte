@@ -32,7 +32,7 @@
                 <Display
                     asset={dragState.payload.marker.file}
                     alt={dragState.payload.marker.name}
-                    class="w-full h-full mask mask-hexagon object-cover object-top"
+                    class="w-full aspect-square mask mask-hexagon object-cover object-top"
                 />
             </div>
         {:else}
