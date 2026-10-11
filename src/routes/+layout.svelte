@@ -40,6 +40,7 @@
     import MarkerDialog from "$lib/components/MarkerDialog.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
+    import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
     import { invoke } from "@tauri-apps/api/core";
@@ -357,7 +358,7 @@
                     break;
                 case MessageType.ROLL_RESULT:
                     notify(
-                        `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${message.dm_only ? " [DM Only]" : ""}`,
+                        `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${mode_suffix(message.mode, message.d20s)}${message.dm_only ? " [DM Only]" : ""}`,
                         MessageTypes.Info,
                         gameState.dm ? -1 : 5000,
                     );
@@ -478,27 +479,15 @@
                     );
                     break;
                 case MessageType.CHECK_RESULT:
-                    let bonus_string =
-                        message.bonus === 0
-                            ? ""
-                            : message.bonus > 0
-                              ? ` + ${message.bonus} = ${message.result + message.bonus}`
-                              : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
                     notify(
-                        `${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)}${message.stat === "initiative" ? "" : " Check"}): ${message.result + bonus_string}`,
+                        `${message.sender} (${stat_label(message.stat)}${message.stat === "initiative" ? "" : "-Check"}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
                         gameState.dm ? -1 : 5000,
                     );
                     break;
                 case MessageType.SAVE_RESULT:
-                    let save_bonus_string =
-                        message.bonus === 0
-                            ? ""
-                            : message.bonus > 0
-                              ? ` + ${message.bonus} = ${message.result + message.bonus}`
-                              : ` - ${message.bonus * -1} = ${message.result + message.bonus}`;
                     notify(
-                        `${message.sender} (${message.stat[0].toUpperCase() + message.stat.substring(1)} Save): ${message.result + save_bonus_string}`,
+                        `${message.sender} (${stat_label(message.stat)}-Rettungswurf): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
                         gameState.dm ? -1 : 5000,
                     );

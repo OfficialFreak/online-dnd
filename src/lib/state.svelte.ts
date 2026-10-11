@@ -18,6 +18,7 @@ import {
     PutScene,
 } from "./types/messaging/client_messages";
 import { MessageTypes, notify } from "./notifications.svelte";
+import type { RollMode } from "./rolls";
 
 export enum Tools {
     None,
@@ -159,6 +160,9 @@ export const fogState = $state({
 });
 
 export const roller: any = $state({ value: null });
+
+/** Advantage or disadvantage for the next roll with a single d20 */
+export const rollState = $state({ mode: "normal" as RollMode });
 
 export async function ensureStore() {
     if (!appState.store) {

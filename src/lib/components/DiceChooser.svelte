@@ -1,5 +1,7 @@
 <script lang="ts">
     import { fade } from "svelte/transition";
+    import { rollState } from "$lib/state.svelte";
+    import type { RollMode } from "$lib/rolls";
 
     const { roll_callback } = $props();
     type Dice = "d4" | "d6" | "d8" | "d100" | "d10" | "d12" | "d20";
@@ -25,80 +27,115 @@
             dice_count[key as Dice] = 0;
         }
     }
+
+    function toggle_mode(mode: RollMode) {
+        rollState.mode = rollState.mode === mode ? "normal" : mode;
+    }
 </script>
 
-<div
-    class="dropdown dropdown-top dropdown-hover"
-    transition:fade={{ duration: 200 }}
->
-    <div class="flex flex-row gap-1">
-        <button
-            class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center"
-            aria-label="D20"
-        >
-            <span class="dice-icon d20 !bg-base-content/70"></span>
-        </button>
-        {#if chosen_dice}
-            <div class="join h-12 justify-center">
-                <button
-                    class="btn join-item rounded-l-full h-full"
-                    onclick={() => {
-                        roll_callback(
-                            entries
-                                .filter(([_, value]) => value > 0)
-                                .map(([key, value]) => {
-                                    return value.toString() + key;
-                                }),
-                            privacy_level,
-                        );
-                        reset();
-                    }}
-                >
-                    Würfeln
-                </button>
-                <select
-                    class="select join-item rounded-r-full h-full"
-                    bind:value={privacy_level}
-                >
-                    <option disabled selected>Sichtbarkeit</option>
-                    <option value="public">Alle</option>
-                    <option value="dm">Nur der DM</option>
-                    <option value="private">Privat</option>
-                </select>
-            </div>
-            <button class="btn rounded-full h-12" onclick={reset}>
-                Zurücksetzen
+<div class="flex flex-row gap-1 items-end" transition:fade={{ duration: 200 }}>
+    <div class="dropdown dropdown-top dropdown-hover">
+        <div class="flex flex-row gap-1">
+            <button
+                class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center {rollState.mode ===
+                'advantage'
+                    ? 'ring-2 ring-success'
+                    : rollState.mode === 'disadvantage'
+                      ? 'ring-2 ring-error'
+                      : ''}"
+                aria-label="D20"
+            >
+                <span class="dice-icon d20 !bg-base-content/70"></span>
             </button>
-        {/if}
-    </div>
-    <ul
-        class="dropdown-content z-1 flex flex-col !gap-2 pb-2 pr-4 pt-10 max-h-[80vh] overflow-y-auto overflow-x-hidden"
-    >
-        {#each entries as [dice, count]}
-            <div class="indicator">
-                {#if count > 0}
-                    <span class="indicator-item badge will-change-contents"
-                        >{count}</span
-                    >
-                {/if}
-                <div class="tooltip" data-tip={dice.toUpperCase()}>
+            {#if chosen_dice}
+                <div class="join h-12 justify-center">
                     <button
-                        class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center"
-                        aria-label={dice.toUpperCase()}
+                        class="btn join-item rounded-l-full h-full"
                         onclick={() => {
-                            dice_count[dice]++;
-                        }}
-                        oncontextmenu={(evt) => {
-                            evt.preventDefault();
-                            count > 0 && dice_count[dice]--;
+                            roll_callback(
+                                entries
+                                    .filter(([_, value]) => value > 0)
+                                    .map(([key, value]) => {
+                                        return value.toString() + key;
+                                    }),
+                                privacy_level,
+                            );
+                            reset();
                         }}
                     >
-                        <span class="dice-icon !bg-base-content {dice}"></span>
+                        Würfeln
                     </button>
+                    <select
+                        class="select join-item rounded-r-full h-full"
+                        bind:value={privacy_level}
+                    >
+                        <option disabled selected>Sichtbarkeit</option>
+                        <option value="public">Alle</option>
+                        <option value="dm">Nur der DM</option>
+                        <option value="private">Privat</option>
+                    </select>
                 </div>
-            </div>
-        {/each}
-    </ul>
+                <button class="btn rounded-full h-12" onclick={reset}>
+                    Zurücksetzen
+                </button>
+            {/if}
+        </div>
+        <ul
+            class="dropdown-content z-1 flex flex-col !gap-2 pb-2 pr-4 pt-10 max-h-[80vh] overflow-y-auto overflow-x-hidden"
+        >
+            {#each entries as [dice, count]}
+                <div class="indicator">
+                    {#if count > 0}
+                        <span class="indicator-item badge will-change-contents"
+                            >{count}</span
+                        >
+                    {/if}
+                    <div class="tooltip" data-tip={dice.toUpperCase()}>
+                        <button
+                            class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center"
+                            aria-label={dice.toUpperCase()}
+                            onclick={() => {
+                                dice_count[dice]++;
+                            }}
+                            oncontextmenu={(evt) => {
+                                evt.preventDefault();
+                                count > 0 && dice_count[dice]--;
+                            }}
+                        >
+                            <span class="dice-icon !bg-base-content {dice}"
+                            ></span>
+                        </button>
+                    </div>
+                </div>
+            {/each}
+        </ul>
+    </div>
+    <div
+        class="join join-vertical frosted rounded-box"
+        role="group"
+        aria-label="Vorteil oder Nachteil"
+    >
+        <button
+            class="btn btn-xs join-item {rollState.mode === 'advantage'
+                ? 'btn-success'
+                : 'btn-ghost'}"
+            title="Der nächste W20 wird zweimal gewürfelt, der höhere zählt"
+            aria-pressed={rollState.mode === "advantage"}
+            onclick={() => toggle_mode("advantage")}
+        >
+            <i class="fa-solid fa-angles-up"></i> Vorteil
+        </button>
+        <button
+            class="btn btn-xs join-item {rollState.mode === 'disadvantage'
+                ? 'btn-error'
+                : 'btn-ghost'}"
+            title="Der nächste W20 wird zweimal gewürfelt, der niedrigere zählt"
+            aria-pressed={rollState.mode === "disadvantage"}
+            onclick={() => toggle_mode("disadvantage")}
+        >
+            <i class="fa-solid fa-angles-down"></i> Nachteil
+        </button>
+    </div>
 </div>
 
 <style>

@@ -1,4 +1,5 @@
 import type { SceneData, SceneState } from "./server_messages";
+import type { RollMode } from "$lib/rolls";
 
 export class InitialMessage {
     static create(): string {
@@ -19,35 +20,44 @@ export class PlayerMessage {
 }
 
 export class RollResult {
-    static create(dices: string, result: number, single_dice: boolean, dm_only: boolean): string {
+    static create(dices: string, result: number, single_dice: boolean, dm_only: boolean, notation: string, mode: RollMode, d20s: number[]): string {
         return JSON.stringify({
             type: "roll_result",
             dices: dices,
             result: result,
             single_dice: single_dice,
-            dm_only: dm_only
+            dm_only: dm_only,
+            notation: notation,
+            mode: mode,
+            d20s: d20s
         });
     }
 }
 
 export class CheckResult {
-    static create(stat: string, result: number, bonus: number): string {
+    /** result is the d20 that counts, without the bonus */
+    static create(stat: string, result: number, bonus: number, mode: RollMode, d20s: number[]): string {
         return JSON.stringify({
             type: "check_result",
             stat: stat,
             result: result,
-            bonus: bonus
+            bonus: bonus,
+            mode: mode,
+            d20s: d20s
         });
     }
 }
 
 export class SaveResult {
-    static create(stat: string, result: number, bonus: number): string {
+    /** result is the d20 that counts, without the bonus */
+    static create(stat: string, result: number, bonus: number, mode: RollMode, d20s: number[]): string {
         return JSON.stringify({
             type: "save_result",
             stat: stat,
             result: result,
-            bonus: bonus
+            bonus: bonus,
+            mode: mode,
+            d20s: d20s
         });
     }
 }

@@ -1,3 +1,5 @@
+import type { RollMode } from "$lib/rolls";
+
 // Define enums for message types and event types
 export enum MessageType {
     MESSAGE = "message",
@@ -65,12 +67,24 @@ export interface SelfJoinEvent extends Event {
     event_type: EventType.SELF_JOIN;
 }
 
-export interface RollResult extends BaseServerMessage {
-    type: MessageType.ROLL_RESULT;
+/** What every roll has, the optional fields are missing from older clients */
+interface Roll extends BaseServerMessage {
     sender: string;
+    sender_dm?: boolean;
+    result: number;
+    mode?: RollMode | null;
+    /** Both d20s of a roll with advantage or disadvantage */
+    d20s?: number[] | null;
+    /** Milliseconds since 1970, set by the server */
+    time?: number;
+}
+
+export interface RollResult extends Roll {
+    type: MessageType.ROLL_RESULT;
     sender_dm: boolean;
     dices: string;
-    result: number;
+    /** e.g. "2d6 + 1d20" */
+    notation?: string | null;
     single_dice: boolean;
     dm_only: boolean;
 }
@@ -200,19 +214,15 @@ export interface Characters extends BaseServerMessage {
     characters: any;
 }
 
-export interface CheckResult extends BaseServerMessage {
+export interface CheckResult extends Roll {
     type: MessageType.CHECK_RESULT;
-    sender: string;
     stat: string;
-    result: number;
     bonus: number;
 }
 
-export interface SaveResult extends BaseServerMessage {
+export interface SaveResult extends Roll {
     type: MessageType.SAVE_RESULT;
-    sender: string;
     stat: string;
-    result: number;
     bonus: number;
 }
 

@@ -18,7 +18,13 @@
         let tmp_modifier = modifier;
         let result = await roller.value(["1d20"], tmp_modifier);
         await appState.ws.send(
-            SaveResult.create(tmp_name, result.roll_result, tmp_modifier),
+            SaveResult.create(
+                tmp_name,
+                result.roll_result,
+                tmp_modifier,
+                result.mode,
+                result.d20s,
+            ),
         );
     }
 </script>

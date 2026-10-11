@@ -88,6 +88,9 @@
                     result.roll_result,
                     result.single_roll,
                     privacy_level === "dm",
+                    dice.join(" + "),
+                    result.mode,
+                    result.d20s,
                 ),
             );
         }

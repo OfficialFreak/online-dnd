@@ -25,7 +25,13 @@
         let initiative = character.actualInitiative;
         let result = await roller.value(["1d20"], initiative);
         await appState.ws.send(
-            CheckResult.create("initiative", result.roll_result, initiative),
+            CheckResult.create(
+                "initiative",
+                result.roll_result,
+                initiative,
+                result.mode,
+                result.d20s,
+            ),
         );
         let char_init = gameState.scene?.state.initiative.find(
             (initiative) => initiative[1] === name,
