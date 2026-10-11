@@ -35,10 +35,14 @@
         interactive = true,
     } = $props();
     let markerElement: HTMLDivElement | null = $state(null);
+    // The same object first, a name typed into the menu may briefly match another marker
     let scene_marker = $derived(
         gameState.scene?.state.markers.find(
-            (new_marker) => new_marker.name === marker.name,
-        ) || {
+            (new_marker) => new_marker === marker,
+        ) ||
+            gameState.scene?.state.markers.find(
+                (new_marker) => new_marker.name === marker.name,
+            ) || {
             name: "",
             size: 1,
             status_effects: [],
@@ -80,12 +84,48 @@
         { leading: false, trailing: true },
     );
 
-    // The name before the rename input changed it. Components get reused for other
-    // markers when the list changes, so this follows the shown marker.
-    let old_name = "";
-    $effect.pre(() => {
-        old_name = scene_marker.name;
-    });
+    // What follows the marker while it gets renamed, taken when the input gets focus.
+    // An effect can't track the old name: Svelte runs effects between the listeners of
+    // the input event, so it would already hold the new name. The initiative entry is
+    // kept by reference, as the name may briefly match another marker while typing.
+    let rename: {
+        name: string;
+        current: string;
+        initiative?: [number, string];
+        turn: boolean;
+        selected: boolean;
+    } | null = null;
+    let name_taken = $derived(
+        gameState.scene?.state.markers.some(
+            (other) => other !== scene_marker && other.name === scene_marker.name,
+        ) ?? false,
+    );
+
+    function start_rename() {
+        record_undo();
+        const name = scene_marker.name;
+        rename = {
+            name,
+            current: name,
+            initiative: gameState.scene?.state.initiative.find(
+                (initiative) => initiative[1] === name,
+            ),
+            turn: gameState.scene?.state.turn === name,
+            selected: selection.has(name),
+        };
+    }
+
+    /** Initiative, turn and selection follow the renamed marker */
+    function follow_rename(name: string) {
+        if (!rename || !gameState.scene) return;
+        if (rename.initiative) rename.initiative[1] = name;
+        if (rename.turn) gameState.scene.state.turn = name;
+        if (rename.selected) {
+            selection.delete(rename.current);
+            selection.add(name);
+        }
+        rename.current = name;
+    }
 
     let connected_character = $derived(getCharacter(marker.name));
 
@@ -334,28 +374,25 @@
                         <legend class="fieldset-legend pt-0">Name</legend>
                         <input
                             type="text"
-                            class="input input-sm w-full"
+                            class="input input-sm w-full {name_taken
+                                ? 'input-error'
+                                : ''}"
                             placeholder="Grom"
+                            title={name_taken
+                                ? "Ein anderer Marker heißt schon so"
+                                : undefined}
                             bind:value={scene_marker.name}
-                            onfocus={record_undo}
-                            oninput={() => {
-                                if (gameState.scene?.state.turn === old_name) {
-                                    gameState.scene.state.turn =
-                                        scene_marker.name;
+                            onfocus={start_rename}
+                            oninput={() => follow_rename(scene_marker.name)}
+                            onchange={() => {
+                                // Names identify markers, so an empty or taken one goes back
+                                if (rename && (!scene_marker.name.trim() || name_taken)) {
+                                    follow_rename(rename.name);
+                                    scene_marker.name = rename.name;
+                                    return;
                                 }
-
-                                let initiative =
-                                    gameState.scene?.state.initiative.find(
-                                        (initiative) =>
-                                            initiative[1] === old_name,
-                                    );
-                                if (initiative) {
-                                    initiative[1] = scene_marker.name;
-                                }
-
-                                old_name = scene_marker.name;
+                                throttled_save();
                             }}
-                            onchange={throttled_save}
                         />
                     </fieldset>
                     <fieldset class="fieldset w-20 p-0">
