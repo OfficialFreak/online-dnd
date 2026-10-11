@@ -860,9 +860,9 @@
             height={h as number}
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
         ></canvas>
-        <!-- Non Player Markers under the fog -->
+        <!-- Non Player Markers under the fog, but their menu goes over it and the drawings -->
         <div
-            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+            class="absolute top-0 left-0 w-full h-full z-0 has-[:hover]:z-20 pointer-events-none"
         >
             {#each non_player_markers as marker}
                 {@const hidden = !gameState.dm && in_fog(marker)}
