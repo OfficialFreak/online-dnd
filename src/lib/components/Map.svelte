@@ -281,46 +281,77 @@
             );
         }
 
-        if ((!appState.mouseDown && !click) || !editable || !gameState.scene)
+        if (
+            !editable ||
+            !gameState.scene ||
+            (appState.selectedTool !== Tools.AddFog &&
+                appState.selectedTool !== Tools.RemoveFog)
+        )
             return;
 
-        // One undo step per fog stroke
-        if (
-            click &&
-            (appState.selectedTool === Tools.AddFog ||
-                appState.selectedTool === Tools.RemoveFog)
-        ) {
-            record_undo();
-        }
+        // The rectangle and the brush stay on the grid when the mouse leaves it
+        const cell_x = Math.min(Math.max(x, 0), columns - 1);
+        const cell_y = Math.min(Math.max(y, 0), rows - 1);
 
-        if (
-            (appState.selectedTool === Tools.AddFog ||
-                appState.selectedTool === Tools.RemoveFog) &&
-            x >= 0 &&
-            x < columns &&
-            y >= 0 &&
-            y < rows
-        ) {
-            if (fog_rect || (click && (fogState.shape === "rect" || event.shiftKey))) {
+        if (click) {
+            // The right button is for menus
+            if (event.button !== 0) return;
+            // One undo step per fog stroke
+            record_undo();
+            if (fogState.shape === "rect" || event.shiftKey) {
                 // The rectangle is filled when the mouse is released
-                if (click) {
-                    fog_rect = { x1: x, y1: y, x2: x, y2: y };
-                    on_release(finish_fog_rect);
-                } else if (fog_rect) {
-                    fog_rect.x2 = x;
-                    fog_rect.y2 = y;
-                }
+                fog_rect = { x1: cell_x, y1: cell_y, x2: cell_x, y2: cell_y };
+                on_release(finish_fog_rect);
                 return;
             }
-            const reach = Math.floor((fogState.brush - 1) / 2);
-            const cells: [number, number][] = [];
+            brush_cell = [cell_x, cell_y];
+            on_release(() => (brush_cell = null));
+            paint_brush([brush_cell]);
+            return;
+        }
+
+        if (fog_rect) {
+            fog_rect.x2 = cell_x;
+            fog_rect.y2 = cell_y;
+        } else if (brush_cell) {
+            // Quick moves skip cells, the brush also goes over the ones in between
+            paint_brush(cells_between(brush_cell, [cell_x, cell_y]));
+            brush_cell = [cell_x, cell_y];
+        }
+    }
+
+    /** The cell the brush is on during a stroke */
+    let brush_cell: [number, number] | null = null;
+
+    /** The cells on a straight line from one cell to another, without the first */
+    function cells_between(
+        [x1, y1]: [number, number],
+        [x2, y2]: [number, number],
+    ) {
+        const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1));
+        const cells: [number, number][] = [];
+        for (let step = 1; step <= steps; step++) {
+            cells.push([
+                Math.round(x1 + ((x2 - x1) * step) / steps),
+                Math.round(y1 + ((y2 - y1) * step) / steps),
+            ]);
+        }
+        return cells;
+    }
+
+    /** Paints the brush, which may be wider than one cell, around these cells */
+    function paint_brush(centers: [number, number][]) {
+        if (centers.length === 0) return;
+        const reach = Math.floor((fogState.brush - 1) / 2);
+        const cells: [number, number][] = [];
+        for (const [x, y] of centers) {
             for (let dx = -reach; dx <= reach; dx++) {
                 for (let dy = -reach; dy <= reach; dy++) {
                     cells.push([x + dx, y + dy]);
                 }
             }
-            paint_fog(cells);
         }
+        paint_fog(cells);
     }
 
     /** The drawing being drawn, the others only see it when it's done */
