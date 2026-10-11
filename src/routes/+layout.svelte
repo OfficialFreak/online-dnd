@@ -797,6 +797,20 @@
             class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
             onclick={() => theme_modal?.showModal()}>Aussehen</button
         >
+        {#if gameState.dm}
+            <button
+                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
+                onclick={() => dialogs.users?.open()}
+            >
+                <i class="fa-solid fa-users-gear"></i> Spieler
+            </button>
+            <button
+                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
+                onclick={() => dialogs.assets?.open()}
+            >
+                <i class="fa-solid fa-folder-open"></i> Dateien
+            </button>
+        {/if}
         <div class="dropdown dropdown-bottom my-auto">
             <button
                 tabindex="0"
