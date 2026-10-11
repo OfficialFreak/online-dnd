@@ -1,7 +1,12 @@
 <script lang="ts">
     import { ImportCharacter } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "../notifications.svelte";
-    import { appState, character_marker, gameState } from "../state.svelte";
+    import {
+        appState,
+        character_marker,
+        delete_character,
+        gameState,
+    } from "../state.svelte";
     import { dragSource } from "../drag.svelte";
     import StatusEffectBar from "./StatusEffectBar.svelte";
 
@@ -22,10 +27,24 @@
         );
         notify("Charakter wird aktualisiert", MessageTypes.Success, 2000);
     }
+
+    let confirm_delete = $state(false);
+    let confirm_timeout: ReturnType<typeof setTimeout> | undefined;
+
+    function request_delete() {
+        clearTimeout(confirm_timeout);
+        if (confirm_delete) {
+            confirm_delete = false;
+            delete_character(character.id);
+            return;
+        }
+        confirm_delete = true;
+        confirm_timeout = setTimeout(() => (confirm_delete = false), 3000);
+    }
 </script>
 
 <div
-    class="relative grow border border-base-200 rounded-[4px] flex flex-col text-white"
+    class="group/card relative grow border border-base-200 rounded-[4px] flex flex-col text-white"
 >
     <div
         class="absolute inset-0 -z-1 bg-cover brightness-30 pointer-events-none rounded-[4px]"
@@ -94,6 +113,22 @@
                 <i class="fa-solid fa-rotate-right"></i>
             </button>
         </div>
+    {/if}
+    {#if gameState.dm && callback !== null}
+        <button
+            class="btn btn-sm absolute top-1 right-10 {confirm_delete
+                ? 'btn-error'
+                : 'btn-ghost btn-square opacity-0 group-hover/card:opacity-100 focus-visible:opacity-100'}"
+            aria-label="Charakter löschen"
+            title="Charakter löschen"
+            onclick={request_delete}
+        >
+            {#if confirm_delete}
+                Löschen?
+            {:else}
+                <i class="fa-solid fa-trash"></i>
+            {/if}
+        </button>
     {/if}
     {#if character.activeStatusEffects.length > 0}
         <div

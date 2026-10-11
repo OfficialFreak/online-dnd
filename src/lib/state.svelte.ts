@@ -12,6 +12,7 @@ import { Tween } from "svelte/motion";
 import { SvelteSet } from "svelte/reactivity";
 import {
     ActivateScene,
+    DeleteCharacter,
     DeleteMarker,
     DeleteScene,
     PutScene,
@@ -349,6 +350,13 @@ export async function delete_scene(name: string) {
     if (!appState.ws) return;
     await appState.ws.send(DeleteScene.create(name));
     notify("Szene gelöscht", MessageTypes.Success, 3000);
+}
+
+/** Removes a character from the game. Its marker stays in the marker library. */
+export async function delete_character(id: number) {
+    if (!appState.ws) return;
+    await appState.ws.send(DeleteCharacter.create(id));
+    notify("Charakter gelöscht", MessageTypes.Success, 3000);
 }
 
 export async function delete_marker_template(name: string) {

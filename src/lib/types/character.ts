@@ -1,4 +1,6 @@
 export class Character {
+    /** The D&D Beyond id */
+    id!: number;
     name!: string;
     gender!: string;
     player_name!: string;

@@ -251,6 +251,16 @@ export class ImportCharacter {
     }
 }
 
+export class DeleteCharacter {
+    /** id is the character's D&D Beyond id */
+    static create(id: number): string {
+        return JSON.stringify({
+            type: "delete_character",
+            id: id
+        });
+    }
+}
+
 export class CombatState {
     static create(active: boolean): string {
         return JSON.stringify({
