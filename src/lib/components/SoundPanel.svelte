@@ -1,5 +1,6 @@
 <script lang="ts">
     import { appState } from "$lib/state.svelte";
+    import { in_tauri } from "$lib/platform";
     import {
         audioState,
         guess_sound_kind,
@@ -145,8 +146,10 @@
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
     <h1 class="text-3xl font-bold">Musik</h1>
     <p class="text-sm text-base-content/60">
-        Musik läuft für alle in Schleife, Effekte spielen einmal. Audiodateien
-        aus dem Explorer kannst du hier hineinziehen.
+        Musik läuft für alle in Schleife, Effekte spielen einmal.
+        {#if in_tauri}
+            Audiodateien aus dem Explorer kannst du hier hineinziehen.
+        {/if}
     </p>
     <div role="tablist" class="tabs tabs-box tabs-sm">
         <button

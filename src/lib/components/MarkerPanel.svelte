@@ -1,5 +1,6 @@
 <script lang="ts">
     import { dragSource } from "$lib/drag.svelte";
+    import { in_tauri } from "$lib/platform";
     import {
         delete_marker_template,
         dialogs,
@@ -37,10 +38,14 @@
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
     <h1 class="text-3xl font-bold">Marker</h1>
     <p class="text-sm text-base-content/60">
-        Zieh einen Marker auf die Karte, um ihn zu platzieren. Mit gedrückter <kbd
-            class="kbd kbd-xs">Strg</kbd
-        > rastet er am Raster ein. Bilder aus dem Explorer kannst du hier hineinziehen,
-        um neue Marker zu erstellen.
+        Zieh einen Marker auf die Karte, um ihn zu platzieren.
+        <span class="pointer-coarse:hidden"
+            >Mit gedrückter <kbd class="kbd kbd-xs">Strg</kbd> rastet er am Raster ein.</span
+        >
+        {#if in_tauri}
+            Bilder aus dem Explorer kannst du hier hineinziehen, um neue Marker zu
+            erstellen.
+        {/if}
     </p>
     <label class="input input-sm w-full">
         <i class="fa-solid fa-magnifying-glass opacity-50"></i>

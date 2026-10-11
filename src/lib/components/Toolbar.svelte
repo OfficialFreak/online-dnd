@@ -821,7 +821,8 @@
             >
                 <h3 class="font-bold flex flex-row items-baseline gap-2">
                     Messen & Zeichnen
-                    <span class="text-xs font-normal text-base-content/60"
+                    <span
+                        class="text-xs font-normal text-base-content/60 pointer-coarse:hidden"
                         ><kbd class="kbd kbd-xs">L</kbd>
                         <kbd class="kbd kbd-xs">D</kbd></span
                     >

@@ -67,6 +67,21 @@ html, body {
     color: var(--color-base-content) !important;
 }
 
+/* Phones and tablets have no keyboard for the shortcuts, and a tap would leave a tooltip
+   open until the next tap somewhere else. Tooltips that tell more than a button's name
+   keep showing with touch-tooltip. */
+@media (pointer: coarse) {
+    .kbd {
+        display: none;
+    }
+
+    .tooltip:not(.touch-tooltip) > .tooltip-content,
+    .tooltip:not(.touch-tooltip)[data-tip]::before,
+    .tooltip:not(.touch-tooltip)::after {
+        display: none;
+    }
+}
+
 .dark-frosted {
     background: color-mix(in srgb, var(--color-base-100), transparent 10%);
 }

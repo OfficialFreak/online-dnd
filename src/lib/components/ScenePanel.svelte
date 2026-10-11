@@ -1,5 +1,6 @@
 <script lang="ts">
     import { dragSource } from "$lib/drag.svelte";
+    import { in_tauri } from "$lib/platform";
     import {
         activate_scene,
         appState,
@@ -54,8 +55,11 @@
     <p class="text-sm text-base-content/60">
         Zieh eine Szene auf die Karte oder klick auf <i
             class="fa-solid fa-play text-xs"
-        ></i>, um sie zu aktivieren. Bilder aus dem Explorer kannst du hier
-        hineinziehen, um neue Szenen zu erstellen.
+        ></i>, um sie zu aktivieren.
+        {#if in_tauri}
+            Bilder aus dem Explorer kannst du hier hineinziehen, um neue Szenen zu
+            erstellen.
+        {/if}
     </p>
     <label class="input input-sm w-full">
         <i class="fa-solid fa-magnifying-glass opacity-50"></i>

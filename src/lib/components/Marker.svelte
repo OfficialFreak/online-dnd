@@ -276,7 +276,7 @@
     class="{banner ? 'group' : ''} {!gameState.dm &&
     mapUse &&
     !getCharacter(marker.name)
-        ? 'tooltip tooltip-right'
+        ? 'tooltip tooltip-right touch-tooltip'
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
     banner
         ? '!pointer-events-none'
