@@ -22,21 +22,30 @@
     let selected: Monster | null = $state(null);
 
     function open() {
+        // The search stays, but not a monster that was only shown
+        if (viewing) selected = results[0] ?? null;
         viewing = false;
         error = "";
         dialog?.showModal();
     }
 
+    let latest_show = 0;
+
     async function show(key: string) {
+        // A slow answer for an earlier monster must not replace this one
+        const show_id = ++latest_show;
         viewing = true;
         error = "";
         selected = null;
         dialog?.showModal();
         try {
-            selected = await get_monster(key);
+            const monster = await get_monster(key);
+            if (show_id === latest_show) selected = monster;
         } catch (e) {
             console.error("Loading a monster failed", e);
-            error = "Die Werte konnten nicht von Open5e geladen werden.";
+            if (show_id === latest_show) {
+                error = "Die Werte konnten nicht von Open5e geladen werden.";
+            }
         }
     }
 
@@ -57,19 +66,23 @@
 
     async function search() {
         const text = query.trim();
-        if (text.length < 2) {
-            results = [];
-            return;
-        }
         // Answers of older searches may arrive after newer ones
         const search_id = ++latest_search;
+        if (text.length < 2) {
+            results = [];
+            searching = false;
+            return;
+        }
         searching = true;
         error = "";
         try {
             const found = await search_monsters(text);
             if (search_id !== latest_search) return;
             results = found;
-            if (found.length > 0 && !selected) selected = found[0];
+            // The first result of a new search, unless the chosen one is still among them
+            if (!found.some((monster) => monster.key === selected?.key)) {
+                selected = found[0] ?? null;
+            }
         } catch (e) {
             console.error("Searching monsters failed", e);
             if (search_id === latest_search) {
