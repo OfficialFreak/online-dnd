@@ -1,7 +1,7 @@
 import { appState, ensureStore } from "./state.svelte";
 
 /**
- * Looks for the dice, in static/assets/themes. Only some of them take a color, the
+ * Looks for the dice, in static/dice/themes. Only some of them take a color, the
  * textures of the others have their own colors.
  */
 export type DiceTheme = {
@@ -49,7 +49,7 @@ function nearest_color(color: string) {
  */
 export function theme_preview(entry: DiceTheme, color: string) {
     const suffix = entry.colorable ? `-${nearest_color(color).slice(1)}` : "";
-    return `/assets/themes/${entry.theme}/preview${suffix}.webp`;
+    return `/dice/themes/${entry.theme}/preview${suffix}.webp`;
 }
 
 export const DICE_COLORS = [

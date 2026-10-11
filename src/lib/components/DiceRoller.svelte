@@ -122,7 +122,7 @@
     onMount(() => {
         diceBox = new DiceBox({
             container: "#diceroller",
-            assetPath: "/assets/",
+            assetPath: "/dice/",
             themeColor: "#aa55aa",
             scale: 5,
         });
