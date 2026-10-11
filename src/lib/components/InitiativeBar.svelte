@@ -34,30 +34,43 @@
         ? 'pointer-events-none'
         : 'pointer-events-auto'}"
 >
-    {#if sorted_markers.length > 0}
+    {#if sorted_markers.length > 0 || gameState.dm}
         <div
-            class="self-start mt-2 mr-1 p-1 px-2 frosted rounded-box flex flex-col items-center leading-none"
-            title="Kampfrunde"
+            class="self-start mt-2 mr-1 p-1 frosted rounded-box flex flex-row items-center gap-1"
         >
-            <span class="text-[0.6rem] uppercase text-base-content/60"
-                >Runde</span
-            >
-            {#key current_round()}
-                <span class="text-2xl font-bold" in:fly={{ y: -10, duration: 300 }}
-                    >{current_round()}</span
+            {#if sorted_markers.length > 0}
+                <div
+                    class="px-2 flex flex-col items-center leading-none"
+                    title="Kampfrunde"
                 >
-            {/key}
+                    <span
+                        class="text-[0.6rem] uppercase tracking-wider text-base-content/60"
+                        >Runde</span
+                    >
+                    {#key current_round()}
+                        <span
+                            class="text-2xl font-bold tabular-nums"
+                            in:fly={{ y: -10, duration: 300 }}
+                            >{current_round()}</span
+                        >
+                    {/key}
+                </div>
+            {/if}
+            {#if gameState.dm}
+                <div class="tooltip tooltip-bottom">
+                    <div class="tooltip-content">
+                        Initiative für alle NPCs würfeln
+                    </div>
+                    <button
+                        class="btn btn-sm btn-ghost btn-square"
+                        aria-label="Initiative für alle NPCs würfeln"
+                        onclick={roll_npc_initiative}
+                    >
+                        <i class="fa-solid fa-dice-d20"></i>
+                    </button>
+                </div>
+            {/if}
         </div>
-    {/if}
-    {#if gameState.dm}
-        <button
-            class="self-start mt-2 mr-1 btn btn-sm frosted"
-            title="Würfelt die Initiative für alle Marker, die keine Charaktere sind"
-            onclick={roll_npc_initiative}
-        >
-            <i class="fa-solid fa-dice-d20"></i>
-            NPCs
-        </button>
     {/if}
     {#each sorted_markers as marker (marker.name)}
         <div
