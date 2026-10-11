@@ -406,6 +406,22 @@
                     }
                     gameState.scene.state.turn = message.turn;
 
+                    // Older clients don't send the round, it stays as it was then
+                    if (typeof message.round === "number") {
+                        if (
+                            gameState.combat &&
+                            message.round > 1 &&
+                            message.round !== gameState.scene.state.round
+                        ) {
+                            notify(
+                                `Runde ${message.round}`,
+                                MessageTypes.Neutral,
+                                2_000,
+                            );
+                        }
+                        gameState.scene.state.round = message.round;
+                    }
+
                     break;
                 case MessageType.SCENE_LIST:
                     gameState.scenes = message.scenes;

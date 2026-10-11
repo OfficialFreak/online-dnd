@@ -95,11 +95,12 @@ export class PutScene {
             fog_squares: fog_squares
         });
     }
-    static update_initiative(initiative: [number, string][], turn: string | null) {
+    static update_initiative(initiative: [number, string][], turn: string | null, round: number) {
         return JSON.stringify({
             type: "scene_initiative",
             initiative: initiative,
-            turn: turn
+            turn: turn,
+            round: round
         });
     }
 }

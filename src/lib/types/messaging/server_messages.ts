@@ -95,12 +95,16 @@ export interface SceneState {
     markers: Marker[];
     initiative: [number, string][];
     turn: string | null;
+    /** Combat round, missing in scenes from before it existed */
+    round?: number | null;
 }
 
 export interface InitiativeSceneData extends BaseServerMessage {
     type: MessageType.SCENE_INITIATIVE;
     initiative: [number, string][];
     turn: string | null;
+    /** Null when an older client changed the initiative */
+    round?: number | null;
 }
 
 export interface SceneData extends BaseServerMessage {

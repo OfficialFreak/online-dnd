@@ -13,6 +13,7 @@
         get_own_character,
         togglePanel,
         place_party,
+        reset_round,
     } from "../state.svelte";
     import { fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
@@ -230,6 +231,8 @@
         if (appState.ws) {
             appState.ws.send(CombatState.create(gameState.combat));
         }
+        // A new combat starts in the first round
+        if (gameState.combat) reset_round();
     }
 
     let scroll_container: any = $state(null);

@@ -199,6 +199,10 @@ export async function advance_turn() {
         (initiative) => initiative[1] === gameState.scene?.state.turn,
     );
     const next = index === -1 ? 0 : (index + 1) % sorted_initiative.length;
+    // Everyone had their turn, back to the first one in a new round
+    if (index !== -1 && next === 0) {
+        gameState.scene.state.round = current_round() + 1;
+    }
     gameState.scene.state.turn = sorted_initiative[next][1];
     await update_initiative();
 }
@@ -213,7 +217,23 @@ export async function previous_turn() {
     );
     const previous =
         index <= 0 ? sorted_initiative.length - 1 : index - 1;
+    // Going back past the first one undoes the start of the round
+    if (index === 0) {
+        gameState.scene.state.round = Math.max(1, current_round() - 1);
+    }
     gameState.scene.state.turn = sorted_initiative[previous][1];
+    await update_initiative();
+}
+
+/** The combat round of the active scene, counting from 1 */
+export function current_round() {
+    return gameState.scene?.state.round ?? 1;
+}
+
+/** Starts counting rounds again, e.g. when a new combat starts */
+export async function reset_round() {
+    if (!gameState.scene) return;
+    gameState.scene.state.round = 1;
     await update_initiative();
 }
 
@@ -223,6 +243,7 @@ export async function update_initiative() {
         PutScene.update_initiative(
             gameState.scene.state.initiative,
             gameState.scene.state.turn,
+            current_round(),
         ),
     );
 }

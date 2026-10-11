@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { fade } from "svelte/transition";
+    import { fade, fly } from "svelte/transition";
     import Marker from "./Marker.svelte";
     import {
-        appState,
+        current_round,
         gameState,
         get_sorted_initiative,
         update_initiative,
@@ -32,6 +32,21 @@
         ? 'pointer-events-none'
         : 'pointer-events-auto'}"
 >
+    {#if sorted_markers.length > 0}
+        <div
+            class="self-start mt-2 mr-1 p-1 px-2 frosted rounded-box flex flex-col items-center leading-none"
+            title="Kampfrunde"
+        >
+            <span class="text-[0.6rem] uppercase text-base-content/60"
+                >Runde</span
+            >
+            {#key current_round()}
+                <span class="text-2xl font-bold" in:fly={{ y: -10, duration: 300 }}
+                    >{current_round()}</span
+                >
+            {/key}
+        </div>
+    {/if}
     {#each sorted_markers as marker (marker.name)}
         <div
             animate:flip={{
