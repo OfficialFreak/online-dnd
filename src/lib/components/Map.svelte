@@ -144,14 +144,13 @@
             fogCtx.fillStyle = "#cccccc";
             fogCtx.fill();
 
-            if (
-                fogPattern &&
-                !(
-                    appState.mouseDown &&
-                    (appState.selectedTool === Tools.AddFog ||
-                        appState.selectedTool === Tools.RemoveFog)
-                )
-            ) {
+            // The blur is left out while painting. The tool goes first: reading
+            // mouseDown would redraw the fog on every click anywhere.
+            const painting =
+                (appState.selectedTool === Tools.AddFog ||
+                    appState.selectedTool === Tools.RemoveFog) &&
+                appState.mouseDown;
+            if (fogPattern && !painting) {
                 fogCtx.globalCompositeOperation = "source-in";
                 fogCtx.fillStyle = fogPattern;
                 fogCtx.filter = "blur(5px)";
