@@ -89,6 +89,14 @@
                     {/if}
                 </div>
                 <button
+                    class="btn btn-ghost btn-square btn-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    aria-label="Szene bearbeiten"
+                    title="Bearbeiten"
+                    onclick={() => dialogs.scene?.edit(scene)}
+                >
+                    <i class="fa-solid fa-pen"></i>
+                </button>
+                <button
                     class="btn btn-ghost btn-square btn-sm"
                     aria-label="Szene aktivieren"
                     title="Aktivieren"

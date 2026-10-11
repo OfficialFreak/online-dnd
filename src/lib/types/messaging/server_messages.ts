@@ -120,6 +120,8 @@ export interface Scene {
     _id: string;
     name: string;
     map_file: string;
+    background_file: string | null;
+    background_blur: number;
     rows: number;
     columns: number;
     x_offset: number;

@@ -53,7 +53,7 @@ export class SaveResult {
 }
 
 export class PutScene {
-    static create(name: string, map_file: string, background_file: string, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number, state: SceneState): string {
+    static create(name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number, state: SceneState): string {
         return JSON.stringify({
             type: "put_scene",
             name: name,
@@ -100,6 +100,24 @@ export class PutScene {
             type: "scene_initiative",
             initiative: initiative,
             turn: turn
+        });
+    }
+}
+
+export class UpdateScene {
+    /** Changes everything but the scene's state, a different name renames it */
+    static create(old_name: string, name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number): string {
+        return JSON.stringify({
+            type: "update_scene",
+            old_name: old_name,
+            name: name,
+            map_file: map_file,
+            background_file: background_file,
+            background_blur: background_blur,
+            columns: columns,
+            rows: rows,
+            x_offset: x_offset,
+            y_offset: y_offset
         });
     }
 }

@@ -1,13 +1,20 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { appState, dialogs } from "$lib/state.svelte";
-    import { PutScene } from "$lib/types/messaging/client_messages";
+    import { appState, dialogs, gameState } from "$lib/state.svelte";
+    import {
+        PutScene,
+        UpdateScene,
+    } from "$lib/types/messaging/client_messages";
+    import type { Scene } from "$lib/types/messaging/server_messages";
     import { MessageTypes, notify } from "$lib/notifications.svelte";
     import { file_stem_of, upload, uploadState } from "$lib/upload.svelte";
     import BlurredBackground from "./BlurredBackground.svelte";
     import Map from "./Map.svelte";
 
     let dialog: HTMLDialogElement | null = $state(null);
+
+    /** The scene being edited, null while creating a new one */
+    let editing: Scene | null = $state(null);
 
     let scene_name: string = $state("");
     let scene_file: string | null = $state(null);
@@ -18,7 +25,17 @@
     let scene_x_offset: number = $state(0);
     let scene_y_offset: number = $state(0);
 
+    /** Another scene already has this name */
+    let name_taken = $derived(
+        gameState.scenes.some(
+            (scene) =>
+                scene.name === scene_name.trim() &&
+                scene.name !== editing?.name,
+        ),
+    );
+
     function reset() {
+        editing = null;
         scene_name = "";
         scene_file = null;
         background_file = null;
@@ -36,8 +53,22 @@
         if (map_path) await upload_map(map_path);
     }
 
+    function edit(scene: Scene) {
+        reset();
+        editing = scene;
+        scene_name = scene.name;
+        scene_file = scene.map_file;
+        background_file = scene.background_file ?? null;
+        background_blur = scene.background_blur ?? 10;
+        scene_columns = scene.columns;
+        scene_rows = scene.rows;
+        scene_x_offset = scene.x_offset;
+        scene_y_offset = scene.y_offset;
+        dialog?.showModal();
+    }
+
     onMount(() => {
-        dialogs.scene = { open };
+        dialogs.scene = { open, edit };
         return () => {
             dialogs.scene = null;
         };
@@ -59,53 +90,96 @@
         return Number.isFinite(number) ? Math.max(number, min) : fallback;
     }
 
-    async function create_scene() {
+    async function save_scene() {
         if (!appState.ws || !scene_file) {
             return;
         }
-        if (!scene_name.trim()) {
+        const name = scene_name.trim();
+        if (!name) {
             notify("Bitte gib der Szene einen Namen", MessageTypes.Error, 3000);
             return;
         }
 
-        // @ts-ignore
-        await appState.ws.send(
-            PutScene.create(
-                scene_name.trim(),
-                scene_file,
-                background_file as string,
-                to_int(background_blur, 10, 0),
-                to_int(scene_columns, 10, 1),
-                to_int(scene_rows, 10, 1),
-                to_int(scene_x_offset, 0),
-                to_int(scene_y_offset, 0),
-                {
+        const columns = to_int(scene_columns, 10, 1);
+        // The rows are measured on the preview, which may not have loaded yet. They only
+        // change with the map or the columns, and the fog is adjusted to them.
+        const rows =
+            editing &&
+            scene_file === editing.map_file &&
+            columns === editing.columns
+                ? editing.rows
+                : to_int(scene_rows, 10, 1);
+        const settings = [
+            name,
+            scene_file,
+            background_file,
+            to_int(background_blur, 10, 0),
+            columns,
+            rows,
+            to_int(scene_x_offset, 0),
+            to_int(scene_y_offset, 0),
+        ] as const;
+
+        if (editing) {
+            if (name_taken) {
+                notify(
+                    "Eine andere Szene hat schon diesen Namen",
+                    MessageTypes.Error,
+                    3000,
+                );
+                return;
+            }
+            await appState.ws.send(UpdateScene.create(editing.name, ...settings));
+            notify("Szene gespeichert", MessageTypes.Success, 3000);
+        } else {
+            await appState.ws.send(
+                PutScene.create(...settings, {
                     fog_squares: {},
                     markers: [],
                     initiative: [],
                     turn: null,
-                },
-            ),
-        );
+                }),
+            );
+            notify(
+                name_taken ? "Szene ersetzt" : "Szene erstellt",
+                MessageTypes.Success,
+                3000,
+            );
+        }
 
-        // Reset variables after
         reset();
         dialog?.close();
-        notify("Szene erstellt", MessageTypes.Success, 3000);
     }
 </script>
 
 <dialog bind:this={dialog} class="modal scrollbar-gutter-affected">
     <div class="modal-box">
-        <h3 class="text-lg font-bold">Szene erstellen</h3>
+        <h3 class="text-lg font-bold">
+            {editing ? "Szene bearbeiten" : "Szene erstellen"}
+        </h3>
         <fieldset class="fieldset">
             <legend class="fieldset-legend">Szenenname</legend>
             <input
                 type="text"
                 bind:value={scene_name}
-                class="input"
+                class="input {name_taken
+                    ? editing
+                        ? 'input-error'
+                        : 'input-warning'
+                    : ''}"
                 placeholder="Goblinlager"
             />
+            {#if name_taken}
+                <p
+                    class="fieldset-label {editing
+                        ? 'text-error'
+                        : 'text-warning'}"
+                >
+                    {editing
+                        ? "Eine andere Szene hat schon diesen Namen."
+                        : "Eine Szene mit diesem Namen gibt es schon. Sie wird samt Markern und Nebel ersetzt."}
+                </p>
+            {/if}
 
             {#if !scene_file}
                 <button
@@ -130,6 +204,11 @@
                     class="input"
                     placeholder="10"
                 />
+                {#if editing && to_int(scene_columns, 10, 1) !== editing.columns}
+                    <p class="fieldset-label">
+                        Der Nebel wird an das neue Raster angepasst.
+                    </p>
+                {/if}
 
                 <legend class="fieldset-legend">X-Offset</legend>
                 <input
@@ -158,6 +237,20 @@
                         markers={[]}
                     />
                 </div>
+                <button
+                    class="btn btn-sm btn-ghost self-start"
+                    disabled={uploadState.uploading}
+                    onclick={() => {
+                        upload_map();
+                    }}
+                >
+                    {#if uploadState.uploading}
+                        <span class="loading loading-spinner loading-xs"></span>
+                    {:else}
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                    {/if}
+                    Andere Map hochladen
+                </button>
 
                 {#if !background_file}
                     <button
@@ -195,15 +288,41 @@
                             position={"relative"}
                         />
                     </div>
+                    <div class="flex flex-row gap-1">
+                        <button
+                            class="btn btn-sm btn-ghost"
+                            disabled={uploadState.uploading}
+                            onclick={() => {
+                                upload_background();
+                            }}
+                        >
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                            Anderes Hintergrundbild
+                        </button>
+                        <button
+                            class="btn btn-sm btn-ghost"
+                            onclick={() => (background_file = null)}
+                        >
+                            <i class="fa-solid fa-xmark"></i>
+                            Entfernen
+                        </button>
+                    </div>
                 {/if}
 
-                <button class="btn btn-neutral mt-4" onclick={create_scene}>
-                    Scene erstellen
+                <button
+                    class="btn mt-4 {name_taken && !editing
+                        ? 'btn-warning'
+                        : 'btn-neutral'}"
+                    disabled={(name_taken && !!editing) ||
+                        uploadState.uploading}
+                    onclick={save_scene}
+                >
+                    {editing
+                        ? "Speichern"
+                        : name_taken
+                          ? "Szene ersetzen"
+                          : "Szene erstellen"}
                 </button>
-                <p class="fieldset-label">
-                    Du kannst Szenen überschreiben indem du eine Neue Szene
-                    mit gleichem Namen erstellst.
-                </p>
             {/if}
         </fieldset>
     </div>
