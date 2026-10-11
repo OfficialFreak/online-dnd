@@ -1,21 +1,91 @@
 import { appState, ensureStore } from "./state.svelte";
 
 /** Looks for the dice, in static/assets/themes. Some of them can be colored. */
-export const DICE_THEMES: {
+export type DiceTheme = {
     theme: string;
     label: string;
     colorable: boolean;
-}[] = [
-    { theme: "default", label: "Klassisch", colorable: true },
-    { theme: "smooth", label: "Glatt", colorable: true },
-    { theme: "gemstone", label: "Edelstein", colorable: true },
-    { theme: "rock", label: "Stein", colorable: true },
-    { theme: "rust", label: "Rost", colorable: true },
-    { theme: "wooden", label: "Holz", colorable: false },
-    { theme: "blueGreenMetal", label: "Altes Metall", colorable: false },
-    { theme: "gemstoneMarble", label: "Regenbogenmarmor", colorable: false },
-    { theme: "diceOfRolling", label: "Dice of Rolling", colorable: false },
+    /** Texture for previews: one for colorable themes with numbers in "light" and "dark" */
+    texture: string | { light: string; dark: string };
+};
+
+const colored = (light: string, dark: string) => ({ light, dark });
+
+export const DICE_THEMES: DiceTheme[] = [
+    {
+        theme: "default",
+        label: "Klassisch",
+        colorable: true,
+        texture: colored("diffuse-light.png", "diffuse-dark.png"),
+    },
+    {
+        theme: "smooth",
+        label: "Glatt",
+        colorable: true,
+        texture: colored("diffuse-light.png", "diffuse-dark.png"),
+    },
+    {
+        theme: "gemstone",
+        label: "Edelstein",
+        colorable: true,
+        texture: colored("gemstone-light.png", "gemstone-dark.png"),
+    },
+    {
+        theme: "rock",
+        label: "Stein",
+        colorable: true,
+        texture: colored("diffuse-light.png", "diffuse-dark.png"),
+    },
+    {
+        theme: "rust",
+        label: "Rost",
+        colorable: true,
+        texture: colored("diffuse-light.png", "diffuse-dark.png"),
+    },
+    {
+        theme: "wooden",
+        label: "Holz",
+        colorable: false,
+        texture: "diffuse.jpg",
+    },
+    {
+        theme: "blueGreenMetal",
+        label: "Altes Metall",
+        colorable: false,
+        texture: "diffuse.jpg",
+    },
+    {
+        theme: "gemstoneMarble",
+        label: "Regenbogenmarmor",
+        colorable: false,
+        texture: "diffuse.jpg",
+    },
+    {
+        theme: "diceOfRolling",
+        label: "Dice of Rolling",
+        colorable: false,
+        texture: "diffuse.jpg",
+    },
 ];
+
+/** Like dice-box: light dice get dark numbers */
+function is_light(color: string) {
+    const value = parseInt(color.replace("#", ""), 16);
+    const r = (value >> 16) & 255;
+    const g = (value >> 8) & 255;
+    const b = value & 255;
+    return r * 0.299 + g * 0.587 + b * 0.114 > 175;
+}
+
+/** CSS that shows a theme's texture, in the color if it can be colored */
+export function theme_preview(entry: DiceTheme, color: string) {
+    const file =
+        typeof entry.texture === "string"
+            ? entry.texture
+            : entry.texture[is_light(color) ? "dark" : "light"];
+    const background = entry.colorable ? color : "#2a2a2a";
+    return `background-color: ${background}; background-image: url("/assets/themes/${entry.theme}/${file}");`;
+}
 
 export const DICE_COLORS = [
     "#aa55aa",
