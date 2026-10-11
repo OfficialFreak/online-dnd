@@ -141,6 +141,14 @@ export const CONDITIONS: Record<string, Condition> = {
         aura: true,
         icon: "fa-brain",
     },
+    glowing: {
+        label: "Leuchtend",
+        color: "#ffd75e",
+        filter: "brightness(1.2) saturate(1.15)",
+        aura: true,
+        particles: { symbols: ["✨", "✨"], motion: "orbit" },
+        icon: "fa-sun",
+    },
 };
 
 /** Sorted by their German name, for picking them */
