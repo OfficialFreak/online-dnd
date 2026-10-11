@@ -29,6 +29,7 @@
 </script>
 
 <div
+    id="initiative-bar"
     transition:fade|global={{ duration: 100 }}
     class="flex flex-row gap-1 w-min {!gameState.dm
         ? 'pointer-events-none'

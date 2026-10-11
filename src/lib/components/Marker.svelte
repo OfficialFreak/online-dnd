@@ -24,6 +24,7 @@
     } from "$lib/conditions";
     import Display from "./Display.svelte";
     import ConditionEffects from "./ConditionEffects.svelte";
+    import { keep_in_view } from "$lib/keep-in-view";
 
     let {
         marker,
@@ -304,172 +305,163 @@
             <ConditionEffects {effects} />
         {/if}
         {#if gameState.dm && mapUse}
-            <ul
-                class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm !transition-none"
-                style="transform: scale({Math.min(1 / appState.zoom, 1)})"
+            <!-- Not a div, the avatar gives those a square shape -->
+            <section
+                class="dropdown-content bg-base-100 rounded-box z-1 w-84 p-3 shadow-sm flex flex-col gap-3 text-left cursor-default !transition-none"
+                style="transform: translateY(var(--shift, 0px)) scale({Math.min(
+                    1 / appState.zoom,
+                    1,
+                )})"
+                use:keep_in_view={{ below: "initiative-bar" }}
             >
-                <li>
-                    {#if scene_marker.monster}
-                        {@const monster = scene_marker.monster}
-                        <!-- The menu lays out its direct children in a row -->
-                        <div class="p-0 hover:bg-transparent">
-                            <div
-                                class="flex flex-row items-center gap-2 text-sm"
-                            >
-                                <i class="fa-solid fa-dragon"></i>
-                                <span class="flex-1"
-                                    >RK {monster.armor_class} · HG {monster.challenge_rating}</span
-                                >
-                                <!-- svelte-ignore node_invalid_placement_ssr -->
-                                <button
-                                    class="btn btn-xs btn-soft"
-                                    onclick={() =>
-                                        dialogs.monster?.show(monster.key)}
-                                    >Werte</button
-                                >
-                            </div>
-                        </div>
-                    {/if}
-                    <legend class="fieldset-legend pointer-events-none"
-                        >Name</legend
-                    >
-                    <input
-                        type="text"
-                        class="input"
-                        placeholder="Grom"
-                        bind:value={scene_marker.name}
-                        onfocus={record_undo}
-                        oninput={() => {
-                            if (gameState.scene?.state.turn === old_name) {
-                                gameState.scene.state.turn = scene_marker.name;
-                            }
-
-                            let initiative =
-                                gameState.scene?.state.initiative.find(
-                                    (initiative) => initiative[1] === old_name,
-                                );
-                            if (initiative) {
-                                initiative[1] = scene_marker.name;
-                            }
-
-                            old_name = scene_marker.name;
-                        }}
-                        onchange={throttled_save}
-                    />
-                    <legend class="fieldset-legend pointer-events-none"
-                        >Größe</legend
-                    >
-                    <input
-                        type="number"
-                        class="input"
-                        placeholder="1"
-                        min="1"
-                        max={gameState.scene?.columns || Infinity}
-                        bind:value={scene_marker.size}
-                        onfocus={record_undo}
-                        onchange={() => {
-                            if (!(Number(scene_marker.size) > 0)) {
-                                scene_marker.size = 1;
-                            }
-                            throttled_save();
-                        }}
-                    />
-                    {#if !connected_character}
-                        <legend class="fieldset-legend pointer-events-none"
-                            >Trefferpunkte</legend
+                {#if scene_marker.monster}
+                    {@const monster = scene_marker.monster}
+                    <div class="flex flex-row items-center gap-2 text-sm">
+                        <i class="fa-solid fa-dragon text-base-content/60"></i>
+                        <span class="flex-1"
+                            >RK {monster.armor_class} · HG {monster.challenge_rating}</span
                         >
-                        <!-- The menu lays out its direct children in a row -->
-                        <div class="p-0 hover:bg-transparent">
-                            <div class="flex flex-col gap-1">
-                                <div class="flex flex-row items-center gap-1">
-                                    <input
-                                        type="number"
-                                        class="input input-sm w-20"
-                                        min="0"
-                                        placeholder="–"
-                                        aria-label="Aktuelle Trefferpunkte"
-                                        bind:value={scene_marker.hp}
-                                        onfocus={record_undo}
-                                        onchange={throttled_save}
-                                    />
-                                    <span>/</span>
-                                    <input
-                                        type="number"
-                                        class="input input-sm w-20"
-                                        min="1"
-                                        placeholder="–"
-                                        aria-label="Maximale Trefferpunkte"
-                                        bind:value={scene_marker.max_hp}
-                                        onfocus={record_undo}
-                                        onchange={() => {
-                                            scene_marker.hp ??=
-                                                scene_marker.max_hp;
-                                            throttled_save();
-                                        }}
-                                    />
-                                </div>
-                                {#if scene_marker.max_hp}
-                                    {@const ratio = Math.max(
-                                        0,
-                                        Math.min(
-                                            1,
-                                            (scene_marker.hp ??
-                                                scene_marker.max_hp) /
-                                                scene_marker.max_hp,
-                                        ),
-                                    )}
-                                    <div
-                                        class="h-1.5 w-full rounded-full bg-base-content/10 overflow-hidden"
-                                    >
-                                        <div
-                                            class="h-full rounded-full transition-all {ratio >
-                                            0.5
-                                                ? 'bg-success'
-                                                : ratio > 0.25
-                                                  ? 'bg-warning'
-                                                  : 'bg-error'}"
-                                            style="width: {ratio * 100}%"
-                                        ></div>
-                                    </div>
-                                {/if}
-                                <div class="join">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        class="input input-sm join-item w-20"
-                                        placeholder="Wert"
-                                        aria-label="Schaden oder Heilung"
-                                        bind:value={hp_change}
-                                        onkeydown={(event) => {
-                                            if (event.key === "Enter") {
-                                                change_hp(-(hp_change ?? 0));
-                                            }
-                                        }}
-                                    />
-                                    <!-- svelte-ignore node_invalid_placement_ssr -->
-                                    <button
-                                        class="btn btn-sm btn-soft btn-error join-item"
-                                        title="Enter im Feld zieht auch ab"
-                                        onclick={() =>
-                                            change_hp(-(hp_change ?? 0))}
-                                        >Schaden</button
-                                    >
-                                    <!-- svelte-ignore node_invalid_placement_ssr -->
-                                    <button
-                                        class="btn btn-sm btn-soft btn-success join-item"
-                                        onclick={() => change_hp(hp_change ?? 0)}
-                                        >Heilung</button
-                                    >
-                                </div>
-                            </div>
+                        <!-- svelte-ignore node_invalid_placement_ssr -->
+                        <button
+                            class="btn btn-xs btn-soft"
+                            onclick={() => dialogs.monster?.show(monster.key)}
+                            >Werte</button
+                        >
+                    </div>
+                {/if}
+                <div class="flex flex-row gap-2">
+                    <fieldset class="fieldset flex-1 p-0">
+                        <legend class="fieldset-legend pt-0">Name</legend>
+                        <input
+                            type="text"
+                            class="input input-sm w-full"
+                            placeholder="Grom"
+                            bind:value={scene_marker.name}
+                            onfocus={record_undo}
+                            oninput={() => {
+                                if (gameState.scene?.state.turn === old_name) {
+                                    gameState.scene.state.turn =
+                                        scene_marker.name;
+                                }
+
+                                let initiative =
+                                    gameState.scene?.state.initiative.find(
+                                        (initiative) =>
+                                            initiative[1] === old_name,
+                                    );
+                                if (initiative) {
+                                    initiative[1] = scene_marker.name;
+                                }
+
+                                old_name = scene_marker.name;
+                            }}
+                            onchange={throttled_save}
+                        />
+                    </fieldset>
+                    <fieldset class="fieldset w-20 p-0">
+                        <legend class="fieldset-legend pt-0">Größe</legend>
+                        <input
+                            type="number"
+                            class="input input-sm w-full"
+                            placeholder="1"
+                            min="1"
+                            max={gameState.scene?.columns || Infinity}
+                            bind:value={scene_marker.size}
+                            onfocus={record_undo}
+                            onchange={() => {
+                                if (!(Number(scene_marker.size) > 0)) {
+                                    scene_marker.size = 1;
+                                }
+                                throttled_save();
+                            }}
+                        />
+                    </fieldset>
+                </div>
+                {#if !connected_character}
+                    <fieldset class="fieldset p-0">
+                        <legend class="fieldset-legend pt-0">Trefferpunkte</legend>
+                        <div class="flex flex-row items-center gap-2">
+                            <input
+                                type="number"
+                                class="input input-sm flex-1 min-w-0"
+                                min="0"
+                                placeholder="–"
+                                aria-label="Aktuelle Trefferpunkte"
+                                bind:value={scene_marker.hp}
+                                onfocus={record_undo}
+                                onchange={throttled_save}
+                            />
+                            <span class="text-base-content/50">/</span>
+                            <input
+                                type="number"
+                                class="input input-sm flex-1 min-w-0"
+                                min="1"
+                                placeholder="–"
+                                aria-label="Maximale Trefferpunkte"
+                                bind:value={scene_marker.max_hp}
+                                onfocus={record_undo}
+                                onchange={() => {
+                                    scene_marker.hp ??= scene_marker.max_hp;
+                                    throttled_save();
+                                }}
+                            />
                         </div>
-                    {/if}
-                    <legend class="fieldset-legend pointer-events-none"
-                        >Zustände</legend
-                    >
-                    <!-- The menu lays out its direct children in a row, so the grid needs a wrapper -->
-                    <div class="p-0 hover:bg-transparent">
-                    <div class="grid grid-cols-3 gap-1 w-80">
+                        {#if scene_marker.max_hp}
+                            {@const ratio = Math.max(
+                                0,
+                                Math.min(
+                                    1,
+                                    (scene_marker.hp ?? scene_marker.max_hp) /
+                                        scene_marker.max_hp,
+                                ),
+                            )}
+                            <div
+                                class="h-1.5 w-full rounded-full bg-base-content/10 overflow-hidden"
+                            >
+                                <div
+                                    class="h-full rounded-full transition-all {ratio >
+                                    0.5
+                                        ? 'bg-success'
+                                        : ratio > 0.25
+                                          ? 'bg-warning'
+                                          : 'bg-error'}"
+                                    style="width: {ratio * 100}%"
+                                ></div>
+                            </div>
+                        {/if}
+                        <div class="join w-full">
+                            <input
+                                type="number"
+                                min="0"
+                                class="input input-sm join-item flex-1 min-w-0"
+                                placeholder="Wert"
+                                aria-label="Schaden oder Heilung"
+                                bind:value={hp_change}
+                                onkeydown={(event) => {
+                                    if (event.key === "Enter") {
+                                        change_hp(-(hp_change ?? 0));
+                                    }
+                                }}
+                            />
+                            <!-- svelte-ignore node_invalid_placement_ssr -->
+                            <button
+                                class="btn btn-sm btn-soft btn-error join-item"
+                                title="Enter im Feld zieht auch ab"
+                                onclick={() => change_hp(-(hp_change ?? 0))}
+                                >Schaden</button
+                            >
+                            <!-- svelte-ignore node_invalid_placement_ssr -->
+                            <button
+                                class="btn btn-sm btn-soft btn-success join-item"
+                                onclick={() => change_hp(hp_change ?? 0)}
+                                >Heilung</button
+                            >
+                        </div>
+                    </fieldset>
+                {/if}
+                <fieldset class="fieldset p-0">
+                    <legend class="fieldset-legend pt-0">Zustände</legend>
+                    <div class="grid grid-cols-3 gap-1">
                         {#each CONDITION_KEYS as effect (effect)}
                             {@const active = scene_marker.status_effects
                                 ?.map(normalize_condition)
@@ -477,7 +469,7 @@
                             {@const color = CONDITIONS[effect].color}
                             <!-- svelte-ignore node_invalid_placement_ssr -->
                             <button
-                                class="btn btn-xs gap-1 px-1.5 justify-start {active
+                                class="btn btn-xs gap-1.5 px-1.5 justify-start {active
                                     ? 'font-semibold'
                                     : 'btn-ghost font-normal'}"
                                 style={active
@@ -498,13 +490,12 @@
                             </button>
                         {/each}
                     </div>
-                    </div>
-                </li>
-                <li class="mt-2 flex flex-row gap-1">
+                </fieldset>
+                <div class="grid grid-cols-2 gap-2">
                     {#if !gameState.scene?.state.initiative.some((initiative) => initiative[1] === scene_marker.name)}
                         <!-- svelte-ignore node_invalid_placement_ssr -->
                         <button
-                            class="btn btn-soft btn-info flex-1"
+                            class="btn btn-sm btn-soft btn-info"
                             title="Würfelt die Initiative für diesen Marker"
                             onclick={() => add_to_initiative(scene_marker)}
                         >
@@ -514,7 +505,7 @@
                     {:else}
                         <!-- svelte-ignore node_invalid_placement_ssr -->
                         <button
-                            class="btn btn-soft btn-warning flex-1"
+                            class="btn btn-sm btn-soft btn-warning"
                             onclick={async () => {
                                 if (!gameState.scene) return;
                                 let idx =
@@ -540,7 +531,7 @@
                     {/if}
                     <!-- svelte-ignore node_invalid_placement_ssr -->
                     <button
-                        class="btn btn-soft flex-1 {scene_marker.hidden
+                        class="btn btn-sm btn-soft {scene_marker.hidden
                             ? 'btn-warning'
                             : ''}"
                         title={scene_marker.hidden
@@ -561,16 +552,22 @@
                     </button>
                     <!-- svelte-ignore node_invalid_placement_ssr -->
                     <button
-                        class="btn btn-soft btn-error flex-1"
+                        class="btn btn-sm btn-soft btn-error col-span-2"
                         onclick={() => remove_markers([scene_marker.name])}
-                        >Entfernen</button
                     >
-                </li>
-            </ul>
+                        <i class="fa-solid fa-trash"></i>
+                        Entfernen
+                    </button>
+                </div>
+            </section>
         {:else if getCharacter(marker.name) && !appState.dragging && mapUse}
             <ul
                 class="dropdown-content menu z-1 p-0 shadow-sm w-80 flex flex-row justify-start items-start text-left !transition-none"
-                style="transform: scale({Math.min(0.8 / appState.zoom, 1)})"
+                style="transform: translateY(var(--shift, 0px)) scale({Math.min(
+                    0.8 / appState.zoom,
+                    1,
+                )})"
+                use:keep_in_view={{ below: "initiative-bar" }}
             >
                 <CharacterPreview character={getCharacter(marker.name)} />
             </ul>
