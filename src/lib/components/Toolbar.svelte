@@ -23,6 +23,7 @@
         drawState,
     } from "../state.svelte";
     import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
+    import { keep_in_view } from "$lib/keep-in-view";
     import { fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
@@ -311,7 +312,7 @@
 >
     {#if toolbarState.panel}
         <div
-            class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col transition-shadow {fileDropState.over &&
+            class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-shadow {fileDropState.over &&
             fileDropState.over === toolbarState.panel
                 ? 'ring-4 ring-info'
                 : ''}"
@@ -462,21 +463,16 @@
                         : ''}"
                     aria-label="Fog"><i class="fa-solid fa-cloud"></i></button
                 >
-                <ul
-                    class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 shadow-sm"
+                <div
+                    class="dropdown-content bg-base-100 rounded-box z-1 w-56 p-3 shadow-sm flex flex-col gap-3"
+                    style="transform: translateY(var(--shift, 0px))"
+                    use:keep_in_view
                 >
-                    <li>
-                        <h3
-                            class="-ml-2 font-bold pointer-events-none -my-1 text-base"
-                        >
-                            Nebel
-                        </h3>
-                        <legend
-                            class="-ml-2 fieldset-legend pointer-events-none"
-                            >Spieler wählen</legend
-                        >
+                    <h3 class="font-bold">Nebel</h3>
+                    <fieldset class="fieldset p-0">
+                        <legend class="fieldset-legend pt-0">Spieler wählen</legend>
                         <select
-                            class="select select-sm !bg-[var(--color-base-100)]"
+                            class="select select-sm w-full"
                             bind:value={fogState.selected_player}
                         >
                             <option value="all">Alle</option>
@@ -487,51 +483,45 @@
                                 >
                             {/each}
                         </select>
-                    </li>
-                    <li>
-                        <legend
-                            class="-ml-2 fieldset-legend pointer-events-none"
-                            >Pinsel</legend
-                        >
-                        <!-- The menu lays out its direct children in a row -->
-                        <div class="p-0 hover:bg-transparent">
-                            <div class="flex flex-row gap-1">
-                                <div class="join">
-                                    {#each [1, 3, 5] as brush}
-                                        <button
-                                            class="btn btn-xs join-item {fogState.shape ===
-                                                'brush' &&
-                                            fogState.brush === brush
-                                                ? 'btn-info'
-                                                : ''}"
-                                            title="{brush} × {brush} Felder"
-                                            onclick={() => {
-                                                fogState.shape = "brush";
-                                                fogState.brush = brush;
-                                            }}>{brush}</button
-                                        >
-                                    {/each}
-                                </div>
-                                <button
-                                    class="btn btn-xs {fogState.shape === 'rect'
-                                        ? 'btn-info'
-                                        : ''}"
-                                    title="Ein Rechteck aufziehen, geht auch mit gedrückter Shift-Taste"
-                                    onclick={() => (fogState.shape = "rect")}
-                                >
-                                    <i class="fa-regular fa-square"></i> Rechteck
-                                </button>
+                    </fieldset>
+                    <fieldset class="fieldset p-0">
+                        <legend class="fieldset-legend pt-0">Pinsel</legend>
+                        <div class="flex flex-row gap-1">
+                            <div class="join">
+                                {#each [1, 3, 5] as brush}
+                                    <button
+                                        class="btn btn-sm btn-square join-item {fogState.shape ===
+                                            'brush' && fogState.brush === brush
+                                            ? 'btn-info'
+                                            : ''}"
+                                        title="{brush} × {brush} Felder"
+                                        onclick={() => {
+                                            fogState.shape = "brush";
+                                            fogState.brush = brush;
+                                        }}>{brush}</button
+                                    >
+                                {/each}
                             </div>
+                            <button
+                                class="btn btn-sm flex-1 {fogState.shape ===
+                                'rect'
+                                    ? 'btn-info'
+                                    : ''}"
+                                title="Ein Rechteck aufziehen, geht auch mit gedrückter Shift-Taste"
+                                onclick={() => (fogState.shape = "rect")}
+                            >
+                                <i class="fa-regular fa-square"></i> Rechteck
+                            </button>
                         </div>
-                    </li>
-                    <li class="flex flex-row gap-1 mt-1">
-                        <div class="tooltip tooltip-bottom p-0 rounded-box">
+                    </fieldset>
+                    <div class="grid grid-cols-4 gap-1">
+                        <div class="tooltip tooltip-bottom">
                             <div class="tooltip-content">
                                 Nebel hinzufügen <kbd class="kbd">F</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
+                                class="btn btn-sm w-full {appState.selectedTool ===
                                 Tools.AddFog
                                     ? 'btn-info'
                                     : ''}"
@@ -543,13 +533,13 @@
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                         </div>
-                        <div class="tooltip tooltip-bottom p-0 rounded-box">
+                        <div class="tooltip tooltip-bottom">
                             <div class="tooltip-content">
                                 Nebel entfernen <kbd class="kbd">G</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
+                                class="btn btn-sm w-full {appState.selectedTool ===
                                 Tools.RemoveFog
                                     ? 'btn-info'
                                     : ''}"
@@ -561,36 +551,36 @@
                                 <i class="fa-solid fa-eraser"></i>
                             </button>
                         </div>
-                        <div class="tooltip tooltip-bottom p-0 rounded-box">
+                        <div class="tooltip tooltip-bottom">
                             <div class="tooltip-content">
                                 Alles ausfüllen <kbd class="kbd">SHIFT</kbd> +
                                 <kbd class="kbd">F</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm rounded-box"
+                                class="btn btn-sm w-full"
                                 aria-label="Alles ausfüllen"
                                 onclick={fillAll}
                             >
                                 <i class="fa-solid fa-fill-drip"></i>
                             </button>
                         </div>
-                        <div class="tooltip tooltip-bottom p-0 rounded-box">
+                        <div class="tooltip tooltip-bottom">
                             <div class="tooltip-content">
                                 Alles entfernen <kbd class="kbd">SHIFT</kbd> +
                                 <kbd class="kbd">G</kbd>
                             </div>
                             <button
                                 tabindex="0"
-                                class="btn btn-square btn-sm rounded-box"
+                                class="btn btn-sm w-full"
                                 aria-label="Alles entfernen"
                                 onclick={removeAll}
                             >
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
-                    </li>
-                </ul>
+                    </div>
+                </div>
             </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
@@ -710,7 +700,7 @@
                 </button>
             </div>
         {/if}
-        <div class="dropdown dropdown-right dropdown-hover">
+        <div class="dropdown dropdown-right dropdown-end dropdown-hover">
             <button
                 tabindex="0"
                 class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
@@ -721,79 +711,70 @@
                 onclick={() => selectTool(Tools.Draw)}
                 ><i class="fa-solid fa-pen-ruler"></i></button
             >
-            <ul
-                class="dropdown-content menu bg-base-100 rounded-box z-1 w-60 shadow-sm"
+            <div
+                class="dropdown-content bg-base-100 rounded-box z-1 w-64 p-3 shadow-sm flex flex-col gap-3"
+                style="transform: translateY(var(--shift, 0px))"
+                use:keep_in_view
             >
-                <li>
-                    <h3
-                        class="-ml-2 font-bold pointer-events-none -my-1 text-base"
+                <h3 class="font-bold flex flex-row items-center gap-2">
+                    Zeichnen <kbd class="kbd kbd-sm">D</kbd>
+                </h3>
+                <div class="join w-full">
+                    {#each DRAWING_KINDS as { kind, label, icon }}
+                        <button
+                            class="btn btn-sm join-item flex-1 {drawState.kind ===
+                            kind
+                                ? 'btn-info'
+                                : ''}"
+                            title={label}
+                            aria-label={label}
+                            onclick={() => {
+                                drawState.kind = kind;
+                                appState.selectedTool = Tools.Draw;
+                            }}
+                        >
+                            <i class="fa-solid {icon}"></i>
+                        </button>
+                    {/each}
+                </div>
+                <div class="flex flex-row flex-wrap gap-2">
+                    {#each DRAWING_COLORS as color}
+                        <button
+                            class="w-5 h-5 rounded-full border border-base-content/30 cursor-pointer {drawState.color ===
+                            color
+                                ? 'ring-2 ring-info ring-offset-1 ring-offset-base-100'
+                                : ''}"
+                            style="background: {color}"
+                            aria-label="Farbe {color}"
+                            onclick={() => (drawState.color = color)}
+                        ></button>
+                    {/each}
+                </div>
+                <p class="text-xs text-base-content/60">
+                    Flächen wachsen in 5-ft-Schritten. Mit <kbd
+                        class="kbd kbd-xs">Strg</kbd
+                    > startest du an einer Rasterecke, Rechtsklick löscht eine Zeichnung.
+                </p>
+                <div class="grid grid-cols-2 gap-1">
+                    <button
+                        class="btn btn-sm {gameState.dm ? '' : 'col-span-2'}"
+                        onclick={() =>
+                            appState.ws?.send(
+                                DeleteDrawings.create({
+                                    owner: gameState.name,
+                                }),
+                            )}>Meine löschen</button
                     >
-                        <span>Zeichnen <kbd class="kbd kbd-sm">D</kbd></span>
-                    </h3>
-                    <!-- The menu lays out its direct children in a row -->
-                    <div class="p-0 hover:bg-transparent">
-                        <div class="flex flex-col gap-2">
-                            <div class="join">
-                                {#each DRAWING_KINDS as { kind, label, icon }}
-                                    <button
-                                        class="btn btn-sm btn-square join-item {drawState.kind ===
-                                        kind
-                                            ? 'btn-info'
-                                            : ''}"
-                                        title={label}
-                                        aria-label={label}
-                                        onclick={() => {
-                                            drawState.kind = kind;
-                                            appState.selectedTool = Tools.Draw;
-                                        }}
-                                    >
-                                        <i class="fa-solid {icon}"></i>
-                                    </button>
-                                {/each}
-                            </div>
-                            <div class="flex flex-row flex-wrap gap-1">
-                                {#each DRAWING_COLORS as color}
-                                    <button
-                                        class="w-5 h-5 rounded-full border border-base-content/30 {drawState.color ===
-                                        color
-                                            ? 'ring-2 ring-info ring-offset-1 ring-offset-base-100'
-                                            : ''}"
-                                        style="background: {color}"
-                                        aria-label="Farbe {color}"
-                                        onclick={() => (drawState.color = color)}
-                                    ></button>
-                                {/each}
-                            </div>
-                            <p class="text-xs text-base-content/60">
-                                Flächen wachsen in 5-ft-Schritten. Mit <kbd
-                                    class="kbd kbd-xs">Strg</kbd
-                                > startest du an einer Rasterecke, Rechtsklick löscht
-                                eine Zeichnung.
-                            </p>
-                            <div class="flex flex-row gap-1">
-                                <button
-                                    class="btn btn-xs flex-1"
-                                    onclick={() =>
-                                        appState.ws?.send(
-                                            DeleteDrawings.create({
-                                                owner: gameState.name,
-                                            }),
-                                        )}>Meine löschen</button
-                                >
-                                {#if gameState.dm}
-                                    <button
-                                        class="btn btn-xs btn-error btn-soft flex-1"
-                                        onclick={() =>
-                                            appState.ws?.send(
-                                                DeleteDrawings.create({}),
-                                            )}>Alle löschen</button
-                                    >
-                                {/if}
-                            </div>
-                        </div>
-                    </div>
-                </li>
-            </ul>
+                    {#if gameState.dm}
+                        <button
+                            class="btn btn-sm btn-error btn-soft"
+                            onclick={() =>
+                                appState.ws?.send(DeleteDrawings.create({}))}
+                            >Alle löschen</button
+                        >
+                    {/if}
+                </div>
+            </div>
         </div>
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
