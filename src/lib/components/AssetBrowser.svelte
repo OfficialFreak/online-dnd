@@ -173,14 +173,32 @@
                             ></i>
                         {/if}
                     </div>
+                    <span
+                        class="badge badge-xs badge-neutral absolute top-2 left-2 gap-1 pointer-events-none"
+                    >
+                        <i
+                            class="fa-solid {kind === 'image'
+                                ? 'fa-image'
+                                : kind === 'video'
+                                  ? 'fa-film'
+                                  : kind === 'audio'
+                                    ? 'fa-music'
+                                    : 'fa-file'}"
+                        ></i>
+                    </span>
                     <span class="text-xs truncate" title={asset.name}
                         >{asset_title(asset.name)}</span
                     >
-                    <span class="text-xs text-base-content/50"
-                        >{megabytes(asset.size)}{asset.used
-                            ? ""
-                            : " · unbenutzt"}</span
+                    <span
+                        class="text-xs text-base-content/50 flex flex-row items-center gap-1"
                     >
+                        {megabytes(asset.size)}
+                        {#if !asset.used}
+                            <span class="badge badge-xs badge-warning badge-soft"
+                                >unbenutzt</span
+                            >
+                        {/if}
+                    </span>
                     {#if !picking && !asset.used}
                         <button
                             class="btn btn-xs absolute top-2 right-2 {confirm_delete ===

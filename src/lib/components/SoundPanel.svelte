@@ -131,8 +131,15 @@
         <div
             class="flex flex-row items-center gap-2 p-2 rounded-box bg-info/15"
         >
-            <i class="fa-solid fa-music animate-pulse"></i>
-            <span class="flex-1 truncate">{audioState.music.name}</span>
+            <span class="equalizer" aria-hidden="true"
+                ><span></span><span></span><span></span><span></span></span
+            >
+            <span class="flex-1 min-w-0 leading-tight">
+                <span class="block text-xs text-base-content/60">Läuft gerade</span>
+                <span class="block truncate font-semibold"
+                    >{audioState.music.name}</span
+                >
+            </span>
             <button
                 class="btn btn-sm"
                 onclick={() => appState.ws?.send(StopMusic.create())}
@@ -170,3 +177,50 @@
         {/if}
     </button>
 </div>
+
+<style>
+    /* Bars that bounce while music plays */
+    .equalizer {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 1.1rem;
+        color: var(--color-info);
+    }
+
+    .equalizer span {
+        width: 3px;
+        height: 100%;
+        border-radius: 1px;
+        background: currentColor;
+        transform-origin: bottom;
+        animation: bounce 0.9s ease-in-out infinite alternate;
+    }
+
+    .equalizer span:nth-child(2) {
+        animation-delay: -0.3s;
+    }
+
+    .equalizer span:nth-child(3) {
+        animation-delay: -0.6s;
+    }
+
+    .equalizer span:nth-child(4) {
+        animation-delay: -0.15s;
+    }
+
+    @keyframes bounce {
+        from {
+            scale: 1 0.25;
+        }
+        to {
+            scale: 1 1;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .equalizer span {
+            animation: none;
+        }
+    }
+</style>

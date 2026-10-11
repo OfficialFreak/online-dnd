@@ -113,7 +113,7 @@
                             <td>
                                 <input
                                     type="checkbox"
-                                    class="toggle toggle-sm"
+                                    class="toggle toggle-sm toggle-primary"
                                     checked={user.dm}
                                     disabled={self}
                                     title={self
@@ -173,8 +173,9 @@
                                     class="btn btn-xs {confirm ===
                                     `key:${user.name}`
                                         ? 'btn-warning'
-                                        : 'btn-ghost'}"
+                                        : 'btn-ghost btn-square'}"
                                     title="Neuer Schlüssel, der alte gilt nicht mehr"
+                                    aria-label="Neuer Schlüssel"
                                     onclick={() =>
                                         request(`key:${user.name}`, () => {
                                             appState.ws?.send(
@@ -183,9 +184,11 @@
                                             shown_key = user.name;
                                         })}
                                 >
-                                    {confirm === `key:${user.name}`
-                                        ? "Neu?"
-                                        : "Neuer Schlüssel"}
+                                    {#if confirm === `key:${user.name}`}
+                                        Neu?
+                                    {:else}
+                                        <i class="fa-solid fa-arrows-rotate"></i>
+                                    {/if}
                                 </button>
                                 {#if !self}
                                     <button
