@@ -728,7 +728,7 @@
                     <h3
                         class="-ml-2 font-bold pointer-events-none -my-1 text-base"
                     >
-                        Zeichnen <kbd class="kbd kbd-sm">D</kbd>
+                        <span>Zeichnen <kbd class="kbd kbd-sm">D</kbd></span>
                     </h3>
                     <!-- The menu lays out its direct children in a row -->
                     <div class="p-0 hover:bg-transparent">
