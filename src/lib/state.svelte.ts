@@ -278,6 +278,7 @@ export async function add_marker(marker: MarkerTemplate, x = 0, y = 0) {
             easing: circOut,
         }),
         status_effects: [],
+        hp: marker.max_hp ?? null,
     };
     let i = 1;
     while (

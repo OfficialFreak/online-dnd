@@ -94,6 +94,8 @@ export interface MarkerTemplate {
     name: string;
     size: number;
     file: string;
+    /** Hit points of the creature, placed markers start with them */
+    max_hp?: number | null;
 }
 
 export interface Marker {
@@ -105,6 +107,9 @@ export interface Marker {
     status_effects: string[];
     /** Only DMs see hidden markers, players don't get them at all */
     hidden?: boolean;
+    /** Hit points of creatures that aren't characters */
+    hp?: number | null;
+    max_hp?: number | null;
 }
 
 export interface SceneState {

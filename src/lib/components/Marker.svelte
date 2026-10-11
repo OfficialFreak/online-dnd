@@ -32,7 +32,14 @@
     let scene_marker = $derived(
         gameState.scene?.state.markers.find(
             (new_marker) => new_marker.name === marker.name,
-        ) || { name: "", size: 1, status_effects: [], hidden: false },
+        ) || {
+            name: "",
+            size: 1,
+            status_effects: [],
+            hidden: false,
+            hp: null,
+            max_hp: null,
+        },
     );
     let scene_marker_index = $derived(
         gameState.scene?.state.markers.findIndex(
@@ -104,6 +111,46 @@
     let prone = $derived(
         animated && conditions.some((condition) => condition.prone),
     );
+
+    /** A ring of hit points: a character's from D&D Beyond for everyone, other creatures' only for DMs */
+    let health = $derived(
+        connected_character
+            ? {
+                  current: connected_character.currentHealth,
+                  max: connected_character.maxHealth,
+              }
+            : gameState.dm && marker.max_hp
+              ? { current: marker.hp ?? marker.max_hp, max: marker.max_hp }
+              : null,
+    );
+    let health_degrees = $derived(
+        health ? Math.max(0, Math.min(1, health.current / health.max)) * 360 : 360,
+    );
+
+    let hp_change: number | null = $state(null);
+
+    /** Damage is negative. At 0 hit points the creature falls unconscious. */
+    function change_hp(delta: number) {
+        if (!delta) return;
+        const before = scene_marker.hp ?? scene_marker.max_hp ?? 0;
+        const after = Math.max(
+            0,
+            Math.min(scene_marker.max_hp ?? Infinity, before + delta),
+        );
+        scene_marker.hp = after;
+        const current = (scene_marker.status_effects ?? []).map(
+            normalize_condition,
+        );
+        if (after === 0 && !current.includes("unconscious")) {
+            scene_marker.status_effects = [...current, "unconscious"];
+        } else if (after > 0 && before === 0) {
+            scene_marker.status_effects = current.filter(
+                (effect) => effect !== "unconscious",
+            );
+        }
+        hp_change = null;
+        throttled_save();
+    }
 
     function toggle_condition(effect: string) {
         const current = (scene_marker.status_effects ?? []).map(
@@ -209,8 +256,8 @@
                 ? 'transition: width 0.05s ease-out'
                 : 'transition: transform 0.4s ease-out'}; transform: {prone
                 ? 'rotate(90deg)'
-                : 'none'}; animation: {animation || 'none'}; {connected_character
-                ? `background: conic-gradient(var(--background) ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg, #ff002b73 ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg) !important;`
+                : 'none'}; animation: {animation || 'none'}; {health
+                ? `background: conic-gradient(var(--background) ${health_degrees}deg, #ff002b73 ${health_degrees}deg) !important;`
                 : 'background: var(--background)'}"
         >
             <Display
@@ -284,6 +331,70 @@
                             throttled_save();
                         }}
                     />
+                    {#if !connected_character}
+                        <legend class="fieldset-legend pointer-events-none"
+                            >Trefferpunkte</legend
+                        >
+                        <!-- The menu lays out its direct children in a row -->
+                        <div class="p-0 hover:bg-transparent">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex flex-row items-center gap-1">
+                                    <input
+                                        type="number"
+                                        class="input input-sm w-20"
+                                        min="0"
+                                        placeholder="–"
+                                        aria-label="Aktuelle Trefferpunkte"
+                                        bind:value={scene_marker.hp}
+                                        onchange={throttled_save}
+                                    />
+                                    <span>/</span>
+                                    <input
+                                        type="number"
+                                        class="input input-sm w-20"
+                                        min="1"
+                                        placeholder="–"
+                                        aria-label="Maximale Trefferpunkte"
+                                        bind:value={scene_marker.max_hp}
+                                        onchange={() => {
+                                            scene_marker.hp ??=
+                                                scene_marker.max_hp;
+                                            throttled_save();
+                                        }}
+                                    />
+                                </div>
+                                <div class="join">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        class="input input-sm join-item w-20"
+                                        placeholder="Wert"
+                                        aria-label="Schaden oder Heilung"
+                                        bind:value={hp_change}
+                                        onkeydown={(event) => {
+                                            if (event.key === "Enter") {
+                                                change_hp(-(hp_change ?? 0));
+                                            }
+                                        }}
+                                    />
+                                    <!-- svelte-ignore node_invalid_placement_ssr -->
+                                    <button
+                                        class="btn btn-sm btn-soft btn-error join-item"
+                                        title="Enter im Feld zieht auch ab"
+                                        onclick={() =>
+                                            change_hp(-(hp_change ?? 0))}
+                                        >Schaden</button
+                                    >
+                                    <!-- svelte-ignore node_invalid_placement_ssr -->
+                                    <button
+                                        class="btn btn-sm btn-soft btn-success join-item"
+                                        onclick={() => change_hp(hp_change ?? 0)}
+                                        >Heilung</button
+                                    >
+                                </div>
+                            </div>
+                        </div>
+                    {/if}
                     <legend class="fieldset-legend pointer-events-none"
                         >Zustände</legend
                     >

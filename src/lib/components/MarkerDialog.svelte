@@ -18,6 +18,7 @@
     let marker_name = $state("");
     let marker_size = $state(1);
     let marker_file = $state("");
+    let marker_max_hp: number | null = $state(null);
 
     /** Another marker already has this name */
     let name_taken = $derived(
@@ -33,6 +34,7 @@
         marker_name = "";
         marker_size = 1;
         marker_file = "";
+        marker_max_hp = null;
     }
 
     /** Opens the dialog for a new marker. With a path, that file is uploaded as its image. */
@@ -49,6 +51,7 @@
         marker_name = marker.name;
         marker_size = marker.size;
         marker_file = marker.file;
+        marker_max_hp = marker.max_hp ?? null;
         dialog?.showModal();
     }
 
@@ -73,6 +76,8 @@
         }
         const size = Number(marker_size);
         const valid_size = Number.isFinite(size) && size > 0 ? size : 1;
+        const max_hp = Math.round(Number(marker_max_hp));
+        const valid_max_hp = max_hp > 0 ? max_hp : null;
 
         if (editing) {
             if (name_taken) {
@@ -84,12 +89,18 @@
                 return;
             }
             await appState.ws.send(
-                UpdateMarker.create(editing.name, name, marker_file, valid_size),
+                UpdateMarker.create(
+                    editing.name,
+                    name,
+                    marker_file,
+                    valid_size,
+                    valid_max_hp,
+                ),
             );
             notify("Marker gespeichert", MessageTypes.Success, 3000);
         } else {
             await appState.ws.send(
-                PutMarker.create(name, marker_file, valid_size),
+                PutMarker.create(name, marker_file, valid_size, valid_max_hp),
             );
             notify(
                 name_taken ? "Marker ersetzt" : "Marker erstellt",
@@ -141,6 +152,18 @@
             <p class="fieldset-label">
                 Die Größe gibt an, wie viele Spalten (und somit auch Zeilen)
                 der Marker einnimmt.
+            </p>
+            <legend class="fieldset-legend">Trefferpunkte</legend>
+            <input
+                type="number"
+                min="1"
+                bind:value={marker_max_hp}
+                class="input"
+                placeholder="Optional"
+            />
+            <p class="fieldset-label">
+                Platzierte Marker starten damit. Nur DMs sehen die
+                Trefferpunkte.
             </p>
 
             {#if !marker_file}

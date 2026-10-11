@@ -229,25 +229,27 @@ export class MarkerFreed {
 }
 
 export class PutMarker {
-    static create(name: string, file: string, size: number): string {
+    static create(name: string, file: string, size: number, max_hp: number | null = null): string {
         return JSON.stringify({
             type: "put_marker",
             name: name,
             file: file,
-            size: size
+            size: size,
+            max_hp: max_hp
         });
     }
 }
 
 export class UpdateMarker {
     /** A different name renames the marker */
-    static create(old_name: string, name: string, file: string, size: number): string {
+    static create(old_name: string, name: string, file: string, size: number, max_hp: number | null): string {
         return JSON.stringify({
             type: "update_marker",
             old_name: old_name,
             name: name,
             file: file,
-            size: size
+            size: size,
+            max_hp: max_hp
         });
     }
 }
