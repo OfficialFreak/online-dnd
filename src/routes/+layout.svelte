@@ -22,6 +22,7 @@
         get_own_character,
         resetGamestate,
         selection,
+        set_controls_open,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
@@ -41,6 +42,7 @@
         stop_music,
     } from "$lib/audio.svelte";
     import { onMount } from "svelte";
+    import { fly } from "svelte/transition";
     import { keep_in_view } from "$lib/keep-in-view";
     import {
         ImportCharacter,
@@ -312,6 +314,12 @@
                 } | null) || { value: null }
             ).value || "dark";
         html?.setAttribute("data-theme", appState.theme);
+        appState.controls_open =
+            (
+                (await appState.store.get("controls_open")) as
+                    | { value: boolean }
+                    | undefined
+            )?.value ?? false;
 
         await load_volume();
         await load_dice_skin();
@@ -972,6 +980,27 @@
                 {/if}
             </div>
         </button>
+        <!-- Folds the controls away and back, only a tap on it does -->
+        <button
+            class="h-[var(--titlebar)] w-11 pointer-coarse:w-14 flex justify-center items-center rounded-field cursor-pointer transition-colors hover:bg-base-content/10 {appState.controls_open
+                ? 'text-primary'
+                : 'text-base-content/70'}"
+            aria-label={appState.controls_open
+                ? "Steuerung einklappen"
+                : "Steuerung ausklappen"}
+            title={appState.controls_open
+                ? "Steuerung einklappen"
+                : "Steuerung ausklappen"}
+            aria-expanded={appState.controls_open}
+            onclick={() => set_controls_open(!appState.controls_open)}
+        >
+            <i class="fa-solid fa-sliders pointer-coarse:text-lg"></i>
+        </button>
+        {#if appState.controls_open}
+        <div
+            class="flex gap-2"
+            transition:fly={{ x: -12, duration: 150 }}
+        >
         {#if gameState.dm}
             <div
                 class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm pointer-events-none"
@@ -1082,6 +1111,8 @@
                 </label>
             </div>
         </div>
+        </div>
+        {/if}
         {#if updating}
             <div
                 class="tooltip tooltip-bottom my-auto flex"

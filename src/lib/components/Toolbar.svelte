@@ -12,6 +12,7 @@
         previous_turn,
         get_own_character,
         togglePanel,
+        set_controls_open,
         place_party,
         reset_round,
         record_undo,
@@ -334,6 +335,11 @@
         scroll_container.scrollTop = 0;
     });
 
+    // A panel opened by a shortcut or elsewhere brings the folded away controls back
+    $effect(() => {
+        if (toolbarState.panel && !appState.controls_open) set_controls_open(true);
+    });
+
     // The server echoes this back to everyone, which updates gameState.pressure
     async function toggle_pressure() {
         if (!appState.ws) return;
@@ -353,6 +359,7 @@
     }}
 />
 
+{#if appState.controls_open}
 <div
     class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row gap-1 pointer-events-none"
 >
@@ -917,3 +924,4 @@
         </div>
     </div>
 </div>
+{/if}

@@ -60,6 +60,8 @@ export const appState = $state({
     map_aspect: null as number | null,
     ctrlPressed: false,
     mouseDown: false,
+    /** The toolbar and the buttons of the title bar, folded away until opened */
+    controls_open: false,
     theme: null as string | null,
     map_confetti_function: (() => {}) as () => {} as
         | (() => void)
@@ -203,6 +205,19 @@ export const toolbarState = $state({
 
 export function togglePanel(panel: Panel) {
     toolbarState.panel = toolbarState.panel === panel ? null : panel;
+}
+
+/** Shows or folds away the controls, and remembers it on this device */
+export async function set_controls_open(open: boolean) {
+    appState.controls_open = open;
+    // Folded away, nothing of them stays active unseen
+    if (!open) {
+        toolbarState.panel = null;
+        appState.selectedTool = Tools.None;
+    }
+    await ensureStore();
+    await appState.store.set("controls_open", { value: open });
+    await appState.store.save();
 }
 
 /** What the drawing tool draws next */
