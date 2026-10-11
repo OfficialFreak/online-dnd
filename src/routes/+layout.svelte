@@ -16,6 +16,7 @@
         modals,
         dialogs,
         remember_roll,
+        roller,
         assetState,
         adminState,
         get_own_character,
@@ -43,6 +44,7 @@
         EventType,
         MessageType,
         parseServerMessage,
+        type AnyRoll,
     } from "$lib/types/messaging/server_messages";
     // @ts-ignore
     import confetti from "canvas-confetti";
@@ -291,7 +293,7 @@
     $effect(() => {
         const ws = appState.ws;
         if (!ws) return;
-        const unlisten = ws.addListener((msg) => {
+        const unlisten = ws.addListener(async (msg) => {
             if (appState.ws !== ws || msg.type != "Text") return;
             let message = parseServerMessage(msg.data);
             switch (message.type) {
@@ -389,6 +391,8 @@
                     break;
                 case MessageType.ROLL_RESULT:
                     remember_roll(message);
+                    // Everyone sees the dice land first
+                    await after_dice(message);
                     notify(
                         `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${mode_suffix(message.mode, message.d20s)}${message.dm_only ? " [DM Only]" : ""}`,
                         MessageTypes.Info,
@@ -549,6 +553,7 @@
                     break;
                 case MessageType.CHECK_RESULT:
                     remember_roll(message);
+                    await after_dice(message);
                     notify(
                         `${message.sender} (${stat_label(message.stat)}${message.stat === "initiative" ? "" : "-Check"}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
@@ -557,6 +562,7 @@
                     break;
                 case MessageType.SAVE_RESULT:
                     remember_roll(message);
+                    await after_dice(message);
                     notify(
                         `${message.sender} (${stat_label(message.stat)}-Rettungswurf): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
@@ -575,6 +581,15 @@
         ws.send(InitialMessage.create());
         return unlisten;
     });
+
+    /** Waits until everyone saw the dice of somebody else's roll land */
+    async function after_dice(roll: AnyRoll) {
+        try {
+            await roller.replay?.(roll);
+        } catch (e) {
+            console.error("Showing the dice of a roll failed", e);
+        }
+    }
 
     async function importCharacter() {
         if (!appState.ws) return;

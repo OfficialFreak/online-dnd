@@ -1,4 +1,5 @@
 import type { AnyRoll } from "./types/messaging/server_messages";
+import type { DiceReplay } from "./dice-sync";
 
 export type RollMode = "normal" | "advantage" | "disadvantage";
 
@@ -12,7 +13,16 @@ export type RollOutcome = {
     single_roll: boolean;
     mode: RollMode;
     d20s: number[];
+    /** Recognizes the roll when the server sends it back */
+    roll_id: string;
+    /** How the dice moved, for everyone else to see, null if that isn't possible */
+    replay: DiceReplay | null;
 };
+
+/** What goes along with a roll so everyone sees the same dice */
+export function shared_roll(outcome: RollOutcome) {
+    return { roll_id: outcome.roll_id, replay: outcome.replay };
+}
 
 const STAT_LABELS: Record<string, string> = {
     strength: "Stärke",

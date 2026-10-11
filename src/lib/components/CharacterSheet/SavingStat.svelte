@@ -1,6 +1,7 @@
 <script lang="ts">
     import { SaveResult } from "$lib/types/messaging/client_messages";
     import { appState, roller } from "../../state.svelte";
+    import { shared_roll } from "$lib/rolls";
 
     let { stat, character } = $props();
 
@@ -24,6 +25,7 @@
                 tmp_modifier,
                 result.mode,
                 result.d20s,
+                shared_roll(result),
             ),
         );
     }

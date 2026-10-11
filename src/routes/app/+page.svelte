@@ -12,6 +12,7 @@
         remember_roll,
     } from "../../lib/state.svelte";
     import { MessageType } from "$lib/types/messaging/server_messages";
+    import { shared_roll } from "$lib/rolls";
     import { connect } from "../../lib/connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
@@ -112,6 +113,7 @@
                     dice.join(" + "),
                     result.mode,
                     result.d20s,
+                    shared_roll(result),
                 ),
             );
         }

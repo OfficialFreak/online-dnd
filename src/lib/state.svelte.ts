@@ -214,7 +214,9 @@ export const roller: any = $state({ value: null });
 const MAX_ROLLS = 200;
 
 export function remember_roll(roll: RollEntry) {
-    gameState.rolls.push({ ...roll, time: roll.time ?? Date.now() });
+    // How the dice moved is big and only needed while they roll
+    const { replay, ...entry } = roll;
+    gameState.rolls.push({ ...entry, time: roll.time ?? Date.now() } as RollEntry);
     if (gameState.rolls.length > MAX_ROLLS) {
         gameState.rolls.splice(0, gameState.rolls.length - MAX_ROLLS);
     }

@@ -1,4 +1,5 @@
 import type { RollMode } from "$lib/rolls";
+import type { DiceReplay } from "$lib/dice-sync";
 import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
 import type { AssetInfo } from "$lib/assets";
@@ -90,6 +91,9 @@ interface Roll extends BaseServerMessage {
     d20s?: number[] | null;
     /** Milliseconds since 1970, set by the server */
     time?: number;
+    roll_id?: string | null;
+    /** How the dice moved, only when the roll happens, not in the history */
+    replay?: DiceReplay | null;
 }
 
 export interface RollResult extends Roll {

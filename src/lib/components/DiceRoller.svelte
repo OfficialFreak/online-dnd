@@ -1,4 +1,14 @@
 <script lang="ts">
+    // Before dice-box: it patches dice-box's physics worker while that loads
+    import {
+        dice_sync_available,
+        finish_recording,
+        replay_duration,
+        start_recording,
+        start_replay,
+        stop_replay,
+        type DiceReplay,
+    } from "../dice-sync";
     import { onMount } from "svelte";
     // @ts-ignore
     import DiceBox from "@3d-dice/dice-box";
@@ -11,6 +21,10 @@
         type RollMode,
         type RollOutcome,
     } from "../rolls";
+    import {
+        MessageType,
+        type AnyRoll,
+    } from "$lib/types/messaging/server_messages";
 
     const poop = confetti.shapeFromText({ text: "💩", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
@@ -30,6 +44,47 @@
     let single_roll = $derived(
         rolls.length === 1 && rolls[0].substring(0, 2) === "1d",
     );
+
+    /** Somebody else's roll being shown, with who rolled it and, once the dice landed, what came out */
+    let shown_roll: { sender: string; total: number | null } | null =
+        $state(null);
+    /** Called when the dice on screen have all landed */
+    let on_landed: (() => void) | null = null;
+    /** Rolls of this client, the server sends them back like everyone else's */
+    const own_rolls = new Set<string>();
+
+    // Only one roll is on screen at a time, the others wait for their turn
+    let queue: Promise<unknown> = Promise.resolve();
+    function enqueue<T>(task: () => Promise<T>): Promise<T> {
+        const run = queue.then(task, task);
+        queue = run.catch(() => {});
+        return run;
+    }
+
+    const sleep = (ms: number) =>
+        new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+    let modal_closed: (() => void) | null = null;
+
+    /** Gives the player a moment to read their own result before other dice come */
+    function modal_closes(max_ms: number) {
+        if (!modal?.open) return Promise.resolve();
+        return Promise.race([
+            new Promise<void>((resolve) => (modal_closed = resolve)),
+            sleep(max_ms),
+        ]);
+    }
+
+    /** Throws the dice and waits until they all landed */
+    function throw_dice(
+        notation: string[],
+        options: Record<string, unknown> = {},
+    ) {
+        const landed = new Promise<void>((resolve) => (on_landed = resolve));
+        diceBox.roll(notation, options);
+        return landed;
+    }
+
     onMount(() => {
         diceBox = new DiceBox({
             container: "#diceroller",
@@ -41,6 +96,14 @@
             resize: true,
         });
         diceBox.onRollComplete = (results: any) => {
+            const landed = on_landed;
+            on_landed = null;
+            // Somebody else's roll, its result came with the message
+            if (shown_roll !== null || !landed) {
+                landed?.();
+                return;
+            }
+
             // With advantage or disadvantage the d20 was rolled twice, only one of them counts
             const groups: number[][] = results.map(
                 (dice: {
@@ -96,71 +159,131 @@
                 });
             }
             modal?.showModal();
+            landed();
         };
 
         diceBox.init();
     });
 
-    roller.value = async function roll(
-        new_rolls: string[],
-        new_bonus: number,
-    ): Promise<RollOutcome> {
-        // Advantage and disadvantage need exactly one d20, which uses them up
-        const d20_index = new_rolls.findIndex(
-            (notation) => notation === "1d20" || notation === "d20",
-        );
-        const new_mode =
-            d20_index === -1 ||
-            new_rolls.some(
-                (notation, i) => i !== d20_index && notation.endsWith("d20"),
-            )
-                ? "normal"
-                : rollState.mode;
-        if (new_mode !== "normal") rollState.mode = "normal";
+    /** Ends the replay on screen early, a player's own roll doesn't wait for it */
+    let interrupt_replay: (() => void) | null = null;
 
-        const rollComplete = new Promise<void>((resolve) => {
-            const originalHandler = diceBox.onRollComplete;
+    roller.value = (new_rolls: string[], new_bonus: number) => {
+        interrupt_replay?.();
+        return enqueue(async (): Promise<RollOutcome> => {
+            // Advantage and disadvantage need exactly one d20, which uses them up
+            const d20_index = new_rolls.findIndex(
+                (notation) => notation === "1d20" || notation === "d20",
+            );
+            const new_mode =
+                d20_index === -1 ||
+                new_rolls.some(
+                    (notation, i) =>
+                        i !== d20_index && notation.endsWith("d20"),
+                )
+                    ? "normal"
+                    : rollState.mode;
+            if (new_mode !== "normal") rollState.mode = "normal";
+            const thrown =
+                new_mode === "normal"
+                    ? new_rolls
+                    : new_rolls.map((notation, i) =>
+                          i === d20_index ? "2d20" : notation,
+                      );
 
-            // Temporary one-time handler
-            diceBox.onRollComplete = (results: any) => {
-                if (originalHandler) originalHandler(results);
-                resolve();
-                diceBox.onRollComplete = originalHandler;
+            shown_roll = null;
+            diceBox.clear();
+            rolls = new_rolls;
+            bonus = new_bonus;
+            mode = new_mode;
+            d20s = [];
+            const roll_id = crypto.randomUUID();
+            own_rolls.add(roll_id);
+
+            const recording = await start_recording();
+            await throw_dice(thrown);
+            const replay = recording
+                ? await finish_recording({ notation: thrown })
+                : null;
+            return {
+                dice_values: dice_values,
+                roll_result: roll_result,
+                single_roll: single_roll,
+                mode: mode,
+                d20s: [...d20s],
+                roll_id: roll_id,
+                replay: replay,
             };
         });
-        rolls = new_rolls;
-        bonus = new_bonus;
-        mode = new_mode;
-        d20s = [];
-        await diceBox.roll(
-            new_mode === "normal"
-                ? new_rolls
-                : new_rolls.map((notation, i) =>
-                      i === d20_index ? "2d20" : notation,
-                  ),
-        );
-        await rollComplete;
-        return {
-            dice_values: dice_values,
-            roll_result: roll_result,
-            single_roll: single_roll,
-            mode: mode,
-            d20s: [...d20s],
-        };
+    };
+
+    /** Shows somebody else's roll with the same dice moving the same way */
+    roller.replay = (roll: AnyRoll) => {
+        const replay: DiceReplay | null | undefined = roll.replay;
+        if (
+            !replay ||
+            !diceBox ||
+            !dice_sync_available ||
+            (roll.roll_id && own_rolls.has(roll.roll_id))
+        ) {
+            return Promise.resolve();
+        }
+        return enqueue(async () => {
+            const interrupted = new Promise<void>(
+                (resolve) => (interrupt_replay = resolve),
+            );
+            await Promise.race([modal_closes(3000), interrupted]);
+            diceBox.clear();
+            if (!(await start_replay(replay))) return;
+
+            shown_roll = { sender: roll.sender, total: null };
+            // If something goes wrong, the dice don't block everything after them
+            await Promise.race([
+                throw_dice(replay.notation, {
+                    theme: replay.theme,
+                    themeColor: replay.themeColor,
+                }),
+                sleep(replay_duration(replay) + 5000),
+                interrupted,
+            ]);
+            stop_replay();
+            shown_roll.total =
+                roll.type === MessageType.ROLL_RESULT
+                    ? roll.result
+                    : roll.result + roll.bonus;
+            await Promise.race([sleep(2500), interrupted]);
+            interrupt_replay = null;
+            shown_roll = null;
+            diceBox.clear();
+        });
     };
 
     let bonus_string = $derived(format_bonus(roll_result, bonus));
 </script>
 
-<!-- This should be fine as there will only be one dice-roller -->
+<!-- The same shape on every screen: the dice box has to be the same everywhere for others' dice to land where they did -->
 <div
     id="diceroller"
-    class="w-screen h-full fixed top-0 left-0 z-10 pointer-events-none overflow-hidden scrollbar-gutter-affected"
+    class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 aspect-video w-[min(100vw,calc(100vh*16/9))] z-10 pointer-events-none overflow-hidden"
 ></div>
+{#if shown_roll}
+    <div
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none frosted rounded-box px-4 py-2 flex flex-col items-center"
+    >
+        <span class="text-sm text-base-content/70">{shown_roll.sender}</span>
+        {#if shown_roll.total !== null}
+            <span class="text-4xl font-bold">{shown_roll.total}</span>
+        {:else}
+            <span class="loading loading-dots"></span>
+        {/if}
+    </div>
+{/if}
 <dialog
     bind:this={modal}
     onclose={() => {
         diceBox.clear();
+        modal_closed?.();
+        modal_closed = null;
     }}
     class="modal"
 >

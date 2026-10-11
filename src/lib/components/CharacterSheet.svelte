@@ -8,6 +8,7 @@
         update_initiative,
     } from "../state.svelte";
     import { dragSource } from "../drag.svelte";
+    import { shared_roll } from "$lib/rolls";
     import SavingStat from "./CharacterSheet/SavingStat.svelte";
     import Sense from "./CharacterSheet/Sense.svelte";
     import Stat from "./CharacterSheet/Stat.svelte";
@@ -31,6 +32,7 @@
                 initiative,
                 result.mode,
                 result.d20s,
+                shared_roll(result),
             ),
         );
         let char_init = gameState.scene?.state.initiative.find(

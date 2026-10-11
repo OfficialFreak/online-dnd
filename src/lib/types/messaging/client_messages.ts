@@ -1,5 +1,9 @@
 import type { SceneData, SceneState } from "./server_messages";
 import type { RollMode } from "$lib/rolls";
+import type { DiceReplay } from "$lib/dice-sync";
+
+/** What goes along with a roll so everyone sees the same dice */
+type SharedRoll = { roll_id: string; replay: DiceReplay | null };
 import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
 import type { Sound } from "$lib/audio.svelte";
@@ -23,8 +27,9 @@ export class PlayerMessage {
 }
 
 export class RollResult {
-    static create(dices: string, result: number, single_dice: boolean, dm_only: boolean, notation: string, mode: RollMode, d20s: number[]): string {
+    static create(dices: string, result: number, single_dice: boolean, dm_only: boolean, notation: string, mode: RollMode, d20s: number[], shared: SharedRoll): string {
         return JSON.stringify({
+            ...shared,
             type: "roll_result",
             dices: dices,
             result: result,
@@ -39,8 +44,9 @@ export class RollResult {
 
 export class CheckResult {
     /** result is the d20 that counts, without the bonus */
-    static create(stat: string, result: number, bonus: number, mode: RollMode, d20s: number[]): string {
+    static create(stat: string, result: number, bonus: number, mode: RollMode, d20s: number[], shared: SharedRoll): string {
         return JSON.stringify({
+            ...shared,
             type: "check_result",
             stat: stat,
             result: result,
@@ -53,8 +59,9 @@ export class CheckResult {
 
 export class SaveResult {
     /** result is the d20 that counts, without the bonus */
-    static create(stat: string, result: number, bonus: number, mode: RollMode, d20s: number[]): string {
+    static create(stat: string, result: number, bonus: number, mode: RollMode, d20s: number[], shared: SharedRoll): string {
         return JSON.stringify({
+            ...shared,
             type: "save_result",
             stat: stat,
             result: result,
