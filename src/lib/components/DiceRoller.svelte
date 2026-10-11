@@ -87,11 +87,15 @@
         ]);
     }
 
+    /** Counts the throws, so one that was given up while loading its theme stays given up */
+    let throws = 0;
+
     /** Throws the dice and waits until they all landed */
     async function throw_dice(
         notation: string[],
         options: { theme?: string; themeColor?: string } = {},
     ) {
+        const this_throw = ++throws;
         // dice-box only throws dice in themes it loaded before
         let theme = options.theme ?? "default";
         try {
@@ -99,6 +103,9 @@
         } catch (e) {
             console.error(`Loading the dice theme ${theme} failed`, e);
         }
+        // An interrupted replay would otherwise clear the dice of the roll after it
+        // and take over the wait for them
+        if (this_throw !== throws) return;
         if (!diceBox.themesLoadedData?.[theme]?.diceAvailable)
             theme = "default";
 
@@ -365,7 +372,8 @@
 <dialog
     bind:this={modal}
     onclose={() => {
-        diceBox.clear();
+        // Somebody else's dice may be rolling behind the result already
+        if (!shown_roll) diceBox.clear();
         modal_closed?.();
         modal_closed = null;
     }}
