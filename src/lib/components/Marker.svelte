@@ -59,6 +59,7 @@
     );
 
     let position = $state({ x: 0, y: 0 });
+    let selecting_tool = $derived(appState.selectedTool === Tools.Select);
 
     $effect(() => {
         if (!markerElement) return;
@@ -66,7 +67,8 @@
             interactive &&
             (appState.selectedTool === Tools.Ruler ||
                 appState.selectedTool === Tools.Pointer ||
-                appState.selectedTool === Tools.None)
+                appState.selectedTool === Tools.None ||
+                appState.selectedTool === Tools.Select)
                 ? "auto"
                 : "none";
         markerElement.style.setProperty(
@@ -260,8 +262,11 @@
     }}
     id={(banner ? "banner-" : !mapUse ? "nomapuse-" : "") + marker.name}
     onclickcapture={(event) => {
-        // Shift+click selects markers to move or remove them together
-        if (!event.shiftKey || !gameState.dm || !mapUse || banner) return;
+        // Shift+click selects markers to move or remove them together, so does a tap
+        // with the selection tool
+        const selecting =
+            event.shiftKey || appState.selectedTool === Tools.Select;
+        if (!selecting || !gameState.dm || !mapUse || banner) return;
         // Not when clicking in its menu
         if ((event.target as HTMLElement).closest(".dropdown-content")) return;
         event.preventDefault();
@@ -291,8 +296,9 @@
             >
         </span>
     {/if}
+    <!-- While selecting, a tap only selects -->
     <button
-        class={((gameState.dm && mapUse) ||
+        class={((gameState.dm && mapUse && !selecting_tool) ||
         (!gameState.dm && getCharacter(marker.name))
             ? "dropdown dropdown-hover dropdown-right dropdown-center"
             : "") +
@@ -369,7 +375,7 @@
         {#if animated && interactive && effects.length > 0}
             <ConditionEffects {effects} />
         {/if}
-        {#if gameState.dm && mapUse}
+        {#if gameState.dm && mapUse && !selecting_tool}
             <!-- Not a div, the avatar gives those a square shape -->
             <section
                 class="dropdown-content bg-base-100 rounded-box z-1 w-84 p-3 shadow-sm flex flex-col gap-3 text-left cursor-default !transition-none"
@@ -611,7 +617,7 @@
                     </button>
                 </div>
             </section>
-        {:else if getCharacter(marker.name) && !appState.dragging && mapUse}
+        {:else if !gameState.dm && getCharacter(marker.name) && !appState.dragging && mapUse}
             <ul
                 class="dropdown-content menu z-1 p-0 shadow-sm w-80 flex flex-row justify-start items-start text-left !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(

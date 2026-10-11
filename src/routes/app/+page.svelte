@@ -11,6 +11,8 @@
         get_own_character,
         remember_roll,
         toolbarState,
+        selection,
+        remove_markers,
     } from "../../lib/state.svelte";
     import { MessageType } from "$lib/types/messaging/server_messages";
     import { shared_roll } from "$lib/rolls";
@@ -194,6 +196,33 @@
     >
         <DiceChooser roll_callback={roll} />
     </div>
+
+    <!-- What can be done with the selected markers, without Delete key on a tablet -->
+    {#if gameState.dm && selection.size > 0}
+        <div
+            class="fixed bottom-[calc(3.5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 z-10 frosted rounded-box p-1 pl-3 flex flex-row items-center gap-2"
+            transition:fade={{ duration: 150 }}
+        >
+            <span
+                class="text-sm whitespace-nowrap"
+                title="Zieh einen von ihnen, um alle zu verschieben"
+                >{selection.size} Marker ausgewählt</span
+            >
+            <button
+                class="btn btn-sm btn-soft btn-error"
+                onclick={() => remove_markers([...selection])}
+            >
+                <i class="fa-solid fa-trash"></i> Entfernen
+            </button>
+            <button
+                class="btn btn-sm btn-ghost btn-square"
+                aria-label="Auswahl aufheben"
+                onclick={() => selection.clear()}
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    {/if}
 
     <!-- On phones above the turn button, which moves to the right there -->
     <div

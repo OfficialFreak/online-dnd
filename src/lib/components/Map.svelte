@@ -897,12 +897,19 @@
         if (
             event.button === 0 &&
             gameState.dm &&
-            appState.selectedTool === Tools.None &&
+            (appState.selectedTool === Tools.None ||
+                appState.selectedTool === Tools.Select) &&
             !on_marker &&
             map_element
         ) {
-            if (!event.shiftKey) {
+            // The selection tool is Shift for phones and tablets
+            if (!event.shiftKey && appState.selectedTool !== Tools.Select) {
                 selection.clear();
+                return;
+            }
+            // Only one finger draws the box, two pinch
+            if (event.pointerType === "touch" && !event.isPrimary) {
+                box = null;
                 return;
             }
             const start = map_fraction(event);
@@ -937,6 +944,16 @@
         const right = Math.max(box.x1, box.x2);
         const top = Math.min(box.y1, box.y2);
         const bottom = Math.max(box.y1, box.y2);
+        // A tap next to the markers ends the selection, like a click without Shift
+        if (
+            appState.selectedTool === Tools.Select &&
+            (right - left) * w < HOLD_STILL &&
+            (bottom - top) * h < HOLD_STILL
+        ) {
+            selection.clear();
+            box = null;
+            return;
+        }
         // Markers whose center is in the box
         for (const marker of markers) {
             const width = marker.size / columns;

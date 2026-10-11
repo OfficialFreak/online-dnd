@@ -451,6 +451,25 @@
         {#if gameState.dm}
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
+                    Mehrere Marker auswählen
+                    <span class="block text-xs opacity-70 pointer-coarse:hidden"
+                        >Auch mit <kbd class="kbd kbd-xs">Shift</kbd> und Ziehen oder
+                        Klicken</span
+                    >
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
+                    Tools.Select
+                        ? 'btn-info'
+                        : ''}"
+                    aria-label="Auswählen"
+                    onclick={() => selectTool(Tools.Select)}
+                    ><i class="fa-solid fa-vector-square"></i></button
+                >
+            </div>
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
                     Szenen <kbd class="kbd">S</kbd>
                 </div>
                 <button

@@ -35,6 +35,8 @@ export enum Tools {
     RemoveFog,
     Ruler,
     Draw,
+    /** Selects markers like Shift does, for phones and tablets */
+    Select,
 }
 
 export const appState = $state({
