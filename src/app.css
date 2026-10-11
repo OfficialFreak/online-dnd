@@ -32,6 +32,18 @@ html, body {
     opacity: 0;
 }
 
+/* daisyUI hides closed dropdowns with display: none, which a display class like flex on
+   the content overrides. They would still catch the mouse over the map while transparent.
+   Same selectors as daisyUI's. */
+.dropdown.dropdown-close .dropdown-content,
+.dropdown:not(details, .dropdown-open, .dropdown-hover:hover, :focus-within)
+    .dropdown-content,
+.dropdown.dropdown-hover:not(:hover)
+    [tabindex]:first-child:focus:not(:focus-visible)
+    ~ .dropdown-content {
+    visibility: hidden;
+}
+
 .frosted {
     background: color-mix(in srgb, var(--color-base-100), transparent 30%);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
