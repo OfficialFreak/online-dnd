@@ -1062,12 +1062,17 @@
             {/each}
         </div>
         {#if fog_rect}
+            <!-- Borders as wide on the screen at any zoom -->
             <div
-                class="absolute border-2 border-dashed pointer-events-none {appState.selectedTool ===
+                class="absolute border-dashed pointer-events-none {appState.selectedTool ===
                 Tools.AddFog
                     ? 'border-base-content bg-base-content/30'
                     : 'border-info bg-info/10'}"
-                style="left: {Math.min(fog_rect.x1, fog_rect.x2) * size +
+                style="border-width: {2 / appState.zoom}px; left: {Math.min(
+                    fog_rect.x1,
+                    fog_rect.x2,
+                ) *
+                    size +
                     x_offset}px; top: {Math.min(fog_rect.y1, fog_rect.y2) *
                     size +
                     y_offset}px; width: {(Math.abs(fog_rect.x2 - fog_rect.x1) +
@@ -1078,8 +1083,11 @@
         {/if}
         {#if box}
             <div
-                class="absolute border-2 border-info bg-info/10 pointer-events-none"
-                style="left: {Math.min(box.x1, box.x2) *
+                class="absolute border-info bg-info/10 pointer-events-none"
+                style="border-width: {2 / appState.zoom}px; left: {Math.min(
+                    box.x1,
+                    box.x2,
+                ) *
                     100}%; top: {Math.min(box.y1, box.y2) *
                     100}%; width: {Math.abs(box.x2 - box.x1) *
                     100}%; height: {Math.abs(box.y2 - box.y1) * 100}%;"
@@ -1105,26 +1113,29 @@
             {/if}
         {/each}
         {#if appState.selectedTool === Tools.Ruler && ((ruler_size || 0) / size) * 5 > 0.5}
+            <!-- The same size on the screen at any zoom, zoomed in it would cover the map -->
             <div
                 role="banner"
-                class="absolute origin-left"
+                class="absolute origin-left pointer-events-none"
                 style="top: {(ruler_origin.y || 0) * size +
                     y_offset}px; left: {(ruler_origin.x || 0) * size +
                     x_offset}px;"
             >
                 <div
-                    class="origin-top-left block h-8 bg-base-100 text-base-content"
-                    style="width: {ruler_size}px; transform: rotate({((ruler_angle ||
+                    class="origin-left block bg-base-100 text-base-content rounded-full shadow-sm"
+                    style="width: {ruler_size}px; height: {0.5 /
+                        appState.zoom}rem; translate: 0 -50%; transform: rotate({((ruler_angle ||
                         0) /
                         (2 * Math.PI)) *
                         360}deg);"
                 >
                     <span
-                        class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-min h-1/2 flex justify-center items-center pointer-events-none p-2 rounded-box bg-base-100 {(ruler_angle ||
+                        class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex justify-center items-center whitespace-nowrap px-2 py-1 rounded-box bg-base-100 shadow-sm {(ruler_angle ||
                             0) >
                             Math.PI / 2 || (ruler_angle || 0) < -Math.PI / 2
                             ? 'rotate-180'
                             : ''}"
+                        style="scale: {1 / appState.zoom}"
                     >
                         {ruler_size
                             ? ((ruler_size / size) * 5).toFixed(1)
