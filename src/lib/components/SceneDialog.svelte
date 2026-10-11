@@ -94,10 +94,20 @@
         if (asset) background_file = asset;
     }
 
+    /** The server rejects grids with more columns or rows */
+    const MAX_GRID_SIZE = 1000;
+
     // The server stores these as integers and rejects anything else
-    function to_int(value: unknown, fallback: number, min = -Infinity) {
+    function to_int(
+        value: unknown,
+        fallback: number,
+        min = -Infinity,
+        max = Infinity,
+    ) {
         const number = Math.round(Number(value));
-        return Number.isFinite(number) ? Math.max(number, min) : fallback;
+        return Number.isFinite(number)
+            ? Math.min(Math.max(number, min), max)
+            : fallback;
     }
 
     async function save_scene() {
@@ -110,7 +120,7 @@
             return;
         }
 
-        const columns = to_int(scene_columns, 10, 1);
+        const columns = to_int(scene_columns, 10, 1, MAX_GRID_SIZE);
         // The rows are measured on the preview, which may not have loaded yet. They only
         // change with the map or the columns, and the fog is adjusted to them.
         const rows =
@@ -118,7 +128,7 @@
             scene_file === editing.map_file &&
             columns === editing.columns
                 ? editing.rows
-                : to_int(scene_rows, 10, 1);
+                : to_int(scene_rows, 10, 1, MAX_GRID_SIZE);
         const settings = [
             name,
             scene_file,
@@ -218,10 +228,12 @@
                 <input
                     type="number"
                     bind:value={scene_columns}
+                    min="1"
+                    max={MAX_GRID_SIZE}
                     class="input w-full"
                     placeholder="10"
                 />
-                {#if editing && to_int(scene_columns, 10, 1) !== editing.columns}
+                {#if editing && to_int(scene_columns, 10, 1, MAX_GRID_SIZE) !== editing.columns}
                     <p class="fieldset-label">
                         Der Nebel wird an das neue Raster angepasst.
                     </p>
