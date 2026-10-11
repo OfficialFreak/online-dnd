@@ -11,7 +11,9 @@ function titlebar_bottom() {
 /**
  * Moves a hover menu when it opens, so it stays inside the window and below the title bar.
  * A menu that runs out on the right goes to the left of what opened it instead. With
- * `below`, it also stays below the element with that id if there is room.
+ * `below`, it also stays below the element with that id if there is room. A menu taller
+ * than the window, like a marker's on a phone held sideways, gets as high as there is
+ * room and scrolls.
  * The menu needs `translate(var(--shift-x, 0px), var(--shift-y, 0px))` in its transform.
  */
 export function keep_in_view(
@@ -23,24 +25,35 @@ export function keep_in_view(
     const trigger: HTMLElement = parent;
     let frame = 0;
 
-    function place() {
+    function place(event?: Event) {
+        // Taps and fields in the open menu leave it where it is, also its scrolling
+        if (event?.target instanceof Node && node.contains(event.target)) return;
         cancelAnimationFrame(frame);
         frame = requestAnimationFrame(() => {
             node.style.removeProperty("--shift-x");
             node.style.removeProperty("--shift-y");
-            const rect = node.getBoundingClientRect();
+            node.style.removeProperty("max-height");
+            node.style.removeProperty("overflow-y");
+            node.style.removeProperty("overscroll-behavior");
+            let rect = node.getBoundingClientRect();
             if (rect.height === 0) return;
             const anchor = trigger.getBoundingClientRect();
 
+            // Next to what opened it, on the left if there's no room on the right, and
+            // always inside the window, also beside a marker wider than the room next to it
+            const max_right = window.innerWidth - MARGIN;
             let shift_x = 0;
-            if (rect.right > window.innerWidth - MARGIN) {
-                shift_x = anchor.left - rect.width - rect.left;
-                if (rect.left + shift_x < MARGIN) shift_x = MARGIN - rect.left;
-            }
+            if (rect.right > max_right) shift_x = anchor.left - rect.width - rect.left;
+            shift_x = Math.min(shift_x, max_right - rect.right);
+            shift_x = Math.max(shift_x, MARGIN - rect.left);
             const left = rect.left + shift_x;
             const right = rect.right + shift_x;
 
-            const bottom = window.innerHeight - MARGIN - BOTTOM_CONTROLS;
+            // Short windows have no room to spare for the controls at the bottom
+            const bottom =
+                window.innerHeight -
+                MARGIN -
+                (window.innerHeight > 600 ? BOTTOM_CONTROLS : 0);
             let top = titlebar_bottom() + MARGIN;
             const obstacle = options.below
                 ? document.getElementById(options.below)?.getBoundingClientRect()
@@ -57,6 +70,16 @@ export function keep_in_view(
                 top = Math.max(top, obstacle.bottom + MARGIN);
             }
 
+            if (rect.height > bottom - top) {
+                // In its own pixels, the menu and its parent may be scaled
+                const scale_y = rect.height / node.offsetHeight || 1;
+                node.style.maxHeight = `${(bottom - top) / scale_y}px`;
+                node.style.overflowY = "auto";
+                node.style.overscrollBehavior = "contain";
+                // A shorter menu may sit somewhere else, e.g. when it is centered
+                rect = node.getBoundingClientRect();
+            }
+
             let shift_y = 0;
             if (rect.bottom > bottom) shift_y = bottom - rect.bottom;
             if (rect.top + shift_y < top) shift_y = top - rect.top;
@@ -70,11 +93,14 @@ export function keep_in_view(
 
     trigger.addEventListener("mouseenter", place);
     trigger.addEventListener("focusin", place);
+    // A tap on a touch screen doesn't always bring a mouseenter along
+    trigger.addEventListener("pointerdown", place);
     return {
         destroy() {
             cancelAnimationFrame(frame);
             trigger.removeEventListener("mouseenter", place);
             trigger.removeEventListener("focusin", place);
+            trigger.removeEventListener("pointerdown", place);
         },
     };
 }
