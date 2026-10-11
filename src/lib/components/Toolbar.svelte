@@ -20,7 +20,9 @@
         undoState,
         selection,
         remove_markers,
+        drawState,
     } from "../state.svelte";
+    import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
     import { fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
@@ -28,6 +30,7 @@
     import ScenePanel from "./ScenePanel.svelte";
     import RollLog from "./RollLog.svelte";
     import {
+        DeleteDrawings,
         CombatState,
         ImportCharacter,
         PutScene,
@@ -134,6 +137,9 @@
                 break;
             case "KeyL":
                 selectTool(Tools.Ruler);
+                break;
+            case "KeyD":
+                selectTool(Tools.Draw);
                 break;
             case "KeyY":
                 selectTool(Tools.Pointer);
@@ -680,6 +686,91 @@
                 </button>
             </div>
         {/if}
+        <div class="dropdown dropdown-right dropdown-hover">
+            <button
+                tabindex="0"
+                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
+                Tools.Draw
+                    ? 'btn-info'
+                    : ''}"
+                aria-label="Zeichnen"
+                onclick={() => selectTool(Tools.Draw)}
+                ><i class="fa-solid fa-pen-ruler"></i></button
+            >
+            <ul
+                class="dropdown-content menu bg-base-100 rounded-box z-1 w-60 shadow-sm"
+            >
+                <li>
+                    <h3
+                        class="-ml-2 font-bold pointer-events-none -my-1 text-base"
+                    >
+                        Zeichnen <kbd class="kbd kbd-sm">D</kbd>
+                    </h3>
+                    <!-- The menu lays out its direct children in a row -->
+                    <div class="p-0 hover:bg-transparent">
+                        <div class="flex flex-col gap-2">
+                            <div class="join">
+                                {#each DRAWING_KINDS as { kind, label, icon }}
+                                    <button
+                                        class="btn btn-sm btn-square join-item {drawState.kind ===
+                                        kind
+                                            ? 'btn-info'
+                                            : ''}"
+                                        title={label}
+                                        aria-label={label}
+                                        onclick={() => {
+                                            drawState.kind = kind;
+                                            appState.selectedTool = Tools.Draw;
+                                        }}
+                                    >
+                                        <i class="fa-solid {icon}"></i>
+                                    </button>
+                                {/each}
+                            </div>
+                            <div class="flex flex-row flex-wrap gap-1">
+                                {#each DRAWING_COLORS as color}
+                                    <button
+                                        class="w-5 h-5 rounded-full border border-base-content/30 {drawState.color ===
+                                        color
+                                            ? 'ring-2 ring-info ring-offset-1 ring-offset-base-100'
+                                            : ''}"
+                                        style="background: {color}"
+                                        aria-label="Farbe {color}"
+                                        onclick={() => (drawState.color = color)}
+                                    ></button>
+                                {/each}
+                            </div>
+                            <p class="text-xs text-base-content/60">
+                                Flächen wachsen in 5-ft-Schritten. Mit <kbd
+                                    class="kbd kbd-xs">Strg</kbd
+                                > startest du an einer Rasterecke, Rechtsklick löscht
+                                eine Zeichnung.
+                            </p>
+                            <div class="flex flex-row gap-1">
+                                <button
+                                    class="btn btn-xs flex-1"
+                                    onclick={() =>
+                                        appState.ws?.send(
+                                            DeleteDrawings.create({
+                                                owner: gameState.name,
+                                            }),
+                                        )}>Meine löschen</button
+                                >
+                                {#if gameState.dm}
+                                    <button
+                                        class="btn btn-xs btn-error btn-soft flex-1"
+                                        onclick={() =>
+                                            appState.ws?.send(
+                                                DeleteDrawings.create({}),
+                                            )}>Alle löschen</button
+                                    >
+                                {/if}
+                            </div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+        </div>
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
                 Lineal <kbd class="kbd">L</kbd>

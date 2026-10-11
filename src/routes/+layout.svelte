@@ -480,6 +480,21 @@
                 case MessageType.BLOOD:
                     spill_blood(message.x, message.y, message.size);
                     break;
+                case MessageType.DRAWING_ADDED: {
+                    if (!gameState.scene) break;
+                    // Our own drawings are already there
+                    const drawings = (gameState.scene.state.drawings ?? []).filter(
+                        (drawing) => drawing.id !== message.drawing.id,
+                    );
+                    gameState.scene.state.drawings = [...drawings, message.drawing];
+                    break;
+                }
+                case MessageType.DRAWINGS_DELETED:
+                    if (!gameState.scene) break;
+                    gameState.scene.state.drawings = (
+                        gameState.scene.state.drawings ?? []
+                    ).filter((drawing) => !message.ids.includes(drawing.id));
+                    break;
                 case MessageType.CHARACTERS:
                     gameState.characters = message.characters.map(
                         (character: any) => new Character(character),

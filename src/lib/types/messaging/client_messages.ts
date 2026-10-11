@@ -1,6 +1,7 @@
 import type { SceneData, SceneState } from "./server_messages";
 import type { RollMode } from "$lib/rolls";
 import type { MonsterInfo } from "$lib/monsters";
+import type { Drawing } from "$lib/drawings";
 
 export class InitialMessage {
     static create(): string {
@@ -273,6 +274,26 @@ export class DeleteCharacter {
         return JSON.stringify({
             type: "delete_character",
             id: id
+        });
+    }
+}
+
+export class AddDrawing {
+    static create(drawing: Drawing): string {
+        return JSON.stringify({
+            type: "add_drawing",
+            drawing: drawing
+        });
+    }
+}
+
+export class DeleteDrawings {
+    /** The drawings with these ids, or all of an owner, or all drawings of the scene (DM only) */
+    static create(filter: { ids?: string[]; owner?: string }): string {
+        return JSON.stringify({
+            type: "delete_drawings",
+            ids: filter.ids ?? null,
+            owner: filter.owner ?? null
         });
     }
 }

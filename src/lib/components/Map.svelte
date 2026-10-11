@@ -6,6 +6,7 @@
         appState,
         record_undo,
         selection,
+        drawState,
         fogState,
         gameState,
         pointers,
@@ -19,11 +20,18 @@
     import { invoke } from "@tauri-apps/api/core";
     import { fade } from "svelte/transition";
     import {
+        AddDrawing,
+        DeleteDrawings,
         MarkerFreed,
         MarkerLocked,
         MouseLarge,
         PutScene,
     } from "$lib/types/messaging/client_messages";
+    import {
+        drawing_shape,
+        shape_contains,
+        type Drawing,
+    } from "$lib/drawings";
     import { type DragOptions } from "@neodrag/svelte";
     import Marker from "./Marker.svelte";
     import { MessageTypes, notify } from "../notifications.svelte";
@@ -311,6 +319,110 @@
             }
             paint_fog(cells);
         }
+    }
+
+    /** The drawing being drawn, the others only see it when it's done */
+    let drawing: Drawing | null = $state(null);
+    let drawings: Drawing[] = $derived(
+        editable ? (gameState.scene?.state.drawings ?? []) : [],
+    );
+    let shown_drawings = $derived(drawing ? [...drawings, drawing] : drawings);
+
+    function start_drawing(event: MouseEvent) {
+        if (event.button !== 0 || !editable) return;
+        let px = event.offsetX;
+        let py = event.offsetY;
+        // Ctrl starts at a corner of the grid
+        if (appState.ctrlPressed) {
+            px = Math.round((px - x_offset) / size) * size + x_offset;
+            py = Math.round((py - y_offset) / size) * size + y_offset;
+        }
+        drawing = {
+            id: crypto.randomUUID(),
+            kind: drawState.kind,
+            color: drawState.color,
+            x: px / w,
+            y: py / h,
+            x2: px / w,
+            y2: py / h,
+            points: drawState.kind === "free" ? [[px / w, py / h]] : undefined,
+        };
+    }
+
+    function continue_drawing(event: MouseEvent) {
+        if (!drawing) return;
+        const px = event.offsetX;
+        const py = event.offsetY;
+        if (drawing.kind === "free") {
+            const points = drawing.points!;
+            const [last_x, last_y] = points[points.length - 1];
+            if (
+                Math.hypot(px - last_x * w, py - last_y * h) >= 3 &&
+                points.length < 1000
+            ) {
+                points.push([px / w, py / h]);
+            }
+            return;
+        }
+        // Spell areas come in steps of 5 ft
+        const ax = drawing.x * w;
+        const ay = drawing.y * h;
+        const dx = px - ax;
+        const dy = py - ay;
+        if (drawing.kind === "square") {
+            const cells = Math.max(
+                1,
+                Math.round(Math.max(Math.abs(dx), Math.abs(dy)) / size),
+            );
+            drawing.x2 = (ax + (Math.sign(dx) || 1) * cells * size) / w;
+            drawing.y2 = (ay + (Math.sign(dy) || 1) * cells * size) / h;
+            return;
+        }
+        const length = Math.hypot(dx, dy);
+        if (length === 0) return;
+        const scale = (Math.max(1, Math.round(length / size)) * size) / length;
+        drawing.x2 = (ax + dx * scale) / w;
+        drawing.y2 = (ay + dy * scale) / h;
+    }
+
+    function finish_drawing() {
+        if (!drawing) return;
+        const done: Drawing = $state.snapshot(drawing);
+        drawing = null;
+        const big_enough =
+            done.kind === "free"
+                ? (done.points?.length ?? 0) > 1
+                : Math.hypot((done.x2 - done.x) * w, (done.y2 - done.y) * h) >=
+                  size / 2;
+        if (!big_enough || !gameState.scene) return;
+        gameState.scene.state.drawings = [
+            ...(gameState.scene.state.drawings ?? []),
+            { ...done, owner: gameState.name },
+        ];
+        appState.ws?.send(AddDrawing.create(done));
+    }
+
+    // The mouse may be released outside of the map
+    $effect(() => {
+        if (!appState.mouseDown && drawing) finish_drawing();
+    });
+
+    /** Right click deletes the drawing under the mouse, players can only delete theirs */
+    function delete_drawing_at(event: MouseEvent) {
+        event.preventDefault();
+        const hit = drawings
+            .toReversed()
+            .find(
+                (drawing) =>
+                    (gameState.dm || drawing.owner === gameState.name) &&
+                    shape_contains(
+                        drawing_shape(drawing, w, h, size).shape,
+                        event.offsetX,
+                        event.offsetY,
+                        Math.max(6, size * 0.2),
+                    ),
+            );
+        if (hit) appState.ws?.send(DeleteDrawings.create({ ids: [hit.id] }));
     }
 
     /** A rectangle of fog being drawn, in cells */
@@ -770,6 +882,62 @@
                 />
             {/each}
         </div>
+        <!-- Drawings and spell areas, under the fog like everything else -->
+        <svg
+            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+            viewBox="0 0 {w || 1} {h || 1}"
+        >
+            {#each shown_drawings as item (item.id)}
+                {@const { shape, label } = drawing_shape(item, w, h, size)}
+                {#if shape.type === "polyline"}
+                    <polyline
+                        points={shape.points
+                            .map((point) => point.join(","))
+                            .join(" ")}
+                        fill="none"
+                        stroke={item.color}
+                        stroke-width={Math.max(2, size * 0.08)}
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                {:else if shape.type === "circle"}
+                    <circle
+                        cx={shape.cx}
+                        cy={shape.cy}
+                        r={shape.r}
+                        fill={item.color}
+                        fill-opacity="0.25"
+                        stroke={item.color}
+                        stroke-width={Math.max(2, size * 0.05)}
+                    />
+                {:else}
+                    <polygon
+                        points={shape.points
+                            .map((point) => point.join(","))
+                            .join(" ")}
+                        fill={item.color}
+                        fill-opacity="0.25"
+                        stroke={item.color}
+                        stroke-width={Math.max(2, size * 0.05)}
+                        stroke-linejoin="round"
+                    />
+                {/if}
+                {#if label}
+                    <text
+                        x={label.x}
+                        y={label.y}
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        font-size={size * 0.4}
+                        font-weight="bold"
+                        fill="white"
+                        stroke="black"
+                        stroke-width={size * 0.06}
+                        paint-order="stroke">{label.text}</text
+                    >
+                {/if}
+            {/each}
+        </svg>
         <!-- Fog -->
         <canvas
             bind:this={fogCanvas}
@@ -872,19 +1040,31 @@
             </div>
         {/if}
     {/if}
-    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler}
+    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler || appState.selectedTool === Tools.Draw}
         <button
             aria-label="Click Capture Layer"
-            class="absolute inset-0"
+            class="absolute inset-0 {appState.selectedTool === Tools.Draw
+                ? 'cursor-crosshair'
+                : ''}"
             onmousemove={(evt) => {
                 if (!editable) return;
+                if (appState.selectedTool === Tools.Draw) continue_drawing(evt);
                 clickHandler(evt, false);
             }}
             onmousedown={(evt) => {
                 if (!editable) return;
+                if (appState.selectedTool === Tools.Draw) start_drawing(evt);
                 clickHandler(evt, true);
             }}
-            onmouseup={() => finish_fog_rect()}
+            onmouseup={() => {
+                finish_fog_rect();
+                finish_drawing();
+            }}
+            oncontextmenu={(evt) => {
+                if (editable && appState.selectedTool === Tools.Draw) {
+                    delete_drawing_at(evt);
+                }
+            }}
             onclick={(evt) => {
                 if (!editable) return;
                 if (

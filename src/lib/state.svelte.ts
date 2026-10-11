@@ -23,6 +23,7 @@ import {
 import { MessageTypes, notify } from "./notifications.svelte";
 import type { RollEntry, RollMode } from "./rolls";
 import { roll_initiative } from "./monsters";
+import { DRAWING_COLORS, type DrawingKind } from "./drawings";
 
 export enum Tools {
     None,
@@ -30,6 +31,7 @@ export enum Tools {
     AddFog,
     RemoveFog,
     Ruler,
+    Draw,
 }
 
 export const appState = $state({
@@ -169,6 +171,12 @@ export const toolbarState = $state({
 export function togglePanel(panel: Panel) {
     toolbarState.panel = toolbarState.panel === panel ? null : panel;
 }
+
+/** What the drawing tool draws next */
+export const drawState = $state({
+    kind: "circle" as DrawingKind,
+    color: DRAWING_COLORS[0],
+});
 
 export const fogState = $state({
     selected_player: "all",

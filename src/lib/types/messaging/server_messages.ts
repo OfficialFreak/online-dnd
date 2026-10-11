@@ -1,5 +1,6 @@
 import type { RollMode } from "$lib/rolls";
 import type { MonsterInfo } from "$lib/monsters";
+import type { Drawing } from "$lib/drawings";
 
 // Define enums for message types and event types
 export enum MessageType {
@@ -23,7 +24,9 @@ export enum MessageType {
     SAVE_RESULT = "save_result",
     COMBAT_STATE = "combat_state",
     BLOOD = "blood",
-    ROLL_HISTORY = "roll_history"
+    ROLL_HISTORY = "roll_history",
+    DRAWING_ADDED = "drawing_added",
+    DRAWINGS_DELETED = "drawings_deleted"
 }
 
 export enum EventType {
@@ -123,6 +126,7 @@ export interface SceneState {
     turn: string | null;
     /** Combat round, missing in scenes from before it existed */
     round?: number | null;
+    drawings?: Drawing[];
 }
 
 export interface InitiativeSceneData extends BaseServerMessage {
@@ -243,6 +247,16 @@ export interface CombatState extends BaseServerMessage {
     active: boolean;
 }
 
+export interface DrawingAdded extends BaseServerMessage {
+    type: MessageType.DRAWING_ADDED;
+    drawing: Drawing;
+}
+
+export interface DrawingsDeleted extends BaseServerMessage {
+    type: MessageType.DRAWINGS_DELETED;
+    ids: string[];
+}
+
 export type AnyRoll = RollResult | CheckResult | SaveResult;
 
 /** The latest rolls, sent after connecting */
@@ -274,7 +288,9 @@ export type ServerMessage =
     | CheckResult 
     | SaveResult
     | CombatState
-    | RollHistory;
+    | RollHistory
+    | DrawingAdded
+    | DrawingsDeleted;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -332,6 +348,10 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as CombatState;
         case MessageType.ROLL_HISTORY:
             return data as RollHistory;
+        case MessageType.DRAWING_ADDED:
+            return data as DrawingAdded;
+        case MessageType.DRAWINGS_DELETED:
+            return data as DrawingsDeleted;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }
