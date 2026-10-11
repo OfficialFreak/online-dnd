@@ -33,6 +33,8 @@
     );
 
     function open() {
+        // A password shown last time stays hidden, e.g. while streaming
+        shown_key = null;
         appState.ws?.send(ListUsers.create());
         dialog?.showModal();
     }
@@ -81,8 +83,8 @@
         <h3 class="text-lg font-bold">Spieler verwalten</h3>
         <p class="text-sm text-base-content/60">
             Jeder meldet sich mit seinem Passwort an. Ein neues Passwort meldet
-            den Spieler ab, das alte gilt dann nicht mehr. DM-Rechte wirken beim
-            nächsten Verbinden.
+            den Spieler ab, das alte gilt dann nicht mehr. DM-Rechte wirken
+            sofort.
         </p>
         <div class="overflow-x-auto">
             <table class="table table-sm">
@@ -181,8 +183,11 @@
                                         `key:${user.name}`
                                             ? 'btn-warning'
                                             : 'btn-ghost btn-square'}"
-                                        title="Neues Passwort, das alte gilt nicht mehr"
+                                        title={self
+                                            ? "Dein eigenes Passwort kann ein anderer DM erneuern, sonst wärst du ausgesperrt"
+                                            : "Neues Passwort, das alte gilt nicht mehr"}
                                         aria-label="Neues Passwort"
+                                        disabled={self}
                                         onclick={() =>
                                             request(`key:${user.name}`, () => {
                                                 appState.ws?.send(

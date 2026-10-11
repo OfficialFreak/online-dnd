@@ -489,14 +489,30 @@
                 case MessageType.TOGGLE_PRESSURE:
                     gameState.pressure = message.active;
                     break;
-                case MessageType.USERS:
+                case MessageType.USERS: {
                     gameState.users = message.users;
                     for (const user of gameState.users) {
                         if (user.dm) {
                             gameState.DMName = user.name;
                         }
                     }
+                    // Another DM changed this one's rights, the server already applies them
+                    const own_user = message.users.find(
+                        (user) => user.name === gameState.name,
+                    );
+                    if (own_user && own_user.dm !== gameState.dm) {
+                        notify(
+                            own_user.dm
+                                ? "Du bist jetzt DM"
+                                : "Du bist jetzt Spieler",
+                            MessageTypes.Info,
+                            4000,
+                        );
+                        // Everything again, DMs get more than players
+                        ws.send(InitialMessage.create());
+                    }
                     break;
+                }
                 case MessageType.MARKER_LOCKED:
                     gameState.lockedMarkers[message.marker_name] =
                         message.locked_by;
