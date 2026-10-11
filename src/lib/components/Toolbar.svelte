@@ -48,6 +48,16 @@
         }
     }
 
+    // The ruler and drawing share a button, which picks up the one used last
+    let measuring = $derived(
+        appState.selectedTool === Tools.Ruler ||
+            appState.selectedTool === Tools.Draw,
+    );
+    let last_measure_tool = $state(Tools.Ruler);
+    $effect(() => {
+        if (measuring) last_measure_tool = appState.selectedTool;
+    });
+
     // Fog editing needs an array for every player. Existing fog is never reset here:
     // players may have different fog on purpose, and wiping it would be saved with the next stroke.
     $effect(() => {
@@ -718,42 +728,68 @@
                 </button>
             </div>
         {/if}
+        <!-- Drawings are measurements that stay, so they share the ruler's button -->
         <div class="dropdown dropdown-right dropdown-end dropdown-hover">
             <button
                 tabindex="0"
-                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
-                Tools.Draw
+                class="btn btn-square btn-sm rounded-box {measuring
                     ? 'btn-info'
                     : ''}"
-                aria-label="Zeichnen"
-                onclick={() => selectTool(Tools.Draw)}
-                ><i class="fa-solid fa-pen-ruler"></i></button
+                aria-label="Messen und Zeichnen"
+                onclick={() =>
+                    selectTool(
+                        measuring ? appState.selectedTool : last_measure_tool,
+                    )}
+                ><i
+                    class="fa-solid {last_measure_tool === Tools.Ruler
+                        ? 'fa-ruler'
+                        : (DRAWING_KINDS.find(
+                              (entry) => entry.kind === drawState.kind,
+                          )?.icon ?? 'fa-pen-ruler')}"
+                ></i></button
             >
             <div
-                class="dropdown-content bg-base-100 rounded-box z-1 w-64 p-3 shadow-sm flex flex-col gap-3"
+                class="dropdown-content bg-base-100 rounded-box z-1 w-72 p-3 shadow-sm flex flex-col gap-3"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
                 use:keep_in_view
             >
-                <h3 class="font-bold flex flex-row items-center gap-2">
-                    Zeichnen <kbd class="kbd kbd-sm">D</kbd>
+                <h3 class="font-bold flex flex-row items-baseline gap-2">
+                    Messen & Zeichnen
+                    <span class="text-xs font-normal text-base-content/60"
+                        ><kbd class="kbd kbd-xs">L</kbd>
+                        <kbd class="kbd kbd-xs">D</kbd></span
+                    >
                 </h3>
-                <div class="join w-full">
-                    {#each DRAWING_KINDS as { kind, label, icon }}
-                        <button
-                            class="btn btn-sm join-item flex-1 {drawState.kind ===
-                            kind
-                                ? 'btn-info'
-                                : ''}"
-                            title={label}
-                            aria-label={label}
-                            onclick={() => {
-                                drawState.kind = kind;
-                                appState.selectedTool = Tools.Draw;
-                            }}
-                        >
-                            <i class="fa-solid {icon}"></i>
-                        </button>
-                    {/each}
+                <div class="flex flex-row gap-1">
+                    <button
+                        class="btn btn-sm btn-square {appState.selectedTool ===
+                        Tools.Ruler
+                            ? 'btn-info'
+                            : ''}"
+                        title="Lineal, nur du siehst es"
+                        aria-label="Lineal"
+                        onclick={() => (appState.selectedTool = Tools.Ruler)}
+                    >
+                        <i class="fa-solid fa-ruler"></i>
+                    </button>
+                    <div class="join flex-1">
+                        {#each DRAWING_KINDS as { kind, label, icon }}
+                            <button
+                                class="btn btn-sm join-item flex-1 {appState.selectedTool ===
+                                    Tools.Draw && drawState.kind === kind
+                                    ? 'btn-info'
+                                    : ''}"
+                                title={label}
+                                aria-label={label}
+                                onclick={() => {
+                                    drawState.kind = kind;
+                                    appState.selectedTool = Tools.Draw;
+                                }}
+                            >
+                                <i class="fa-solid {icon}"></i>
+                            </button>
+                        {/each}
+                    </div>
                 </div>
                 <div class="flex flex-row flex-wrap gap-2">
                     {#each DRAWING_COLORS as color}
@@ -769,9 +805,10 @@
                     {/each}
                 </div>
                 <p class="text-xs text-base-content/60">
-                    Flächen wachsen in 5-ft-Schritten. Mit <kbd
+                    Das Lineal siehst nur du, Zeichnungen sehen alle. Mit <kbd
                         class="kbd kbd-xs">Strg</kbd
-                    > startest du an einer Rasterecke, Rechtsklick löscht eine Zeichnung.
+                    > rasten sie am Raster ein, in 5-ft-Schritten. Rechtsklick löscht
+                    eine Zeichnung.
                 </p>
                 <div class="grid grid-cols-2 gap-1">
                     <button
@@ -793,24 +830,6 @@
                     {/if}
                 </div>
             </div>
-        </div>
-        <div class="tooltip tooltip-right">
-            <div class="tooltip-content">
-                Lineal <kbd class="kbd">L</kbd>
-            </div>
-            <button
-                tabindex="0"
-                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
-                Tools.Ruler
-                    ? 'btn-info'
-                    : ''}"
-                aria-label="Lineal"
-                onclick={() => {
-                    selectTool(Tools.Ruler);
-                }}
-            >
-                <i class="fa-solid fa-ruler"></i>
-            </button>
         </div>
     </div>
 </div>
