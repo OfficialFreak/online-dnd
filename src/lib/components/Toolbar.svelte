@@ -465,7 +465,7 @@
                 >
                 <div
                     class="dropdown-content bg-base-100 rounded-box z-1 w-56 p-3 shadow-sm flex flex-col gap-3"
-                    style="transform: translateY(var(--shift, 0px))"
+                    style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
                     use:keep_in_view
                 >
                     <h3 class="font-bold">Nebel</h3>
@@ -713,7 +713,7 @@
             >
             <div
                 class="dropdown-content bg-base-100 rounded-box z-1 w-64 p-3 shadow-sm flex flex-col gap-3"
-                style="transform: translateY(var(--shift, 0px))"
+                style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
                 use:keep_in_view
             >
                 <h3 class="font-bold flex flex-row items-center gap-2">
