@@ -773,12 +773,25 @@
     });
 
     // Zooming in makes the page scrollable to the right and bottom. Below 100% the map
-    // shrinks towards its center.
-    let zoom_offset_x = $derived(
-        editable && appState.zoom < 1 ? (base_w * (1 - appState.zoom)) / 2 : 0,
-    );
+    // shrinks towards its center, and a map taller than the window towards the middle
+    // of the window, not of its own height, which would put it far down.
+    let window_w = $state(0);
+    let window_h = $state(0);
+    function centered(size: number, room: number) {
+        const zoom = appState.zoom;
+        if (!editable || zoom >= 1) return 0;
+        return Math.min(
+            (size * (1 - zoom)) / 2,
+            Math.max(0, (room - size * zoom) / 2),
+        );
+    }
+    let zoom_offset_x = $derived(centered(base_w, window_w));
     let zoom_offset_y = $derived(
-        editable && appState.zoom < 1 ? (base_h * (1 - appState.zoom)) / 2 : 0,
+        centered(
+            base_h,
+            window_h -
+                (parseFloat(getComputedStyle(document.body).marginTop) || 30),
+        ),
     );
     let map_element: HTMLDivElement | null = $state(null);
 
@@ -832,13 +845,9 @@
         // would jump there. Zoomed out it can't scroll and stays in the middle.
         const zoom = appState.zoom;
         const right =
-            unshifted.left +
-            window.scrollX +
-            (zoom < 1 ? (base_w * (1 + zoom)) / 2 : base_w * zoom);
+            unshifted.left + window.scrollX + zoom_offset_x + base_w * zoom;
         const bottom =
-            unshifted.top +
-            window.scrollY +
-            (zoom < 1 ? (base_h * (1 + zoom)) / 2 : base_h * zoom);
+            unshifted.top + window.scrollY + zoom_offset_y + base_h * zoom;
         const max_x = Math.max(0, right - document.documentElement.clientWidth);
         const max_y = Math.max(0, bottom - document.documentElement.clientHeight);
         shift_x = Math.min(Math.max(shift_x, window.scrollX - max_x), window.scrollX);
@@ -1162,6 +1171,8 @@
         add_marker(payload.marker, x, y);
     }
 </script>
+
+<svelte:window bind:innerWidth={window_w} bind:innerHeight={window_h} />
 
 {#if keep_page}
     <div
