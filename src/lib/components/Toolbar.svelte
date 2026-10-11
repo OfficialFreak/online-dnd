@@ -464,8 +464,9 @@
         </div>
     {/if}
 
+    <!-- Two columns where one doesn't fit, like on a phone held sideways -->
     <div
-        class="flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto"
+        class="flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto [@media(max-height:600px)]:grid [@media(max-height:600px)]:grid-cols-2"
         transition:fade|global={{ duration: 100 }}
     >
         <div class="tooltip tooltip-right">
