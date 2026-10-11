@@ -2,9 +2,11 @@
 import confetti from "canvas-confetti";
 import { appState, gameState } from "./state.svelte";
 
-const blood = confetti.shapeFromText({
-    text: "🔴",
-});
+/** Circles instead of the 🔴 emoji, Safari drew emoji confetti with white around them */
+const BLOOD = {
+    shapes: ["circle"],
+    colors: ["#b00020", "#8a0018", "#d1102e"],
+};
 
 /**
  * Splatters blood where a marker was removed. x and y are the marker's top left
@@ -30,7 +32,7 @@ export function spill_blood(x: number, y: number, size: number) {
         gravity: 0,
         decay: 0.7,
         flat: true,
-        shapes: [blood],
+        ...BLOOD,
     });
     appState.map_confetti_function({
         particleCount: 100,
@@ -43,7 +45,7 @@ export function spill_blood(x: number, y: number, size: number) {
         gravity: 0,
         decay: 0.7,
         flat: true,
-        shapes: [blood],
+        ...BLOOD,
     });
     appState.map_confetti_function({
         particleCount: 30,
@@ -56,6 +58,6 @@ export function spill_blood(x: number, y: number, size: number) {
         gravity: 0,
         decay: 0.7,
         flat: true,
-        shapes: [blood],
+        ...BLOOD,
     });
 }

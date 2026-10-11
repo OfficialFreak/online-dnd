@@ -14,6 +14,7 @@
     import DiceBox from "@3d-dice/dice-box";
     // @ts-ignore
     import confetti from "canvas-confetti";
+    import { emoji_cannon } from "$lib/emoji-burst";
     import { roller, rollState } from "../state.svelte";
     import { dice_look } from "../dice-skins.svelte";
     import {
@@ -32,8 +33,9 @@
         type AnyRoll,
     } from "$lib/types/messaging/server_messages";
 
-    const poop = confetti.shapeFromText({ text: "💩", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
+    // Its own canvas, canvas-confetti clears the whole of its canvas on every frame
+    let emoji_canvas: HTMLCanvasElement | null = $state(null);
     let diceBox: DiceBox | null = $state(null);
     let modal: HTMLDialogElement | null = $state(null);
     let dice_values: string = $state("");
@@ -129,6 +131,7 @@
         let confetti_function = confetti.create(confetti_canvas, {
             resize: true,
         });
+        const poop_burst = emoji_canvas ? emoji_cannon(emoji_canvas) : null;
         diceBox.onRollComplete = (results: any) => {
             const landed = on_landed;
             on_landed = null;
@@ -184,12 +187,12 @@
                 (rolls[0] === "1d20" || rolls[0] === "d20") &&
                 roll_result === 1
             ) {
-                confetti_function({
-                    particleCount: 100,
+                poop_burst?.({
+                    emojis: ["💩"],
+                    count: 100,
                     spread: 70,
-                    scalar: 4,
-                    origin: { y: 2 },
-                    shapes: [poop],
+                    size: 40,
+                    origin: { x: 0.5, y: 2 },
                 });
             }
             modal?.showModal();
@@ -364,6 +367,10 @@
         <canvas
             bind:this={confetti_canvas}
             class="absolute top-0 left-0 w-full h-full"
+        ></canvas>
+        <canvas
+            bind:this={emoji_canvas}
+            class="absolute top-0 left-0 w-full h-full pointer-events-none"
         ></canvas>
         {#if single_roll}
             <h3 class="text-7xl font-bold flex">

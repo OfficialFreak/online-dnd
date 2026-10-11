@@ -53,8 +53,7 @@
         parseServerMessage,
         type AnyRoll,
     } from "$lib/types/messaging/server_messages";
-    // @ts-ignore
-    import confetti from "canvas-confetti";
+    import { emoji_cannon } from "$lib/emoji-burst";
     import { Tween } from "svelte/motion";
     import { circOut } from "svelte/easing";
     import SceneDialog from "$lib/components/SceneDialog.svelte";
@@ -73,10 +72,8 @@
     import { setActivity, start, stop } from "tauri-plugin-drpc";
     import { Activity, Assets, Timestamps } from "tauri-plugin-drpc/activity";
 
-    const stopwatch = confetti.shapeFromText({ text: "⏱️", scalar: 8 });
-    const time = confetti.shapeFromText({ text: "⌚", scalar: 8 });
     let confetti_canvas: HTMLCanvasElement | null = $state(null);
-    let confetti_function: any = $state();
+    let pressure_burst: ReturnType<typeof emoji_cannon> | null = null;
 
     let isDev: boolean = $state(false);
 
@@ -314,7 +311,7 @@
 
         sword_ping = new Audio("sword_sound.mp3");
 
-        confetti_function = confetti.create(confetti_canvas, { resize: true });
+        if (confetti_canvas) pressure_burst = emoji_cannon(confetti_canvas);
 
         // The rest is for the desktop app
         if (!in_tauri) return;
@@ -765,8 +762,8 @@
             let duration = 15 * 1000;
             let end = Date.now() + duration;
             let last = 0;
-            // Smaller on smaller screens, at 4 they covered a tablet like fog
-            const scalar = Math.min(2.5, Math.max(1.2, window.innerWidth / 700));
+            // Smaller on smaller screens, big they covered a tablet
+            const size = Math.min(32, Math.max(18, window.innerWidth / 50));
 
             (function frame() {
                 if (Date.now() < end && gameState.pressure) {
@@ -775,22 +772,19 @@
                 // As many as at 60 frames a second, phones and tablets draw up to 120
                 if (Date.now() - last < 15) return;
                 last = Date.now();
-                confetti_function({
-                    particleCount: 2,
-                    angle: 60,
-                    spread: 55,
-                    scalar,
-                    origin: { x: 0 },
-                    shapes: [stopwatch, time],
-                });
-                confetti_function({
-                    particleCount: 2,
-                    angle: 120,
-                    spread: 55,
-                    scalar,
-                    origin: { x: 1 },
-                    shapes: [stopwatch, time],
-                });
+                for (const [angle, x] of [
+                    [60, 0],
+                    [120, 1],
+                ]) {
+                    pressure_burst?.({
+                        emojis: ["⏱️", "⌚"],
+                        count: 2,
+                        angle,
+                        spread: 55,
+                        size,
+                        origin: { x, y: 0.5 },
+                    });
+                }
             })();
         } else {
             audio.pause();
