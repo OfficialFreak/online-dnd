@@ -344,6 +344,8 @@
                 height="4.5"
             ></rect></svg
         >
+    {:else if effect === "exhaustion"}
+        <i class="fa-solid fa-battery-quarter icon text-white text-center"></i>
     {:else}
         ?
     {/if}

@@ -342,11 +342,12 @@ export class Character {
     }
 
     get activeStatusEffects(): string[] {
+        // D&D Beyond's condition ids, starting at 1
         let id_effect_map = [
             "blinded",
             "charmed",
             "deafened",
-            "invisible",
+            "exhaustion",
             "frightened",
             "grappled",
             "incapacitated",
