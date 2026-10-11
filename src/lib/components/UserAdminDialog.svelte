@@ -57,7 +57,7 @@
         if (!key) return;
         try {
             await navigator.clipboard.writeText(key);
-            notify("Schlüssel kopiert", MessageTypes.Success, 1500);
+            notify("Passwort kopiert", MessageTypes.Success, 1500);
         } catch {
             notify("Kopieren hat nicht geklappt", MessageTypes.Error, 2000);
         }
@@ -80,9 +80,9 @@
     <div class="modal-box w-11/12 max-w-3xl flex flex-col gap-3">
         <h3 class="text-lg font-bold">Spieler verwalten</h3>
         <p class="text-sm text-base-content/60">
-            Jeder meldet sich mit seinem Schlüssel an. Ein neuer Schlüssel
-            meldet den Spieler ab, der alte gilt dann nicht mehr. DM-Rechte
-            wirken beim nächsten Verbinden.
+            Jeder meldet sich mit seinem Passwort an. Ein neues Passwort meldet
+            den Spieler ab, das alte gilt dann nicht mehr. DM-Rechte wirken beim
+            nächsten Verbinden.
         </p>
         <div class="overflow-x-auto">
             <table class="table table-sm">
@@ -90,7 +90,7 @@
                     <tr>
                         <th>Name</th>
                         <th>DM</th>
-                        <th>Schlüssel</th>
+                        <th>Passwort</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -133,7 +133,7 @@
                             <td class="font-mono text-xs">
                                 {#if !user.key}
                                     <span class="text-base-content/50"
-                                        >keiner</span
+                                        >keins</span
                                     >
                                 {:else if shown_key === user.name}
                                     {user.key}
@@ -150,7 +150,7 @@
                                             title={shown_key === user.name
                                                 ? "Verbergen"
                                                 : "Anzeigen"}
-                                            aria-label="Schlüssel anzeigen"
+                                            aria-label="Passwort anzeigen"
                                             onclick={() =>
                                                 (shown_key =
                                                     shown_key === user.name
@@ -167,7 +167,7 @@
                                         <button
                                             class="btn btn-xs btn-ghost btn-square"
                                             title="Kopieren"
-                                            aria-label="Schlüssel kopieren"
+                                            aria-label="Passwort kopieren"
                                             onclick={() => copy_key(user.key)}
                                         >
                                             <i class="fa-solid fa-copy"></i>
@@ -181,8 +181,8 @@
                                         `key:${user.name}`
                                             ? 'btn-warning'
                                             : 'btn-ghost btn-square'}"
-                                        title="Neuer Schlüssel, der alte gilt nicht mehr"
-                                        aria-label="Neuer Schlüssel"
+                                        title="Neues Passwort, das alte gilt nicht mehr"
+                                        aria-label="Neues Passwort"
                                         onclick={() =>
                                             request(`key:${user.name}`, () => {
                                                 appState.ws?.send(
