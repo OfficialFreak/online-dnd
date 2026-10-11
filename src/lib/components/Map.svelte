@@ -262,8 +262,8 @@
 
         if (
             editable &&
-            ruler_origin.x &&
-            ruler_origin.y &&
+            ruler_origin.x !== null &&
+            ruler_origin.y !== null &&
             appState.selectedTool === Tools.Ruler
         ) {
             // Calculate Length of Ruler
