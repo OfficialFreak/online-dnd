@@ -445,7 +445,8 @@
                     gameState.scene.state.initiative = message.initiative;
 
                     if (
-                        gameState.scene.state.initiative.length > 0 &&
+                        gameState.combat &&
+                        message.turn &&
                         gameState.scene.state.turn !== message.turn &&
                         ((!gameState.dm &&
                             get_own_character()?.name === message.turn) ||
