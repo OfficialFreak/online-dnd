@@ -58,8 +58,6 @@
         color: string;
         landed: boolean;
     } | null = $state(null);
-    /** Dice thrown to try out a look, they have no result to show */
-    let trying = false;
     /** Called when the dice on screen have all landed */
     let on_landed: (() => void) | null = null;
     /** Rolls of this client, the server sends them back like everyone else's */
@@ -135,7 +133,7 @@
             const landed = on_landed;
             on_landed = null;
             // Somebody else's roll, its result came with the message
-            if (shown_roll !== null || trying || !landed) {
+            if (shown_roll !== null || !landed) {
                 landed?.();
                 return;
             }
@@ -251,23 +249,6 @@
                 roll_id: roll_id,
                 replay: replay,
             };
-        });
-    };
-
-    /** Throws a d20 in the chosen look, only for this player to see */
-    roller.try_look = () => {
-        interrupt_replay?.();
-        return enqueue(async () => {
-            trying = true;
-            shown_roll = null;
-            diceBox.clear();
-            await Promise.race([
-                throw_dice(["1d20"], dice_look()),
-                sleep(10000),
-            ]);
-            await sleep(1500);
-            trying = false;
-            diceBox.clear();
         });
     };
 

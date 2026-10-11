@@ -1,90 +1,55 @@
 import { appState, ensureStore } from "./state.svelte";
 
-/** Looks for the dice, in static/assets/themes. Some of them can be colored. */
+/**
+ * Looks for the dice, in static/assets/themes. Only some of them take a color, the
+ * textures of the others have their own colors.
+ */
 export type DiceTheme = {
     theme: string;
     label: string;
     colorable: boolean;
-    /** Texture for previews: one for colorable themes with numbers in "light" and "dark" */
-    texture: string | { light: string; dark: string };
 };
 
-const colored = (light: string, dark: string) => ({ light, dark });
-
 export const DICE_THEMES: DiceTheme[] = [
-    {
-        theme: "default",
-        label: "Klassisch",
-        colorable: true,
-        texture: colored("diffuse-light.png", "diffuse-dark.png"),
-    },
-    {
-        theme: "smooth",
-        label: "Glatt",
-        colorable: true,
-        texture: colored("diffuse-light.png", "diffuse-dark.png"),
-    },
-    {
-        theme: "gemstone",
-        label: "Edelstein",
-        colorable: true,
-        texture: colored("gemstone-light.png", "gemstone-dark.png"),
-    },
-    {
-        theme: "rock",
-        label: "Stein",
-        colorable: true,
-        texture: colored("diffuse-light.png", "diffuse-dark.png"),
-    },
-    {
-        theme: "rust",
-        label: "Rost",
-        colorable: true,
-        texture: colored("diffuse-light.png", "diffuse-dark.png"),
-    },
-    {
-        theme: "wooden",
-        label: "Holz",
-        colorable: false,
-        texture: "diffuse.jpg",
-    },
-    {
-        theme: "blueGreenMetal",
-        label: "Altes Metall",
-        colorable: false,
-        texture: "diffuse.jpg",
-    },
-    {
-        theme: "gemstoneMarble",
-        label: "Regenbogenmarmor",
-        colorable: false,
-        texture: "diffuse.jpg",
-    },
-    {
-        theme: "diceOfRolling",
-        label: "Dice of Rolling",
-        colorable: false,
-        texture: "diffuse.jpg",
-    },
+    // The app's own purple dice, its texture covers any color
+    { theme: "default", label: "Galaxie", colorable: false },
+    // The plain dice of dice-box
+    { theme: "classic", label: "Klassisch", colorable: true },
+    { theme: "smooth", label: "Glatt", colorable: true },
+    { theme: "gemstone", label: "Edelstein", colorable: true },
+    { theme: "rock", label: "Stein", colorable: true },
+    { theme: "rust", label: "Rost", colorable: true },
+    { theme: "wooden", label: "Holz", colorable: false },
+    { theme: "blueGreenMetal", label: "Altes Metall", colorable: false },
+    // The soft hyphen lets the long name break in the small tile
+    { theme: "gemstoneMarble", label: "Regenbogen­marmor", colorable: false },
+    { theme: "diceOfRolling", label: "Dice of Rolling", colorable: false },
 ];
 
-/** Like dice-box: light dice get dark numbers */
-function is_light(color: string) {
+function rgb(color: string) {
     const value = parseInt(color.replace("#", ""), 16);
-    const r = (value >> 16) & 255;
-    const g = (value >> 8) & 255;
-    const b = value & 255;
-    return r * 0.299 + g * 0.587 + b * 0.114 > 175;
+    return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 
-/** CSS that shows a theme's texture, in the color if it can be colored */
+/** The preset color closest to a picked one */
+function nearest_color(color: string) {
+    const [r, g, b] = rgb(color);
+    return DICE_COLORS.reduce((best, preset) => {
+        const distance = (other: string) => {
+            const [r2, g2, b2] = rgb(other);
+            return (r - r2) ** 2 + (g - g2) ** 2 + (b - b2) ** 2;
+        };
+        return distance(preset) < distance(best) ? preset : best;
+    });
+}
+
+/**
+ * A rendered d20 of the theme. Colorable ones were rendered in every preset color, a
+ * picked color shows the closest of them.
+ */
 export function theme_preview(entry: DiceTheme, color: string) {
-    const file =
-        typeof entry.texture === "string"
-            ? entry.texture
-            : entry.texture[is_light(color) ? "dark" : "light"];
-    const background = entry.colorable ? color : "#2a2a2a";
-    return `background-color: ${background}; background-image: url("/assets/themes/${entry.theme}/${file}");`;
+    const suffix = entry.colorable ? `-${nearest_color(color).slice(1)}` : "";
+    return `/assets/themes/${entry.theme}/preview${suffix}.webp`;
 }
 
 export const DICE_COLORS = [

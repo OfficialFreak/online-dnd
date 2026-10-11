@@ -1004,12 +1004,7 @@
         <p class="text-sm text-base-content/60 mb-2">
             Alle sehen deine Würfel, wenn du würfelst.
         </p>
-        <DiceSkinPicker
-            on_try={() => {
-                theme_modal?.close();
-                roller.try_look?.();
-            }}
-        />
+        <DiceSkinPicker />
         <h3 class="text-lg font-bold mt-4">Aussehen anpassen</h3>
         <div class="flex flex-row flex-wrap gap-1">
             {#each ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter", "dim", "nord", "sunset", "caramellatte", "abyss", "silk"] as theme}
