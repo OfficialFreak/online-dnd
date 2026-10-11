@@ -354,7 +354,7 @@
 />
 
 <div
-    class="fixed top-[calc(2.5rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row gap-1 pointer-events-none"
+    class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row gap-1 pointer-events-none"
 >
     {#if toolbarState.panel}
         <!-- Out of the way while a marker or scene is dragged from it onto the map. Only

@@ -955,7 +955,9 @@
             aria-label="Reconnect"
             class="cursor-pointer peer -mr-2"
         >
-            <div class="h-[30px] w-[30px] flex justify-center items-center">
+            <div
+                class="h-[var(--titlebar)] w-[var(--titlebar)] flex justify-center items-center"
+            >
                 {#if appState.ws}
                     <div
                         aria-label="success"
@@ -971,34 +973,41 @@
         </button>
         {#if gameState.dm}
             <div
-                class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-events-none"
+                class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm pointer-events-none"
             >
                 DM
             </div>
         {/if}
         <button
-            class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
-            onclick={() => theme_modal?.showModal()}>Aussehen</button
+            class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
+            aria-label="Aussehen"
+            onclick={() => theme_modal?.showModal()}
+            ><i class="fa-solid fa-palette sm:hidden"></i><span
+                class="max-sm:hidden">Aussehen</span
+            ></button
         >
         {#if gameState.dm}
             <button
-                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
+                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
                 onclick={() => dialogs.users?.open()}
             >
-                <i class="fa-solid fa-users-gear"></i> Spieler
+                <i class="fa-solid fa-users-gear"></i>
+                <!-- Only the icons on a phone, the bar wouldn't fit across -->
+                <span class="max-sm:hidden">Spieler</span>
             </button>
             <button
-                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
+                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
                 onclick={() => dialogs.assets?.open()}
             >
-                <i class="fa-solid fa-folder-open"></i> Dateien
+                <i class="fa-solid fa-folder-open"></i>
+                <span class="max-sm:hidden">Dateien</span>
             </button>
         {/if}
         <!-- Flex, as a block the button would sit on the text baseline, lower than the others -->
         <div class="dropdown dropdown-bottom my-auto flex">
             <button
                 tabindex="0"
-                class="btn btn-soft btn-primary !text-xs px-2 h-6"
+                class="btn btn-soft btn-primary !text-xs px-2 h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
                 aria-label="Lautstärke"
                 title={audioState.music
                     ? `Läuft: ${audioState.music.name}`
@@ -1077,7 +1086,7 @@
                 <div
                     tabindex="0"
                     role="button"
-                    class="btn btn-soft btn-primary !text-xs px-2 h-6 pointer-events-none"
+                    class="btn btn-soft btn-primary !text-xs px-2 h-6 pointer-coarse:h-9 pointer-events-none"
                 >
                     Updatevorgang...
                 </div>
@@ -1294,7 +1303,7 @@
 
 <style>
     .titlebar {
-        height: calc(30px + var(--safe-top));
+        height: calc(var(--titlebar) + var(--safe-top));
         padding: var(--safe-top) var(--safe-right) 0 var(--safe-left);
         user-select: none;
         display: flex;

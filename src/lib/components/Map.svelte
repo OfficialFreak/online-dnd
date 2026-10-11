@@ -854,7 +854,8 @@
         const old_zoom = appState.zoom;
         new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), MAX_ZOOM);
         // The tolerance keeps rounding errors from stopping again right after a stop
-        const fit_height = (window.innerHeight - 30) / base_h;
+        const titlebar = parseFloat(getComputedStyle(document.body).marginTop) || 30;
+        const fit_height = (window.innerHeight - titlebar) / base_h;
         for (const stop of [1, fit_height]) {
             const at_stop = Math.abs(old_zoom - stop) < 0.001;
             const passes = (old_zoom - stop) * (new_zoom - stop) < 0;

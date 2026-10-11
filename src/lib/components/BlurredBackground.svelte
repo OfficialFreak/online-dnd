@@ -12,5 +12,5 @@
 
 <div
     style="background: url({background_url}); filter: blur({blur}px); background-size: cover;"
-    class="{position} h-full max-h-screen mt-[-30px] pointer-events-none w-full bg-repeat bg-auto"
+    class="{position} h-full max-h-screen mt-[calc(var(--titlebar)*-1)] pointer-events-none w-full bg-repeat bg-auto"
 ></div>

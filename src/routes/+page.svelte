@@ -55,7 +55,7 @@
 </script>
 
 <main
-    class="h-[calc(100vh-30px)] flex justify-center items-center flex-col colored-bg"
+    class="h-[calc(100vh-var(--titlebar))] flex justify-center items-center flex-col colored-bg"
 >
     {#if loading}
         <span class="loading loading-infinity w-30"></span>
