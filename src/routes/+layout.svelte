@@ -765,6 +765,8 @@
             let duration = 15 * 1000;
             let end = Date.now() + duration;
             let last = 0;
+            // Smaller on smaller screens, at 4 they covered a tablet like fog
+            const scalar = Math.min(2.5, Math.max(1.2, window.innerWidth / 700));
 
             (function frame() {
                 if (Date.now() < end && gameState.pressure) {
@@ -777,7 +779,7 @@
                     particleCount: 2,
                     angle: 60,
                     spread: 55,
-                    scalar: 4,
+                    scalar,
                     origin: { x: 0 },
                     shapes: [stopwatch, time],
                 });
@@ -785,7 +787,7 @@
                     particleCount: 2,
                     angle: 120,
                     spread: 55,
-                    scalar: 4,
+                    scalar,
                     origin: { x: 1 },
                     shapes: [stopwatch, time],
                 });
