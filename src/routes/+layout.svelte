@@ -15,6 +15,7 @@
         show_pointer,
         modals,
         dialogs,
+        remember_roll,
         get_own_character,
         resetGamestate,
     } from "../lib/state.svelte";
@@ -357,6 +358,7 @@
                     }
                     break;
                 case MessageType.ROLL_RESULT:
+                    remember_roll(message);
                     notify(
                         `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${mode_suffix(message.mode, message.d20s)}${message.dm_only ? " [DM Only]" : ""}`,
                         MessageTypes.Info,
@@ -479,6 +481,7 @@
                     );
                     break;
                 case MessageType.CHECK_RESULT:
+                    remember_roll(message);
                     notify(
                         `${message.sender} (${stat_label(message.stat)}${message.stat === "initiative" ? "" : "-Check"}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
@@ -486,6 +489,7 @@
                     );
                     break;
                 case MessageType.SAVE_RESULT:
+                    remember_roll(message);
                     notify(
                         `${message.sender} (${stat_label(message.stat)}-Rettungswurf): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
@@ -494,6 +498,9 @@
                     break;
                 case MessageType.COMBAT_STATE:
                     gameState.combat = message.active;
+                    break;
+                case MessageType.ROLL_HISTORY:
+                    gameState.rolls = message.rolls;
                     break;
             }
         });

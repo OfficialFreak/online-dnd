@@ -21,7 +21,8 @@ export enum MessageType {
     CHECK_RESULT = "check_result",
     SAVE_RESULT = "save_result",
     COMBAT_STATE = "combat_state",
-    BLOOD = "blood"
+    BLOOD = "blood",
+    ROLL_HISTORY = "roll_history"
 }
 
 export enum EventType {
@@ -231,6 +232,14 @@ export interface CombatState extends BaseServerMessage {
     active: boolean;
 }
 
+export type AnyRoll = RollResult | CheckResult | SaveResult;
+
+/** The latest rolls, sent after connecting */
+export interface RollHistory extends BaseServerMessage {
+    type: MessageType.ROLL_HISTORY;
+    rolls: AnyRoll[];
+}
+
 export type ServerMessage = 
     | PlayerMessage 
     | InitialData 
@@ -253,7 +262,8 @@ export type ServerMessage =
     | Characters 
     | CheckResult 
     | SaveResult
-    | CombatState;
+    | CombatState
+    | RollHistory;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -309,6 +319,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as SaveResult;
         case MessageType.COMBAT_STATE:
             return data as CombatState;
+        case MessageType.ROLL_HISTORY:
+            return data as RollHistory;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

@@ -20,6 +20,7 @@
     import CharacterSheet from "./CharacterSheet.svelte";
     import MarkerPanel from "./MarkerPanel.svelte";
     import ScenePanel from "./ScenePanel.svelte";
+    import RollLog from "./RollLog.svelte";
     import {
         CombatState,
         ImportCharacter,
@@ -136,6 +137,9 @@
                 break;
             case "KeyC":
                 togglePanel("characters");
+                break;
+            case "KeyV":
+                togglePanel("rolls");
                 break;
             // "+" is BracketRight and "-" is Slash on German keyboards
             case "BracketRight":
@@ -279,6 +283,8 @@
                 <MarkerPanel />
             {:else if toolbarState.panel === "scenes"}
                 <ScenePanel />
+            {:else if toolbarState.panel === "rolls"}
+                <RollLog />
             {:else if !toolbarState.characterOpen}
                 <div class="p-2 px-4">
                     <h1 class="text-3xl font-bold">Charaktere</h1>
@@ -558,6 +564,24 @@
                 }}
             >
                 <i class="fa-solid fa-user"></i>
+            </button>
+        </div>
+        <div class="tooltip tooltip-right">
+            <div class="tooltip-content">
+                Verlauf <kbd class="kbd">V</kbd>
+            </div>
+            <button
+                tabindex="0"
+                class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                'rolls'
+                    ? 'btn-info'
+                    : ''}"
+                aria-label="Verlauf"
+                onclick={() => {
+                    togglePanel("rolls");
+                }}
+            >
+                <i class="fa-solid fa-clock-rotate-left"></i>
             </button>
         </div>
         {#if !gameState.dm}

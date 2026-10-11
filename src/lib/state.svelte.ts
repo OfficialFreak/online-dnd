@@ -18,7 +18,7 @@ import {
     PutScene,
 } from "./types/messaging/client_messages";
 import { MessageTypes, notify } from "./notifications.svelte";
-import type { RollMode } from "./rolls";
+import type { RollEntry, RollMode } from "./rolls";
 
 export enum Tools {
     None,
@@ -63,6 +63,8 @@ export const gameState = $state({
     /** Shown on pointers from old clients, which don't send whose pointer it is */
     DMName: "",
     combat: false,
+    /** Oldest first */
+    rolls: [] as RollEntry[],
 });
 
 export const resetGamestate = () => {
@@ -78,6 +80,7 @@ export const resetGamestate = () => {
     gameState.characters = [];
     gameState.DMName = "";
     gameState.combat = false;
+    gameState.rolls = [];
     for (const name of Object.keys(pointers)) delete pointers[name];
 };
 
@@ -144,7 +147,7 @@ export const dialogs: {
     } | null;
 } = { scene: null, marker: null };
 
-export type Panel = "characters" | "markers" | "scenes";
+export type Panel = "characters" | "markers" | "scenes" | "rolls";
 
 export const toolbarState = $state({
     panel: null as Panel | null,
@@ -160,6 +163,15 @@ export const fogState = $state({
 });
 
 export const roller: any = $state({ value: null });
+
+const MAX_ROLLS = 200;
+
+export function remember_roll(roll: RollEntry) {
+    gameState.rolls.push({ ...roll, time: roll.time ?? Date.now() });
+    if (gameState.rolls.length > MAX_ROLLS) {
+        gameState.rolls.splice(0, gameState.rolls.length - MAX_ROLLS);
+    }
+}
 
 /** Advantage or disadvantage for the next roll with a single d20 */
 export const rollState = $state({ mode: "normal" as RollMode });

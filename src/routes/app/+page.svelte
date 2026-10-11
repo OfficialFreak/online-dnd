@@ -9,7 +9,9 @@
         roller,
         advance_turn,
         get_own_character,
+        remember_roll,
     } from "../../lib/state.svelte";
+    import { MessageType } from "$lib/types/messaging/server_messages";
     import { connect } from "../../lib/connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
@@ -81,6 +83,25 @@
     async function roll(dice: string[], privacy_level: string) {
         if (!roller.value) return;
         let result = await roller.value(dice, 0);
+        // The server doesn't send these back to this client, they go into its history here
+        if (
+            privacy_level === "private" ||
+            (privacy_level === "dm" && !gameState.dm)
+        ) {
+            remember_roll({
+                type: MessageType.ROLL_RESULT,
+                sender: get_own_character()?.name ?? gameState.name,
+                sender_dm: gameState.dm,
+                dices: result.dice_values,
+                result: result.roll_result,
+                single_dice: result.single_roll,
+                dm_only: privacy_level === "dm",
+                notation: dice.join(" + "),
+                mode: result.mode,
+                d20s: result.d20s,
+                private: privacy_level === "private",
+            });
+        }
         if (appState.ws && privacy_level !== "private") {
             await appState.ws.send(
                 RollResult.create(
