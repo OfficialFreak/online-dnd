@@ -44,14 +44,32 @@ function browser_socket(url: string): Promise<GameSocket> {
                 });
             }
         });
-        socket.addEventListener("open", () => resolve(game_socket), {
-            once: true,
-        });
-        socket.addEventListener("error", () => reject(new Error("Connecting failed")), {
-            once: true,
-        });
+        // A connection that never opens nor fails, e.g. on a phone's flaky network, would
+        // hold up the retries forever
+        const timeout = setTimeout(() => {
+            socket.close();
+            reject(new Error("Connecting timed out"));
+        }, CONNECT_TIMEOUT);
+        socket.addEventListener(
+            "open",
+            () => {
+                clearTimeout(timeout);
+                resolve(game_socket);
+            },
+            { once: true },
+        );
+        socket.addEventListener(
+            "error",
+            () => {
+                clearTimeout(timeout);
+                reject(new Error("Connecting failed"));
+            },
+            { once: true },
+        );
     });
 }
+
+const CONNECT_TIMEOUT = 8000;
 
 async function connect(url: string) {
     if (appState.ws) {

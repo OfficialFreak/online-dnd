@@ -185,6 +185,61 @@
         }
     }
 
+    // A lost connection comes back on its own: after a server restart, a network hiccup,
+    // or when a phone put the page to sleep. The retries wait longer each time.
+    let retry_timer: ReturnType<typeof setTimeout> | undefined;
+    let retry_delay = 1000;
+
+    function retry_connection() {
+        clearTimeout(retry_timer);
+        // A hidden page waits until it is shown again, a phone may not even run it
+        if (!url || appState.ws || document.hidden) return;
+        retry_timer = setTimeout(async () => {
+            if (!url || appState.ws || reconnecting) return;
+            reconnecting = true;
+            const connected = await connect(url);
+            reconnecting = false;
+            if (connected) {
+                retry_delay = 1000;
+                notify("Wieder verbunden", MessageTypes.Success, 1500);
+            } else {
+                retry_delay = Math.min(retry_delay * 2, 15_000);
+                retry_connection();
+            }
+        }, retry_delay);
+    }
+
+    let hidden_since = 0;
+
+    async function on_visibility_change() {
+        if (document.hidden) {
+            hidden_since = Date.now();
+            return;
+        }
+        if (!url) return;
+        retry_delay = 1000;
+        if (!appState.ws) {
+            retry_connection();
+            return;
+        }
+        // iOS ends the connections of a page in the background, often without telling
+        // it. After a while away the page connects anew instead of waiting for nothing.
+        if (
+            !in_tauri &&
+            navigator.maxTouchPoints > 0 &&
+            Date.now() - hidden_since > 10_000
+        ) {
+            // First, so its close doesn't count as a lost connection
+            const old_ws = appState.ws;
+            appState.ws = null;
+            try {
+                await old_ws.disconnect();
+            } catch {}
+            retry_delay = 0;
+            retry_connection();
+        }
+    }
+
     async function disconnect(evt: any) {
         evt.preventDefault();
         // First, so its close doesn't count as a lost connection
@@ -215,6 +270,8 @@
                 appState.ws = null;
                 resetGamestate();
                 stop_all_sounds();
+                retry_delay = 1000;
+                retry_connection();
             } else {
                 // @ts-ignore
                 console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
@@ -787,7 +844,13 @@
     let theme_modal: HTMLDialogElement | null = $state(null);
 </script>
 
+<svelte:document onvisibilitychange={on_visibility_change} />
+
 <svelte:window
+    ononline={() => {
+        retry_delay = 0;
+        retry_connection();
+    }}
     onbeforeunload={async () => {
         await appState.ws?.disconnect();
         if (in_tauri) await stop();
