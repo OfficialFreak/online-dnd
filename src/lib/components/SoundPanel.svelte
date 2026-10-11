@@ -10,6 +10,7 @@
         PlaySound,
         PutSound,
         StopMusic,
+        StopSound,
     } from "$lib/types/messaging/client_messages";
     import { file_stem_of, pick_file, upload_picked } from "$lib/upload.svelte";
     import { uploadState } from "$lib/upload.svelte";
@@ -48,7 +49,19 @@
         );
     }
 
+    /** Music stops for everyone, effects that are still playing too */
+    function stop(sound: Sound) {
+        if (audioState.music?.name === sound.name) {
+            appState.ws?.send(StopMusic.create());
+        }
+        if (audioState.effects.includes(sound.name)) {
+            appState.ws?.send(StopSound.create(sound.name));
+        }
+    }
+
     function switch_kind(sound: Sound) {
+        // It would keep playing the old way, an effect without a way to stop it
+        stop(sound);
         appState.ws?.send(
             PutSound.create(
                 sound.name,
@@ -75,7 +88,8 @@
 
 {#snippet sound_row(sound: Sound)}
     {@const playing =
-        sound.kind === "music" && audioState.music?.name === sound.name}
+        audioState.music?.name === sound.name ||
+        audioState.effects.includes(sound.name)}
     <li
         class="group flex flex-row items-center gap-1 p-1 rounded-box hover:bg-base-content/10 {playing
             ? 'bg-info/15'
@@ -86,9 +100,9 @@
             aria-label={playing ? "Stoppen" : "Für alle abspielen"}
             title={playing ? "Stoppen" : "Für alle abspielen"}
             onclick={() =>
-                appState.ws?.send(
-                    playing ? StopMusic.create() : PlaySound.create(sound.name),
-                )}
+                playing
+                    ? stop(sound)
+                    : appState.ws?.send(PlaySound.create(sound.name))}
         >
             <i
                 class="fa-solid {playing

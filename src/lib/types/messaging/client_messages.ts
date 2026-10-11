@@ -436,6 +436,16 @@ export class StopMusic {
     }
 }
 
+/** Cuts an effect short for everyone */
+export class StopSound {
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "stop_sound",
+            name: name
+        });
+    }
+}
+
 export class ListUsers {
     static create(): string {
         return JSON.stringify({

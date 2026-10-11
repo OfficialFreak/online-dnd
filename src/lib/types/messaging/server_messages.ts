@@ -36,6 +36,7 @@ export enum MessageType {
     SOUND_LIB = "sound_lib",
     PLAY_SOUND = "play_sound",
     STOP_MUSIC = "stop_music",
+    STOP_SOUND = "stop_sound",
     USER_ADMIN = "user_admin",
     TABLETOP_AUDIO = "tabletop_audio",
     SOUND_IMPORT_FAILED = "sound_import_failed",
@@ -297,6 +298,11 @@ export interface StopMusic extends BaseServerMessage {
     type: MessageType.STOP_MUSIC;
 }
 
+export interface StopSound extends BaseServerMessage {
+    type: MessageType.STOP_SOUND;
+    name: string;
+}
+
 export interface UserAdmin extends BaseServerMessage {
     type: MessageType.USER_ADMIN;
     users: AdminUser[];
@@ -365,6 +371,7 @@ export type ServerMessage =
     | SoundLib
     | PlaySound
     | StopMusic
+    | StopSound
     | UserAdmin
     | TabletopAudio
     | SoundImportFailed
@@ -439,6 +446,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as PlaySound;
         case MessageType.STOP_MUSIC:
             return data as StopMusic;
+        case MessageType.STOP_SOUND:
+            return data as StopSound;
         case MessageType.USER_ADMIN:
             return data as UserAdmin;
         case MessageType.TABLETOP_AUDIO:

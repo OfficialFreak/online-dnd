@@ -22,9 +22,13 @@ export const audioState = $state({
     tabletop: null as TabletopTrack[] | null,
     /** Names of sounds the server is downloading from a library */
     importing: [] as string[],
+    /** Names of the effects playing right now */
+    effects: [] as string[],
 });
 
 let music: HTMLAudioElement | null = null;
+/** An effect the DM plays again before it ends plays twice at once */
+const effects = new Map<string, Set<HTMLAudioElement>>();
 
 export function music_volume() {
     return audioState.muted ? 0 : audioState.music_volume;
@@ -87,10 +91,39 @@ export function stop_music() {
     audioState.music = null;
 }
 
-export function play_effect(file: string) {
+export function play_effect(name: string, file: string) {
     const audio = new Audio(asset_url(file));
     audio.volume = effect_volume();
-    audio.play().catch((e) => console.error("Playing a sound failed", e));
+    const playing = effects.get(name) ?? new Set();
+    playing.add(audio);
+    effects.set(name, playing);
+    audioState.effects = [...effects.keys()];
+    const done = () => forget_effect(name, audio);
+    audio.addEventListener("ended", done, { once: true });
+    audio.addEventListener("error", done, { once: true });
+    audio.play().catch((e) => {
+        console.error("Playing a sound failed", e);
+        done();
+    });
+}
+
+function forget_effect(name: string, audio: HTMLAudioElement) {
+    const playing = effects.get(name);
+    if (!playing?.delete(audio)) return;
+    if (playing.size === 0) effects.delete(name);
+    audioState.effects = [...effects.keys()];
+}
+
+export function stop_effect(name: string) {
+    for (const audio of effects.get(name) ?? []) {
+        forget_effect(name, audio);
+        fade(audio, () => 0, () => audio.pause());
+    }
+}
+
+export function stop_all_sounds() {
+    stop_music();
+    for (const name of [...effects.keys()]) stop_effect(name);
 }
 
 /** Sounds shorter than this are probably effects, not music */
@@ -123,6 +156,9 @@ export function set_volume(
 ) {
     Object.assign(audioState, change);
     if (music) music.volume = music_volume();
+    for (const playing of effects.values()) {
+        for (const audio of playing) audio.volume = effect_volume();
+    }
     // Sliders change a lot while dragging, the store only needs the end result
     clearTimeout(save_timeout);
     save_timeout = setTimeout(async () => {

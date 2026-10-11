@@ -35,6 +35,8 @@
         play_effect,
         play_music,
         set_volume,
+        stop_all_sounds,
+        stop_effect,
         stop_music,
     } from "$lib/audio.svelte";
     import { onMount } from "svelte";
@@ -189,7 +191,7 @@
         const old_ws = appState.ws;
         appState.ws = null;
         resetGamestate();
-        stop_music();
+        stop_all_sounds();
         try {
             await old_ws?.disconnect();
         } catch {}
@@ -212,7 +214,7 @@
                 ws.disconnect().catch(() => {});
                 appState.ws = null;
                 resetGamestate();
-                stop_music();
+                stop_all_sounds();
             } else {
                 // @ts-ignore
                 console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
@@ -590,11 +592,14 @@
                     if (message.kind === "music") {
                         play_music(message.name, message.file, message.started_at);
                     } else {
-                        play_effect(message.file);
+                        play_effect(message.name, message.file);
                     }
                     break;
                 case MessageType.STOP_MUSIC:
                     stop_music();
+                    break;
+                case MessageType.STOP_SOUND:
+                    stop_effect(message.name);
                     break;
                 case MessageType.USER_ADMIN:
                     adminState.users = message.users;
