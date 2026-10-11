@@ -9,8 +9,8 @@
         dialogs,
         gameState,
         getCharacter,
+        remove_from_initiative,
         Tools,
-        update_initiative,
     } from "../state.svelte";
     import { draggable } from "@neodrag/svelte";
     // @ts-ignore
@@ -547,24 +547,8 @@
                         <!-- svelte-ignore node_invalid_placement_ssr -->
                         <button
                             class="btn btn-sm btn-soft btn-warning"
-                            onclick={async () => {
-                                if (!gameState.scene) return;
-                                let idx =
-                                    gameState.scene.state.initiative.findIndex(
-                                        (initiative) =>
-                                            initiative[1] === scene_marker.name,
-                                    );
-                                if (idx === -1) return;
-                                gameState.scene.state.initiative.splice(idx, 1);
-                                if (
-                                    gameState.scene.state.turn ===
-                                    scene_marker.name
-                                ) {
-                                    gameState.scene.state.turn = null;
-                                }
-
-                                await update_initiative();
-                            }}
+                            onclick={() =>
+                                remove_from_initiative(scene_marker.name)}
                         >
                             <i class="fa-solid fa-minus"></i>
                             Initiative

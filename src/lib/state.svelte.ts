@@ -18,7 +18,9 @@ import {
     DeleteCharacter,
     DeleteMarker,
     DeleteScene,
+    InitiativeEntries,
     PutScene,
+    SetTurn,
 } from "./types/messaging/client_messages";
 import { MessageTypes, notify } from "./notifications.svelte";
 import type { RollEntry, RollMode } from "./rolls";
@@ -265,11 +267,9 @@ export async function advance_turn() {
     );
     const next = index === -1 ? 0 : (index + 1) % sorted_initiative.length;
     // Everyone had their turn, back to the first one in a new round
-    if (index !== -1 && next === 0) {
-        gameState.scene.state.round = current_round() + 1;
-    }
-    gameState.scene.state.turn = sorted_initiative[next][1];
-    await update_initiative();
+    const round =
+        index !== -1 && next === 0 ? current_round() + 1 : current_round();
+    await set_turn(sorted_initiative[next][1], round);
 }
 
 /** Goes back one turn, used by the DM to undo an accidental advance */
@@ -283,10 +283,44 @@ export async function previous_turn() {
     const previous =
         index <= 0 ? sorted_initiative.length - 1 : index - 1;
     // Going back past the first one undoes the start of the round
-    if (index === 0) {
-        gameState.scene.state.round = Math.max(1, current_round() - 1);
+    const round =
+        index === 0 ? Math.max(1, current_round() - 1) : current_round();
+    await set_turn(sorted_initiative[previous][1], round);
+}
+
+/**
+ * Moves the turn on. The server only takes it if the turn is still the one this client
+ * saw, so two people ending the same turn at once don't skip the next one.
+ */
+async function set_turn(turn: string | null, round: number) {
+    if (!appState.ws || !gameState.scene) return;
+    const from = gameState.scene.state.turn ?? null;
+    gameState.scene.state.turn = turn;
+    gameState.scene.state.round = round;
+    await appState.ws.send(SetTurn.create(from, turn, round));
+}
+
+/** Who has the turn once these markers left the initiative, the next one if it was theirs */
+function turn_without(names: string[]) {
+    const turn = gameState.scene?.state.turn ?? null;
+    if (!sorted_initiative || !turn || !names.includes(turn)) return turn;
+    const index = sorted_initiative.findIndex((entry) => entry[1] === turn);
+    for (let step = 1; step < sorted_initiative.length; step++) {
+        const [, name] = sorted_initiative[(index + step) % sorted_initiative.length];
+        if (!names.includes(name)) return name;
     }
-    gameState.scene.state.turn = sorted_initiative[previous][1];
+    return null;
+}
+
+/** Takes a marker out of the initiative, the next one gets the turn if it was its turn */
+export async function remove_from_initiative(name: string) {
+    const scene = gameState.scene;
+    if (!scene) return;
+    record_undo();
+    scene.state.turn = turn_without([name]);
+    scene.state.initiative = scene.state.initiative.filter(
+        (entry) => entry[1] !== name,
+    );
     await update_initiative();
 }
 
@@ -298,8 +332,7 @@ export function current_round() {
 /** Starts counting rounds again, e.g. when a new combat starts */
 export async function reset_round() {
     if (!gameState.scene) return;
-    gameState.scene.state.round = 1;
-    await update_initiative();
+    await set_turn(gameState.scene.state.turn ?? null, 1);
 }
 
 export async function update_initiative() {
@@ -333,7 +366,7 @@ export async function add_to_initiative(marker: Pick<MarkerTemplate, "name" | "m
         MessageTypes.Info,
         3000,
     );
-    await update_initiative();
+    await appState.ws?.send(InitiativeEntries.create([[total, marker.name]]));
 }
 
 /** Rolls initiative for all markers that aren't characters and aren't in the initiative yet */
@@ -346,18 +379,17 @@ export async function roll_npc_initiative() {
             !scene.state.initiative.some((entry) => entry[1] === marker.name),
     );
     if (npcs.length === 0) {
-        notify("Alle Marker sind schon in der Initiative", MessageTypes.Info, 2000);
+        notify("Alle NPCs sind schon in der Initiative", MessageTypes.Info, 2000);
         return;
     }
     record_undo();
-    for (const marker of npcs) {
-        scene.state.initiative.push([
-            roll_initiative(initiative_bonus(marker)).total,
-            marker.name,
-        ]);
-    }
-    notify(`Initiative für ${npcs.length} Marker gewürfelt`, MessageTypes.Success, 2000);
-    await update_initiative();
+    const entries: [number, string][] = npcs.map((marker) => [
+        roll_initiative(initiative_bonus(marker)).total,
+        marker.name,
+    ]);
+    scene.state.initiative.push(...entries);
+    notify(`Initiative für ${npcs.length} NPCs gewürfelt`, MessageTypes.Success, 2000);
+    await appState.ws?.send(InitiativeEntries.create(entries));
 }
 
 /** Names of the markers the DM selected, to move or remove them together */
@@ -379,6 +411,7 @@ export async function remove_markers(names: string[]) {
         );
         if (index === -1) continue;
         const marker = scene.state.markers[index];
+        scene.state.turn = turn_without([name]);
         const size = marker.size / scene.columns;
         spill_blood(marker.x.target, marker.y.target, size);
         // Players would see blood where a hidden marker stood
@@ -391,7 +424,6 @@ export async function remove_markers(names: string[]) {
         scene.state.initiative = scene.state.initiative.filter(
             (entry) => entry[1] !== name,
         );
-        if (scene.state.turn === name) scene.state.turn = null;
         selection.delete(name);
     }
     await save_scene();

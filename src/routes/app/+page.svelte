@@ -232,7 +232,10 @@
                         : 'btn-info'}"
                     onclick={advance_turn}
                 >
-                    Zug beenden
+                    <!-- Nobody has the turn until the DM starts the first one -->
+                    {gameState.scene?.state.turn
+                        ? "Zug beenden"
+                        : "Ersten Zug starten"}
                 </button>
             </div>
         </div>

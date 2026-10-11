@@ -125,6 +125,28 @@ export class PutScene {
     }
 }
 
+export class InitiativeEntries {
+    /** Adds or changes these entries, the server merges them into the stored list */
+    static create(entries: [number, string][]): string {
+        return JSON.stringify({
+            type: "initiative_entries",
+            entries: entries
+        });
+    }
+}
+
+export class SetTurn {
+    /** Only applies if the turn on the server is still `from` */
+    static create(from: string | null, turn: string | null, round: number): string {
+        return JSON.stringify({
+            type: "set_turn",
+            from: from,
+            turn: turn,
+            round: round
+        });
+    }
+}
+
 export class UpdateScene {
     /** Changes everything but the scene's state, a different name renames it */
     static create(old_name: string, name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number): string {

@@ -1,11 +1,13 @@
 <script lang="ts">
-    import { CheckResult } from "$lib/types/messaging/client_messages";
+    import {
+        CheckResult,
+        InitiativeEntries,
+    } from "$lib/types/messaging/client_messages";
     import {
         appState,
         character_marker,
         gameState,
         roller,
-        update_initiative,
     } from "../state.svelte";
     import { dragSource } from "../drag.svelte";
     import { shared_roll } from "$lib/rolls";
@@ -35,26 +37,21 @@
                 shared_roll(result),
             ),
         );
-        let char_init = gameState.scene?.state.initiative.find(
+        // Only markers on the map take part
+        if (!gameState.scene?.state.markers.some((marker) => marker.name === name)) {
+            return;
+        }
+        const total = result.roll_result + initiative;
+        let char_init = gameState.scene.state.initiative.find(
             (initiative) => initiative[1] === name,
         );
         if (char_init) {
-            char_init[0] = result.roll_result + initiative;
+            char_init[0] = total;
         } else {
-            if (
-                gameState.scene?.state.markers.some(
-                    (marker) => marker.name === name,
-                )
-            ) {
-                gameState.scene?.state.initiative.push([
-                    result.roll_result + initiative,
-                    name,
-                ]);
-            } else {
-                return;
-            }
+            gameState.scene.state.initiative.push([total, name]);
         }
-        await update_initiative();
+        // Just this entry, everyone else may be rolling at the same time
+        await appState.ws?.send(InitiativeEntries.create([[total, name]]));
     }
 </script>
 
