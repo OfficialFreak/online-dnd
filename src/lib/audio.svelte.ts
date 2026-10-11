@@ -1,4 +1,5 @@
 import { asset_url } from "./assets";
+import { in_tauri } from "./platform";
 import type { TabletopTrack } from "./sound-library";
 import { appState, ensureStore } from "./state.svelte";
 
@@ -72,27 +73,66 @@ function fade(audio: HTMLAudioElement, to: () => number, done?: () => void) {
     }, 50);
 }
 
+/** Everyone hears the same part of the song */
+function catch_up(audio: HTMLAudioElement, started_at: number) {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        audio.currentTime = ((Date.now() - started_at) / 1000) % audio.duration;
+    }
+}
+
+/** iOS plays sound only after a tap, then it starts with the next one */
+function play_or_wait(audio: HTMLAudioElement) {
+    audio.play().catch((e) => {
+        console.error("Playing music failed", e);
+        document.addEventListener(
+            "pointerdown",
+            () => {
+                if (audio === music) audio.play().catch(() => {});
+            },
+            { once: true },
+        );
+    });
+}
+
 /** started_at is when the DM started it, in milliseconds since 1970 */
 export function play_music(name: string, file: string, started_at: number) {
+    // The same song again, after connecting anew, plays on instead of starting over
+    if (
+        music &&
+        audioState.music?.file === file &&
+        audioState.music.started_at === started_at
+    ) {
+        if (music.paused && !document.hidden) {
+            catch_up(music, started_at);
+            play_or_wait(music);
+        }
+        return;
+    }
     stop_music();
     const audio = new Audio(asset_url(file));
     audio.loop = true;
     audio.volume = 0;
-    audio.addEventListener(
-        "loadedmetadata",
-        () => {
-            // Everyone hears the same part of the song
-            if (Number.isFinite(audio.duration) && audio.duration > 0) {
-                audio.currentTime =
-                    ((Date.now() - started_at) / 1000) % audio.duration;
-            }
-        },
-        { once: true },
-    );
-    audio.play().catch((e) => console.error("Playing music failed", e));
+    audio.addEventListener("loadedmetadata", () => catch_up(audio, started_at), {
+        once: true,
+    });
+    play_or_wait(audio);
     fade(audio, playing_music_volume);
     music = audio;
     audioState.music = { name, file, started_at };
+}
+
+// Phones and tablets pause the music while the app is in the background, and play on
+// where everyone else is when it comes back. The desktop keeps playing in other windows.
+if (typeof document !== "undefined" && !in_tauri && navigator.maxTouchPoints > 0) {
+    document.addEventListener("visibilitychange", () => {
+        if (!music || !audioState.music) return;
+        if (document.hidden) {
+            music.pause();
+        } else {
+            catch_up(music, audioState.music.started_at);
+            play_or_wait(music);
+        }
+    });
 }
 
 export function stop_music() {
