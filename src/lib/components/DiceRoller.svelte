@@ -19,9 +19,14 @@
     import {
         bonus_string as format_bonus,
         mode_label,
+        natural_d20,
+        roll_detail,
+        roll_title,
+        roll_total,
         type RollMode,
         type RollOutcome,
     } from "../rolls";
+    import { fly, scale } from "svelte/transition";
     import {
         MessageType,
         type AnyRoll,
@@ -47,8 +52,12 @@
     );
 
     /** Somebody else's roll being shown, with who rolled it and, once the dice landed, what came out */
-    let shown_roll: { sender: string; total: number | null } | null =
-        $state(null);
+    let shown_roll: {
+        roll: AnyRoll;
+        /** The color of the roller's dice */
+        color: string;
+        landed: boolean;
+    } | null = $state(null);
     /** Dice thrown to try out a look, they have no result to show */
     let trying = false;
     /** Called when the dice on screen have all landed */
@@ -274,7 +283,11 @@
             diceBox.clear();
             if (!(await start_replay(replay))) return;
 
-            shown_roll = { sender: roll.sender, total: null };
+            shown_roll = {
+                roll,
+                color: replay.themeColor ?? "#aa55aa",
+                landed: false,
+            };
             // If something goes wrong, the dice don't block everything after them
             await Promise.race([
                 throw_dice(replay.notation, {
@@ -285,10 +298,7 @@
                 interrupted,
             ]);
             stop_replay();
-            shown_roll.total =
-                roll.type === MessageType.ROLL_RESULT
-                    ? roll.result
-                    : roll.result + roll.bonus;
+            shown_roll.landed = true;
             await Promise.race([sleep(2500), interrupted]);
             interrupt_replay = null;
             shown_roll = null;
@@ -305,15 +315,51 @@
     class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 aspect-video w-[min(100vw,calc(100vh*16/9))] z-10 pointer-events-none overflow-hidden"
 ></div>
 {#if shown_roll}
+    {@const roll = shown_roll.roll}
+    {@const natural = natural_d20(roll)}
     <div
-        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none frosted rounded-box px-4 py-2 flex flex-col items-center"
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
+        transition:fly={{ y: 20, duration: 200 }}
     >
-        <span class="text-sm text-base-content/70">{shown_roll.sender}</span>
-        {#if shown_roll.total !== null}
-            <span class="text-4xl font-bold">{shown_roll.total}</span>
-        {:else}
-            <span class="loading loading-dots"></span>
-        {/if}
+        <div
+            class="frosted rounded-box shadow-lg flex flex-row items-center gap-4 pl-3 pr-4 py-2"
+        >
+            <div class="flex flex-col leading-tight min-w-24">
+                <span class="font-bold flex flex-row items-center gap-1.5">
+                    <span
+                        class="w-2.5 h-2.5 rounded-full shrink-0"
+                        style="background: {shown_roll.color}"
+                    ></span>
+                    {roll.sender}
+                </span>
+                <span class="text-xs text-base-content/70"
+                    >{roll_title(roll)}{roll.mode && roll.mode !== "normal"
+                        ? ` · ${mode_label(roll.mode)}`
+                        : ""}</span
+                >
+            </div>
+            <div class="min-w-12 flex flex-col items-center leading-none">
+                {#if shown_roll.landed}
+                    <span
+                        class="text-3xl font-bold tabular-nums {natural === 20
+                            ? 'text-success'
+                            : natural === 1
+                              ? 'text-error'
+                              : ''}"
+                        in:scale={{ start: 0.5, duration: 250 }}
+                        >{roll_total(roll)}</span
+                    >
+                    {#if roll_detail(roll)}
+                        <span
+                            class="text-[0.65rem] text-base-content/60 tabular-nums mt-1"
+                            >{roll_detail(roll)}</span
+                        >
+                    {/if}
+                {:else}
+                    <span class="loading loading-dots loading-md"></span>
+                {/if}
+            </div>
+        </div>
     </div>
 {/if}
 <dialog
