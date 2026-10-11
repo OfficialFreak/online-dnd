@@ -60,6 +60,13 @@
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
     import { normalize_condition } from "$lib/conditions";
+    import {
+        DICE_COLORS,
+        DICE_THEMES,
+        diceSkin,
+        load_dice_skin,
+        set_dice_skin,
+    } from "$lib/dice-skins.svelte";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
     import { invoke } from "@tauri-apps/api/core";
@@ -235,6 +242,7 @@
         html?.setAttribute("data-theme", appState.theme);
 
         await load_volume();
+        await load_dice_skin();
         audio = new Audio("speed.mp3");
         audio.loop = true;
 
@@ -941,7 +949,59 @@
 </div>
 <dialog bind:this={theme_modal} class="modal scrollbar-gutter-affected">
     <div class="modal-box">
-        <h3 class="text-lg font-bold">Aussehen anpassen</h3>
+        <h3 class="text-lg font-bold">Würfel</h3>
+        <p class="text-sm text-base-content/60 mb-2">
+            Alle sehen deine Würfel, wenn du würfelst.
+        </p>
+        <div class="grid grid-cols-3 gap-1">
+            {#each DICE_THEMES as { theme, label, colorable }}
+                <button
+                    class="btn btn-sm h-auto py-2 flex-col gap-1 {diceSkin.theme ===
+                    theme
+                        ? 'btn-info'
+                        : ''}"
+                    onclick={() => set_dice_skin({ theme })}
+                >
+                    <span>{label}</span>
+                    {#if colorable}
+                        <span class="text-[0.6rem] opacity-60">einfärbbar</span>
+                    {/if}
+                </button>
+            {/each}
+        </div>
+        {#if DICE_THEMES.find((entry) => entry.theme === diceSkin.theme)?.colorable}
+            <div class="flex flex-row flex-wrap items-center gap-1 mt-2">
+                {#each DICE_COLORS as color}
+                    <button
+                        class="w-7 h-7 rounded-full border border-base-content/30 {diceSkin.color ===
+                        color
+                            ? 'ring-2 ring-info ring-offset-2 ring-offset-base-100'
+                            : ''}"
+                        style="background: {color}"
+                        aria-label="Würfelfarbe {color}"
+                        onclick={() => set_dice_skin({ color })}
+                    ></button>
+                {/each}
+                <input
+                    type="color"
+                    class="w-7 h-7 cursor-pointer"
+                    title="Eigene Farbe"
+                    value={diceSkin.color}
+                    onchange={(event) =>
+                        set_dice_skin({ color: event.currentTarget.value })}
+                />
+            </div>
+        {/if}
+        <button
+            class="btn btn-sm mt-2"
+            onclick={() => {
+                theme_modal?.close();
+                roller.try_look?.();
+            }}
+        >
+            <i class="fa-solid fa-dice-d20"></i> Ausprobieren
+        </button>
+        <h3 class="text-lg font-bold mt-4">Aussehen anpassen</h3>
         <div class="flex flex-row flex-wrap gap-1">
             {#each ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter", "dim", "nord", "sunset", "caramellatte", "abyss", "silk"] as theme}
                 <button
