@@ -32,12 +32,18 @@
 
 body {
     margin-top: calc(var(--titlebar) + var(--safe-top));
+    transition: margin-top 0.2s;
     /* Taps on phones don't flash a grey box like on a web page */
     -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
     overscroll-behavior: none;
+}
+
+/* With the controls folded away the title bar is transparent, the page starts at the top */
+html.controls-folded body {
+    margin-top: var(--safe-top);
 }
 
 :root:has(

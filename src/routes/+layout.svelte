@@ -288,6 +288,11 @@
         });
     });
 
+    // Folded away, the map reaches up under the dot and the button
+    $effect(() => {
+        html?.classList.toggle("controls-folded", !appState.controls_open);
+    });
+
     $effect(() => {
         if (!appState.store || !html || !appState.theme) return;
         html?.setAttribute("data-theme", appState.theme);
@@ -956,7 +961,11 @@
     </style>
 </svelte:head>
 
-<div data-tauri-drag-region class="titlebar z-10">
+<!-- Without the controls only the dot and the button stay, the bar itself disappears -->
+<div
+    data-tauri-drag-region
+    class="titlebar z-10 {appState.controls_open ? '' : 'titlebar-folded'}"
+>
     <div class="flex justify-center transition-opacity gap-2">
         <button
             onclick={reconnect}
@@ -984,7 +993,7 @@
         <button
             class="h-[var(--titlebar)] w-11 pointer-coarse:w-14 flex justify-center items-center rounded-field cursor-pointer transition-colors hover:bg-base-content/10 {appState.controls_open
                 ? 'text-primary'
-                : 'text-base-content/70'}"
+                : 'text-base-content/80 bg-base-100/60 backdrop-blur-sm'}"
             aria-label={appState.controls_open
                 ? "Steuerung einklappen"
                 : "Steuerung ausklappen"}
@@ -1352,6 +1361,18 @@
         backdrop-filter: blur(7.5px);
         -webkit-backdrop-filter: blur(7.5px);
         border: 1px solid rgba(28, 34, 41, 0.12);
+        transition:
+            background-color 0.2s,
+            box-shadow 0.2s,
+            border-color 0.2s,
+            backdrop-filter 0.2s;
+    }
+    .titlebar-folded {
+        background: transparent;
+        box-shadow: none;
+        border-color: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
     }
     .titlebar-button {
         display: inline-flex;
