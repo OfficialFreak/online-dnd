@@ -24,6 +24,7 @@ import { MessageTypes, notify } from "./notifications.svelte";
 import type { RollEntry, RollMode } from "./rolls";
 import { roll_initiative } from "./monsters";
 import { DRAWING_COLORS, type DrawingKind } from "./drawings";
+import type { AssetInfo, AssetKind } from "./assets";
 
 export enum Tools {
     None,
@@ -159,7 +160,16 @@ export const dialogs: {
         /** The stat block of a monster */
         show(key: string): void;
     } | null;
-} = { scene: null, marker: null, monster: null };
+    assets: {
+        /** Managing the uploaded files */
+        open(): void;
+        /** Choosing an uploaded file, null if none was chosen */
+        pick(kinds: AssetKind[]): Promise<string | null>;
+    } | null;
+} = { scene: null, marker: null, monster: null, assets: null };
+
+/** The files on the server, the DM asks for them in the file browser */
+export const assetState = $state({ assets: [] as AssetInfo[] });
 
 export type Panel = "characters" | "markers" | "scenes" | "rolls";
 

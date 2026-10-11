@@ -21,6 +21,7 @@
         selection,
         remove_markers,
         drawState,
+        dialogs,
     } from "../state.svelte";
     import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
     import { fileDropState } from "../drag.svelte";
@@ -600,6 +601,17 @@
                     }}
                 >
                     <i class="fa-solid fa-location-pin"></i>
+                </button>
+            </div>
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">Dateien</div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box"
+                    aria-label="Dateien"
+                    onclick={() => dialogs.assets?.open()}
+                >
+                    <i class="fa-solid fa-folder-open"></i>
                 </button>
             </div>
             <div class="tooltip tooltip-right">

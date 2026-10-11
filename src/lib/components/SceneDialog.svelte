@@ -84,6 +84,16 @@
         if (asset) background_file = asset;
     }
 
+    async function pick_map() {
+        const asset = await dialogs.assets?.pick(["image", "video"]);
+        if (asset) scene_file = asset;
+    }
+
+    async function pick_background() {
+        const asset = await dialogs.assets?.pick(["image", "video"]);
+        if (asset) background_file = asset;
+    }
+
     // The server stores these as integers and rejects anything else
     function to_int(value: unknown, fallback: number, min = -Infinity) {
         const number = Math.round(Number(value));
@@ -196,6 +206,10 @@
                         Map hochladen
                     {/if}
                 </button>
+                <button class="btn btn-sm btn-ghost" onclick={pick_map}>
+                    <i class="fa-solid fa-folder-open"></i>
+                    Aus den Dateien wählen
+                </button>
             {:else}
                 <legend class="fieldset-legend">Spalten</legend>
                 <input
@@ -251,6 +265,10 @@
                     {/if}
                     Andere Map hochladen
                 </button>
+                <button class="btn btn-sm btn-ghost self-start" onclick={pick_map}>
+                    <i class="fa-solid fa-folder-open"></i>
+                    Andere Map aus den Dateien
+                </button>
 
                 {#if !background_file}
                     <button
@@ -266,6 +284,13 @@
                         {:else}
                             Hintergrundbild hochladen
                         {/if}
+                    </button>
+                    <button
+                        class="btn btn-sm btn-ghost"
+                        onclick={pick_background}
+                    >
+                        <i class="fa-solid fa-folder-open"></i>
+                        Aus den Dateien wählen
                     </button>
                     <p class="fieldset-label">
                         Hintergrundbilder sind optional

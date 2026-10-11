@@ -16,6 +16,7 @@
         modals,
         dialogs,
         remember_roll,
+        assetState,
         get_own_character,
         resetGamestate,
     } from "../lib/state.svelte";
@@ -40,6 +41,7 @@
     import SceneDialog from "$lib/components/SceneDialog.svelte";
     import MarkerDialog from "$lib/components/MarkerDialog.svelte";
     import MonsterDialog from "$lib/components/MonsterDialog.svelte";
+    import AssetBrowser from "$lib/components/AssetBrowser.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
@@ -489,6 +491,9 @@
                     gameState.scene.state.drawings = [...drawings, message.drawing];
                     break;
                 }
+                case MessageType.ASSET_LIST:
+                    assetState.assets = message.assets;
+                    break;
                 case MessageType.DRAWINGS_DELETED:
                     if (!gameState.scene) break;
                     gameState.scene.state.drawings = (
@@ -883,6 +888,7 @@
     <SceneDialog />
     <MarkerDialog />
     <MonsterDialog />
+    <AssetBrowser />
     <dialog
         bind:this={modals.characterImportModal}
         class="modal scrollbar-gutter-affected"

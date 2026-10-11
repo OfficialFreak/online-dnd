@@ -1,6 +1,7 @@
 import type { RollMode } from "$lib/rolls";
 import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
+import type { AssetInfo } from "$lib/assets";
 
 // Define enums for message types and event types
 export enum MessageType {
@@ -26,7 +27,8 @@ export enum MessageType {
     BLOOD = "blood",
     ROLL_HISTORY = "roll_history",
     DRAWING_ADDED = "drawing_added",
-    DRAWINGS_DELETED = "drawings_deleted"
+    DRAWINGS_DELETED = "drawings_deleted",
+    ASSET_LIST = "asset_list"
 }
 
 export enum EventType {
@@ -257,6 +259,11 @@ export interface DrawingsDeleted extends BaseServerMessage {
     ids: string[];
 }
 
+export interface AssetList extends BaseServerMessage {
+    type: MessageType.ASSET_LIST;
+    assets: AssetInfo[];
+}
+
 export type AnyRoll = RollResult | CheckResult | SaveResult;
 
 /** The latest rolls, sent after connecting */
@@ -290,7 +297,8 @@ export type ServerMessage =
     | CombatState
     | RollHistory
     | DrawingAdded
-    | DrawingsDeleted;
+    | DrawingsDeleted
+    | AssetList;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -352,6 +360,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as DrawingAdded;
         case MessageType.DRAWINGS_DELETED:
             return data as DrawingsDeleted;
+        case MessageType.ASSET_LIST:
+            return data as AssetList;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

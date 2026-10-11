@@ -82,6 +82,11 @@
         if (asset) marker_file = asset;
     }
 
+    async function pick_image() {
+        const asset = await dialogs.assets?.pick(["image", "video"]);
+        if (asset) marker_file = asset;
+    }
+
     async function save_marker() {
         if (!appState.ws || !marker_file) return;
         const name = marker_name.trim();
@@ -217,6 +222,10 @@
                         Marker-Bild
                     {/if}
                 </button>
+                <button class="btn btn-sm btn-ghost" onclick={pick_image}>
+                    <i class="fa-solid fa-folder-open"></i>
+                    Aus den Dateien wählen
+                </button>
             {:else}
                 <Marker
                     columnCount="100%"
@@ -241,6 +250,10 @@
                         <i class="fa-solid fa-arrow-up-from-bracket"></i>
                     {/if}
                     Anderes Bild hochladen
+                </button>
+                <button class="btn btn-sm btn-ghost self-start" onclick={pick_image}>
+                    <i class="fa-solid fa-folder-open"></i>
+                    Anderes Bild aus den Dateien
                 </button>
                 {#if editing}
                     <p class="fieldset-label">

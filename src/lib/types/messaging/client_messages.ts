@@ -298,6 +298,24 @@ export class DeleteDrawings {
     }
 }
 
+export class ListAssets {
+    static create(): string {
+        return JSON.stringify({
+            type: "list_assets"
+        });
+    }
+}
+
+export class DeleteAsset {
+    /** Only works for files nothing uses */
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "delete_asset",
+            name: name
+        });
+    }
+}
+
 export class CombatState {
     static create(active: boolean): string {
         return JSON.stringify({
