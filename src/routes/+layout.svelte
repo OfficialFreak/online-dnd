@@ -993,7 +993,7 @@
         <button
             class="h-[var(--titlebar)] w-11 pointer-coarse:w-14 flex justify-center items-center rounded-field cursor-pointer transition-colors hover:bg-base-content/10 {appState.controls_open
                 ? 'text-primary'
-                : 'text-base-content/80 bg-base-100/60 backdrop-blur-sm'}"
+                : 'text-base-content/80'}"
             aria-label={appState.controls_open
                 ? "Steuerung einklappen"
                 : "Steuerung ausklappen"}
@@ -1003,7 +1003,10 @@
             aria-expanded={appState.controls_open}
             onclick={() => set_controls_open(!appState.controls_open)}
         >
-            <i class="fa-solid fa-sliders pointer-coarse:text-lg"></i>
+            <!-- A shadow instead of a background, readable over a light map too -->
+            <i
+                class="fa-solid fa-sliders pointer-coarse:text-lg drop-shadow-[0_1px_2px_rgb(0_0_0/0.7)]"
+            ></i>
         </button>
         {#if appState.controls_open}
         <div
