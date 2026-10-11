@@ -21,6 +21,7 @@
         adminState,
         get_own_character,
         resetGamestate,
+        selection,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
@@ -419,6 +420,10 @@
                             }),
                         };
                     });
+                    // Markers selected in another scene may share names with these
+                    if (gameState.scene?.name !== message.name) {
+                        selection.clear();
+                    }
                     gameState.scene = message;
                     gameState.scene.state.markers = new_markers;
                     break;
