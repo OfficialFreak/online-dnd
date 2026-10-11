@@ -306,7 +306,7 @@
     {@const roll = shown_roll.roll}
     {@const natural = natural_d20(roll)}
     <div
-        class="fixed bottom-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none"
+        class="fixed bottom-[calc(5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 z-10 pointer-events-none"
         transition:fly={{ y: 20, duration: 200 }}
     >
         <div

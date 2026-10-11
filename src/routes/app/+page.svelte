@@ -182,18 +182,21 @@
 >
     {#if gameState.scene && gameState.combat}
         <div
-            class="fixed top-[1.85rem] left-0 ml-14 w-[calc(100vw-5rem)] overflow-x-auto overflow-y-hidden flex justify-center pointer-events-none"
+            class="fixed top-[calc(1.85rem+var(--safe-top))] left-[var(--safe-left)] ml-14 w-[calc(100vw-5rem-var(--safe-left)-var(--safe-right))] overflow-x-auto overflow-y-hidden flex justify-center pointer-events-none"
         >
             <InitiativeBar />
         </div>
     {/if}
     <Toolbar />
-    <div class="fixed bottom-2 left-2 z-10">
+    <div
+        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-10"
+    >
         <DiceChooser roll_callback={roll} />
     </div>
 
+    <!-- On phones above the turn button, which moves to the right there -->
     <div
-        class="fixed bottom-0 left-0 w-screen z-[999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
+        class="fixed bottom-[var(--safe-bottom)] max-sm:bottom-[calc(3.5rem+var(--safe-bottom))] left-0 pr-[var(--safe-right)] w-screen z-[999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
     >
         <div
             class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"
@@ -216,7 +219,10 @@
     </div>
 
     {#if gameState.combat && (gameState.scene?.state.initiative?.length || 0) > 0 && (gameState.dm || get_own_character()?.name === gameState.scene?.state.turn)}
-        <div class="fixed bottom-2 left-1/2 -translate-x-1/2 z-10">
+        <!-- On phones the dice take the bottom left, so it goes to the right -->
+        <div
+            class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 max-sm:left-auto max-sm:right-[calc(0.5rem+var(--safe-right))] max-sm:translate-x-0 z-10"
+        >
             <div class="tooltip">
                 <div class="tooltip-content">
                     <kbd class="kbd">→</kbd>

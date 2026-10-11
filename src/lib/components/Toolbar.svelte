@@ -322,11 +322,11 @@
 />
 
 <div
-    class="fixed top-10 left-2 bottom-16 flex flex-row gap-1 pointer-events-none"
+    class="fixed top-[calc(2.5rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row gap-1 pointer-events-none"
 >
     {#if toolbarState.panel}
         <div
-            class="relative h-full w-96 rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-shadow {fileDropState.over &&
+            class="relative h-full w-[min(24rem,calc(100vw-4rem))] rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-shadow {fileDropState.over &&
             fileDropState.over === toolbarState.panel
                 ? 'ring-4 ring-info'
                 : ''}"

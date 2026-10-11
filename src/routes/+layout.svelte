@@ -1167,7 +1167,7 @@
     class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"
 ></canvas>
 <div
-    class="fixed bottom-0 left-0 w-screen z-[9999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
+    class="fixed bottom-[var(--safe-bottom)] left-0 pr-[var(--safe-right)] w-screen z-[9999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
 >
     <div
         class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"
@@ -1180,7 +1180,8 @@
 
 <style>
     .titlebar {
-        height: 30px;
+        height: calc(30px + var(--safe-top));
+        padding: var(--safe-top) var(--safe-right) 0 var(--safe-left);
         user-select: none;
         display: flex;
         justify-content: space-between;
