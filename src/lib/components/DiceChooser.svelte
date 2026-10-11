@@ -31,10 +31,39 @@
     function toggle_mode(mode: RollMode) {
         rollState.mode = rollState.mode === mode ? "normal" : mode;
     }
+
+    // Advantage and disadvantage show up once the dice are pressed. A chosen mode stays
+    // in view, it changes the next d20 of the character sheet too.
+    let opened = $state(false);
+    let show_modes = $derived(
+        opened || chosen_dice || rollState.mode !== "normal",
+    );
+    let chooser: HTMLDivElement | null = $state(null);
+    // Touch screens open the dice with a tap and close them with a tap next to them,
+    // hover would keep them open
+    let touch = $state(false);
 </script>
 
-<div class="flex flex-row gap-1 items-end" transition:fade={{ duration: 200 }}>
-    <div class="dropdown dropdown-top dropdown-hover">
+<svelte:window
+    onpointerdown={(event) => {
+        if (chooser && !chooser.contains(event.target as Node)) opened = false;
+    }}
+/>
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+    class="flex flex-row gap-1 items-end"
+    transition:fade={{ duration: 200 }}
+    bind:this={chooser}
+    onmouseleave={() => (opened = false)}
+>
+    <div
+        class="dropdown dropdown-top dropdown-hover {touch
+            ? opened
+                ? 'dropdown-open'
+                : 'dropdown-close'
+            : ''}"
+    >
         <div class="flex flex-row gap-1">
             <button
                 class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center {rollState.mode ===
@@ -44,6 +73,8 @@
                       ? 'ring-2 ring-error'
                       : ''}"
                 aria-label="D20"
+                onpointerdown={(event) => (touch = event.pointerType !== "mouse")}
+                onclick={() => (opened = !opened)}
             >
                 <span class="dice-icon d20 !bg-base-content/70"></span>
             </button>
@@ -112,10 +143,12 @@
             {/each}
         </ul>
     </div>
+    {#if show_modes}
     <div
         class="join join-vertical frosted rounded-box"
         role="group"
         aria-label="Vorteil oder Nachteil"
+        transition:fade={{ duration: 150 }}
     >
         <button
             class="btn btn-xs join-item justify-start {rollState.mode ===
@@ -140,6 +173,7 @@
             <i class="fa-solid fa-fw fa-angles-down"></i> Nachteil
         </button>
     </div>
+    {/if}
 </div>
 
 <style>
