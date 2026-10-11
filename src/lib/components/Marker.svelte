@@ -352,10 +352,12 @@
                 ? `background: conic-gradient(var(--background) ${health_degrees}deg, #ff002b73 ${health_degrees}deg) !important;`
                 : 'background: var(--background)'}"
         >
+            <!-- A banner is taller than wide and the image fills it. Square, an animated
+                 portrait's video sat lower than its still image, with a dark bar above. -->
             <Display
                 alt={marker.name}
-                class={"w-full aspect-square mask object-cover object-top pointer-events-auto drag-none " +
-                    (banner ? "mask-banner" : "mask-hexagon")}
+                class={"w-full mask object-cover object-top pointer-events-auto drag-none " +
+                    (banner ? "h-full mask-banner" : "aspect-square mask-hexagon")}
                 hoverVideoOnly={true}
                 thumbnail={!(mapUse || banner)}
                 asset={marker.file}
@@ -365,8 +367,8 @@
                 {#if condition.overlay}
                     <img
                         alt="Effect Overlay"
-                        class={"absolute w-full aspect-square mask " +
-                            (banner ? "mask-banner" : "mask-hexagon")}
+                        class={"absolute w-full mask " +
+                            (banner ? "h-full mask-banner" : "aspect-square mask-hexagon")}
                         src={condition.overlay}
                     />
                 {/if}
