@@ -15,15 +15,6 @@ async function upload_file(
     selectedFilePath: string,
     selectedFileName: string,
 ): Promise<string | null> {
-    if (!appState.token) {
-        notify(
-            "Hochladen fehlgeschlagen: Du bist nicht angemeldet.",
-            MessageTypes.Error,
-            5000,
-        );
-        return null;
-    }
-
     // Read the file as binary
     let fileContent: Uint8Array;
     try {
@@ -32,6 +23,22 @@ async function upload_file(
         console.error("Reading upload failed", e);
         notify(
             "Die Datei konnte nicht gelesen werden.",
+            MessageTypes.Error,
+            5000,
+        );
+        return null;
+    }
+    return await upload_content(fileContent, selectedFileName);
+}
+
+/** Uploads the content of a file, see upload_file */
+async function upload_content(
+    fileContent: Uint8Array,
+    selectedFileName: string,
+): Promise<string | null> {
+    if (!appState.token) {
+        notify(
+            "Hochladen fehlgeschlagen: Du bist nicht angemeldet.",
             MessageTypes.Error,
             5000,
         );
@@ -118,6 +125,19 @@ export function file_name_of(path: string) {
 
 export function file_stem_of(path: string) {
     return file_name_of(path).replace(/\.[^.]+$/, "");
+}
+
+/** Uploads a file made in the app, e.g. a monster's picture, and returns its asset name */
+export async function upload_bytes(
+    bytes: Uint8Array,
+    file_name: string,
+): Promise<string | null> {
+    uploadState.uploading = true;
+    try {
+        return await upload_content(bytes, file_name);
+    } finally {
+        uploadState.uploading = false;
+    }
 }
 
 /** Uploads a local file and returns its asset name, or null if it failed. */

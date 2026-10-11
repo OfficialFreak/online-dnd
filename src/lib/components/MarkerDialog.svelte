@@ -8,7 +8,13 @@
     import type { MarkerTemplate } from "$lib/types/messaging/server_messages";
     import type { MonsterInfo } from "$lib/monsters";
     import { MessageTypes, notify } from "$lib/notifications.svelte";
-    import { file_stem_of, upload, uploadState } from "$lib/upload.svelte";
+    import {
+        file_stem_of,
+        upload,
+        upload_bytes,
+        uploadState,
+    } from "$lib/upload.svelte";
+    import { monster_picture } from "$lib/monster-images";
     import Marker from "./Marker.svelte";
 
     let dialog: HTMLDialogElement | null = $state(null);
@@ -32,7 +38,13 @@
         ),
     );
 
+    /** Counts the times the dialog opened, a picture found for an earlier marker is dropped */
+    let opened = 0;
+    let finding_picture = $state(false);
+
     function reset() {
+        opened++;
+        finding_picture = false;
         editing = null;
         marker_name = "";
         marker_size = 1;
@@ -68,6 +80,28 @@
         marker_max_hp = template.max_hp ?? null;
         marker_monster = template.monster ?? null;
         dialog?.showModal();
+        if (template.monster) {
+            find_picture(template.name ?? "", template.monster.type);
+        }
+    }
+
+    /** Puts the monster's picture on the server, or a token for its creature type */
+    async function find_picture(name: string, type: string) {
+        const this_opening = opened;
+        finding_picture = true;
+        try {
+            const picture = await monster_picture(name, type);
+            if (this_opening !== opened) return;
+            const asset = await upload_bytes(picture.bytes, picture.file_name);
+            // Unless the DM chose another one meanwhile
+            if (this_opening === opened && asset && !marker_file) {
+                marker_file = asset;
+            }
+        } catch (e) {
+            console.error("Making the monster's picture failed", e);
+        } finally {
+            if (this_opening === opened) finding_picture = false;
+        }
     }
 
     onMount(() => {
@@ -207,7 +241,14 @@
                 Trefferpunkte.
             </p>
 
-            {#if !marker_file}
+            {#if !marker_file && finding_picture}
+                <div
+                    class="flex flex-row items-center gap-2 mt-4 text-sm text-base-content/60"
+                >
+                    <span class="loading loading-spinner loading-sm"></span>
+                    Bild des Monsters wird geholt…
+                </div>
+            {:else if !marker_file}
                 <div class="grid grid-cols-2 gap-2 mt-4">
                     <button
                         class="btn btn-neutral"
