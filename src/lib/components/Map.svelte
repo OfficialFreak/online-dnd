@@ -5,6 +5,7 @@
         add_marker,
         appState,
         record_undo,
+        selection,
         fogState,
         gameState,
         pointers,
@@ -218,6 +219,7 @@
                 y: offsetY / h,
                 markerName: currentNode.id,
             });
+            move_group(offsetX / w, offsetY / h, false);
         },
         11, // 90 Hz
         { leading: false, trailing: true },
@@ -336,10 +338,66 @@
         });
     });
 
+    type SceneMarker = NonNullable<typeof gameState.scene>["state"]["markers"][number];
+
+    /** The other selected markers that move along with the dragged one, and where they started */
+    let group: { marker: SceneMarker; x: number; y: number }[] = [];
+    let group_origin: { x: number; y: number } | null = null;
+
+    function start_group(name: string) {
+        group = [];
+        group_origin = null;
+        const scene = gameState.scene;
+        if (!gameState.dm || !scene || !selection.has(name)) return;
+        const dragged = scene.state.markers.find((marker) => marker.name === name);
+        if (!dragged) return;
+        group_origin = { x: dragged.x.target, y: dragged.y.target };
+        group = scene.state.markers
+            .filter((marker) => marker.name !== name && selection.has(marker.name))
+            .map((marker) => ({ marker, x: marker.x.target, y: marker.y.target }));
+        for (const { marker } of group) {
+            appState.ws?.send(MarkerLocked.create(marker.name));
+        }
+    }
+
+    /** x and y are where the dragged marker is, as fractions of the map */
+    function move_group(x: number, y: number, final: boolean) {
+        if (!group_origin) return;
+        for (const member of group) {
+            const width = member.marker.size / columns;
+            const new_x = Math.min(
+                Math.max(member.x + x - group_origin.x, 0),
+                1 - width,
+            );
+            const new_y = Math.min(
+                Math.max(member.y + y - group_origin.y, 0),
+                1 - (width * w) / h,
+            );
+            member.marker.x.set(new_x, { duration: 0 });
+            member.marker.y.set(new_y, { duration: 0 });
+            if (final) {
+                appState.ws?.send(
+                    MarkerFreed.create(member.marker.name, new_x, new_y),
+                );
+            } else {
+                invoke("send_marker_position", {
+                    x: new_x,
+                    y: new_y,
+                    markerName: member.marker.name,
+                });
+            }
+        }
+        if (final) {
+            group = [];
+            group_origin = null;
+        }
+    }
+
     let dragOptions: DragOptions = $derived({
         onDragStart: ({ currentNode }) => {
             appState.dragging = true;
             record_undo();
+            start_group(currentNode.id);
             if (!appState.ws) return;
             appState.ws.send(MarkerLocked.create(currentNode.id));
         },
@@ -356,6 +414,7 @@
             appState.ws?.send(
                 MarkerFreed.create(currentNode.id, offsetX / w, offsetY / h),
             );
+            move_group(offsetX / w, offsetY / h, true);
         },
         bounds: "parent",
         onDrag: throttledMarkerDrag,
@@ -451,14 +510,52 @@
     // Dragging with the middle mouse button pans the map
     let pan_start: { x: number; y: number } | null = null;
 
+    /** Shift+dragging over the map selects the markers in the box, as fractions of the map */
+    let box: { x1: number; y1: number; x2: number; y2: number } | null =
+        $state(null);
+
+    function map_fraction(event: PointerEvent) {
+        const rect = map_element!.getBoundingClientRect();
+        return {
+            x: (event.clientX - rect.left) / rect.width,
+            y: (event.clientY - rect.top) / rect.height,
+        };
+    }
+
     function start_pan(event: PointerEvent) {
-        if (!editable || event.button !== 1) return;
+        if (!editable) return;
+        const on_marker = (event.target as HTMLElement).closest(".avatar");
+        if (
+            event.button === 0 &&
+            gameState.dm &&
+            appState.selectedTool === Tools.None &&
+            !on_marker &&
+            map_element
+        ) {
+            if (!event.shiftKey) {
+                selection.clear();
+                return;
+            }
+            const start = map_fraction(event);
+            box = { x1: start.x, y1: start.y, x2: start.x, y2: start.y };
+            (event.currentTarget as HTMLElement).setPointerCapture(
+                event.pointerId,
+            );
+            return;
+        }
+        if (event.button !== 1) return;
         event.preventDefault();
         pan_start = { x: event.clientX, y: event.clientY };
         (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     }
 
     function pan(event: PointerEvent) {
+        if (box) {
+            const current = map_fraction(event);
+            box.x2 = current.x;
+            box.y2 = current.y;
+            return;
+        }
         if (!pan_start) return;
         window.scrollBy(pan_start.x - event.clientX, pan_start.y - event.clientY);
         pan_start = { x: event.clientX, y: event.clientY };
@@ -466,6 +563,26 @@
 
     function end_pan() {
         pan_start = null;
+        if (!box) return;
+        const left = Math.min(box.x1, box.x2);
+        const right = Math.max(box.x1, box.x2);
+        const top = Math.min(box.y1, box.y2);
+        const bottom = Math.max(box.y1, box.y2);
+        // Markers whose center is in the box
+        for (const marker of markers) {
+            const width = marker.size / columns;
+            const center_x = marker.x.current + width / 2;
+            const center_y = marker.y.current + (width * w) / h / 2;
+            if (
+                center_x >= left &&
+                center_x <= right &&
+                center_y >= top &&
+                center_y <= bottom
+            ) {
+                selection.add(marker.name);
+            }
+        }
+        box = null;
     }
 
     let rotate_active = $state(false);
@@ -644,6 +761,15 @@
                 />
             {/each}
         </div>
+        {#if box}
+            <div
+                class="absolute border-2 border-info bg-info/10 pointer-events-none"
+                style="left: {Math.min(box.x1, box.x2) *
+                    100}%; top: {Math.min(box.y1, box.y2) *
+                    100}%; width: {Math.abs(box.x2 - box.x1) *
+                    100}%; height: {Math.abs(box.y2 - box.y1) * 100}%;"
+            ></div>
+        {/if}
         {#each Object.entries(pointers) as [name, pointer] (name)}
             {#if pointer.visible && !pointer_in_fog(pointer)}
                 <div

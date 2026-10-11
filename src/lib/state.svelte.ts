@@ -11,8 +11,10 @@ import type WebSocket from "@tauri-apps/plugin-websocket";
 import { circOut } from "svelte/easing";
 import { Tween } from "svelte/motion";
 import { SvelteSet } from "svelte/reactivity";
+import { spill_blood } from "./effects";
 import {
     ActivateScene,
+    Blood,
     DeleteCharacter,
     DeleteMarker,
     DeleteScene,
@@ -319,6 +321,38 @@ export async function roll_npc_initiative() {
     }
     notify(`Initiative für ${npcs.length} Marker gewürfelt`, MessageTypes.Success, 2000);
     await update_initiative();
+}
+
+/** Names of the markers the DM selected, to move or remove them together */
+export const selection = new SvelteSet<string>();
+
+export function toggle_selected(name: string) {
+    if (selection.has(name)) selection.delete(name);
+    else selection.add(name);
+}
+
+/** Removes markers from the active scene, with blood for everyone */
+export async function remove_markers(names: string[]) {
+    const scene = gameState.scene;
+    if (!scene || names.length === 0) return;
+    record_undo();
+    for (const name of names) {
+        const index = scene.state.markers.findIndex(
+            (marker) => marker.name === name,
+        );
+        if (index === -1) continue;
+        const marker = scene.state.markers[index];
+        const size = marker.size / scene.columns;
+        spill_blood(marker.x.target, marker.y.target, size);
+        appState.ws?.send(Blood.create(marker.x.target, marker.y.target, size));
+        scene.state.markers.splice(index, 1);
+        scene.state.initiative = scene.state.initiative.filter(
+            (entry) => entry[1] !== name,
+        );
+        if (scene.state.turn === name) scene.state.turn = null;
+        selection.delete(name);
+    }
+    await save_scene();
 }
 
 /** The active scene as it was, to undo changes of the DM */

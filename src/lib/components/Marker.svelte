@@ -3,6 +3,9 @@
         add_to_initiative,
         appState,
         record_undo,
+        remove_markers,
+        selection,
+        toggle_selected,
         dialogs,
         gameState,
         getCharacter,
@@ -12,9 +15,8 @@
     import { draggable } from "@neodrag/svelte";
     // @ts-ignore
     import throttle from "just-throttle";
-    import { Blood, PutScene } from "$lib/types/messaging/client_messages";
+    import { PutScene } from "$lib/types/messaging/client_messages";
     import CharacterPreview from "./CharacterPreview.svelte";
-    import { spill_blood } from "$lib/effects";
     import {
         CONDITION_KEYS,
         CONDITIONS,
@@ -195,6 +197,15 @@
         },
     }}
     id={(banner ? "banner-" : !mapUse ? "nomapuse-" : "") + marker.name}
+    onclickcapture={(event) => {
+        // Shift+click selects markers to move or remove them together
+        if (!event.shiftKey || !gameState.dm || !mapUse || banner) return;
+        // Not when clicking in its menu
+        if ((event.target as HTMLElement).closest(".dropdown-content")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        toggle_selected(marker.name);
+    }}
     class="{banner ? 'group' : ''} {!gameState.dm &&
     mapUse &&
     !getCharacter(marker.name)
@@ -234,6 +245,9 @@
             >
                 {marker.name}
             </span>
+        {/if}
+        {#if mapUse && !banner && selection.has(marker.name)}
+            <span class="selection-ring" aria-hidden="true"></span>
         {/if}
         {#if marker.hidden && mapUse}
             <span
@@ -519,48 +533,8 @@
                     <!-- svelte-ignore node_invalid_placement_ssr -->
                     <button
                         class="btn btn-soft btn-error flex-1"
-                        onclick={() => {
-                            if (!gameState.scene) return;
-                            record_undo();
-                            // Remove from initiative
-                            let idx =
-                                gameState.scene.state.initiative.findIndex(
-                                    (initiative) =>
-                                        initiative[1] === scene_marker.name,
-                                );
-                            if (idx !== -1) {
-                                gameState.scene.state.initiative.splice(idx, 1);
-                            }
-
-                            if (
-                                gameState.scene.state.turn === scene_marker.name
-                            ) {
-                                gameState.scene.state.turn = null;
-                            }
-
-                            let marker_size =
-                                typeof columnCount === "string"
-                                    ? 0.01
-                                    : marker.size / columnCount;
-
-                            // Everyone sees the blood, not just the DM
-                            spill_blood(marker.x.target, marker.y.target, marker_size);
-                            appState.ws?.send(
-                                Blood.create(
-                                    marker.x.target,
-                                    marker.y.target,
-                                    marker_size,
-                                ),
-                            );
-
-                            gameState.scene.state.markers.splice(
-                                typeof scene_marker_index !== "number"
-                                    ? Infinity
-                                    : scene_marker_index,
-                                1,
-                            );
-                            throttled_save();
-                        }}>Entfernen</button
+                        onclick={() => remove_markers([scene_marker.name])}
+                        >Entfernen</button
                     >
                 </li>
             </ul>
@@ -578,5 +552,20 @@
 <style lang="css">
     .tooltip::after {
         content: unset !important;
+    }
+
+    .selection-ring {
+        position: absolute;
+        inset: -10%;
+        border-radius: 9999px;
+        border: 2px dashed var(--color-info);
+        pointer-events: none;
+        animation: selection-spin 8s linear infinite;
+    }
+
+    @keyframes selection-spin {
+        to {
+            rotate: 360deg;
+        }
     }
 </style>

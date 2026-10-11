@@ -18,6 +18,8 @@
         undo,
         redo,
         undoState,
+        selection,
+        remove_markers,
     } from "../state.svelte";
     import { fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
@@ -103,6 +105,15 @@
             return;
 
         switch (evt.code) {
+            case "Delete":
+            case "Backspace":
+                if (gameState.dm && selection.size > 0) {
+                    await remove_markers([...selection]);
+                }
+                break;
+            case "Escape":
+                selection.clear();
+                break;
             case "KeyK":
                 if (gameState.dm) {
                     toggleCombat();
