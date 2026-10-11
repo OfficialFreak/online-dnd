@@ -381,7 +381,12 @@ export async function remove_markers(names: string[]) {
         const marker = scene.state.markers[index];
         const size = marker.size / scene.columns;
         spill_blood(marker.x.target, marker.y.target, size);
-        appState.ws?.send(Blood.create(marker.x.target, marker.y.target, size));
+        // Players would see blood where a hidden marker stood
+        if (!marker.hidden) {
+            appState.ws?.send(
+                Blood.create(marker.x.target, marker.y.target, size),
+            );
+        }
         scene.state.markers.splice(index, 1);
         scene.state.initiative = scene.state.initiative.filter(
             (entry) => entry[1] !== name,
