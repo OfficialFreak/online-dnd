@@ -404,9 +404,9 @@
                     }
                     break;
                 case MessageType.ROLL_RESULT:
-                    remember_roll(message);
-                    // Everyone sees the dice land first
+                    // Everyone sees the dice land first, in the history too
                     await after_dice(message);
+                    remember_roll(message);
                     notify(
                         `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${mode_suffix(message.mode, message.d20s)}${message.dm_only ? " (nur DM)" : ""}`,
                         MessageTypes.Info,
@@ -588,8 +588,8 @@
                     );
                     break;
                 case MessageType.CHECK_RESULT:
-                    remember_roll(message);
                     await after_dice(message);
+                    remember_roll(message);
                     notify(
                         `${message.sender} (${message.stat === "initiative" ? "Initiative" : `Check: ${stat_label(message.stat)}`}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
@@ -597,8 +597,8 @@
                     );
                     break;
                 case MessageType.SAVE_RESULT:
-                    remember_roll(message);
                     await after_dice(message);
+                    remember_roll(message);
                     notify(
                         `${message.sender} (Rettungswurf: ${stat_label(message.stat)}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
