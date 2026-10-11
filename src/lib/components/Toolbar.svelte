@@ -357,14 +357,14 @@
     class="fixed top-[calc(2.5rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row gap-1 pointer-events-none"
 >
     {#if toolbarState.panel}
-        <!-- Out of the way while a marker or scene is dragged from it onto the map. Hidden,
-             not closed: that would end the drag. -->
+        <!-- Out of the way while a marker or scene is dragged from it onto the map. Only
+             transparent, not closed or hidden: that would end the drag. -->
         <div
-            class="relative h-full w-[min(24rem,calc(100vw-4rem))] rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-[box-shadow,opacity,translate,visibility] {fileDropState.over &&
+            class="relative h-full w-[min(24rem,calc(100vw-4rem))] rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-[box-shadow,opacity,translate] {fileDropState.over &&
             fileDropState.over === toolbarState.panel
                 ? 'ring-4 ring-info'
                 : ''} {dragState.payload
-                ? 'invisible opacity-0 -translate-x-8'
+                ? 'opacity-0 !pointer-events-none -translate-x-8'
                 : ''}"
             transition:fly|global={{ x: -50, duration: 200 }}
             bind:this={scroll_container}

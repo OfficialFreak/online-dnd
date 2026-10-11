@@ -66,6 +66,7 @@
                 src={character.decorations.avatarUrl ||
                     "https://www.dndbeyond.com/Content/Skins/Waterdeep/images/characters/default-avatar-builder.png"}
                 alt={character.name}
+                draggable="false"
                 class="mask mask-hexagon h-20 aspect-square object-cover object-top drag-none"
             />
         </div>

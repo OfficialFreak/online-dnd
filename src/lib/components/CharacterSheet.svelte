@@ -159,7 +159,8 @@
             >
                 <!-- class="cursor-pointer" disabled -->
                 <img
-                    class="w-full object-center object-cover rounded-box border aspect-3/4"
+                    draggable="false"
+                    class="w-full object-center object-cover rounded-box border aspect-3/4 drag-none"
                     style="border-color: {character.decorations.themeColor
                         ?.themeColor || 'black'}"
                     src={character.decorations.avatarUrl ||

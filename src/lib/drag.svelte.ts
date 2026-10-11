@@ -64,6 +64,13 @@ export function dragSource(node: HTMLElement, payload: DragPayload | null) {
         dragState.payload = null;
         dragState.over = null;
         window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerCancel);
+    }
+
+    function onPointerCancel(e: PointerEvent) {
+        if (start && e.pointerId === start.pointerId) cancel();
     }
 
     function onKeyDown(e: KeyboardEvent) {
@@ -84,6 +91,11 @@ export function dragSource(node: HTMLElement, payload: DragPayload | null) {
         } catch {
             // The pointer is already gone again
         }
+        // On the window: Safari stops sending a finger's moves to the source once the
+        // panel it is in makes room for the drag
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp);
+        window.addEventListener("pointercancel", onPointerCancel);
     }
 
     function onPointerMove(e: PointerEvent) {
@@ -129,11 +141,10 @@ export function dragSource(node: HTMLElement, payload: DragPayload | null) {
     }
 
     node.addEventListener("pointerdown", onPointerDown);
-    node.addEventListener("pointermove", onPointerMove);
-    node.addEventListener("pointerup", onPointerUp);
-    node.addEventListener("pointercancel", cancel);
     node.addEventListener("click", onClick, true);
     node.addEventListener("dragstart", onNativeDragStart);
+    // iOS would offer to save or share the image on a long press
+    node.style.setProperty("-webkit-touch-callout", "none");
 
     return {
         update(payload: DragPayload | null) {
@@ -142,9 +153,6 @@ export function dragSource(node: HTMLElement, payload: DragPayload | null) {
         destroy() {
             if (start) cancel();
             node.removeEventListener("pointerdown", onPointerDown);
-            node.removeEventListener("pointermove", onPointerMove);
-            node.removeEventListener("pointerup", onPointerUp);
-            node.removeEventListener("pointercancel", cancel);
             node.removeEventListener("click", onClick, true);
             node.removeEventListener("dragstart", onNativeDragStart);
         },
