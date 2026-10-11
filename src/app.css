@@ -13,9 +13,10 @@
 }
 
 /* The notch, status bar and home indicator of phones when the web version runs full
-   screen from the home screen. Zero in the desktop app and in a browser tab. */
+   screen from the home screen. Zero in the desktop app. In a Safari tab on an iPhone or
+   iPad the blurred edge of Safari's toolbar lies over the top of the page, see app.html. */
 :root {
-    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-top: max(env(safe-area-inset-top, 0px), var(--browser-bar, 0px));
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);

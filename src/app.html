@@ -26,6 +26,18 @@
     <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="%sveltekit.assets%/pwa/splash-750x1334.png" />
     <title>How to play DND Online fast</title>
     <link rel="preconnect" href="https://dnd.wiegraebe.dev">
+    <script>
+      // Safari on iPhones and iPads blurs the top of the page under its toolbar, the
+      // title bar moves down out of it. Not when started from the home screen.
+      if (
+        navigator.maxTouchPoints > 1 &&
+        /iPhone|iPad|Macintosh/.test(navigator.userAgent) &&
+        !navigator.standalone &&
+        !matchMedia("(display-mode: standalone)").matches
+      ) {
+        document.documentElement.style.setProperty("--browser-bar", "24px");
+      }
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
