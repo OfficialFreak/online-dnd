@@ -392,9 +392,23 @@
                     {/if}
                 </div>
                 {#if getCharacter(toolbarState.characterOpen)}
-                    <CharacterSheet
-                        character={getCharacter(toolbarState.characterOpen)}
-                    />
+                    <!-- Data from D&D Beyond that doesn't fit only breaks this panel, not the whole app -->
+                    <svelte:boundary>
+                        <CharacterSheet
+                            character={getCharacter(toolbarState.characterOpen)}
+                        />
+                        {#snippet failed()}
+                            <div
+                                class="p-4 flex flex-col items-center gap-2 text-center text-base-content/60"
+                            >
+                                <i
+                                    class="fa-solid fa-triangle-exclamation text-3xl"
+                                ></i>
+                                Der Charakterbogen lässt sich nicht anzeigen.
+                                Aktualisiere den Charakter von D&D Beyond.
+                            </div>
+                        {/snippet}
+                    </svelte:boundary>
                 {/if}
             {/if}
         </div>
