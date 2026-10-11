@@ -26,18 +26,23 @@ const CHANNEL = `dice-sync-${Math.random().toString(36).slice(2)}`;
 const WORKER_CODE = `
 const __diceSync = new BroadcastChannel("${CHANNEL}");
 let __diceIds = [], __diceRecording = null, __diceReplay = null;
+// Every DiceBox starts a worker, after a reload the old ones may still run
+const __diceWorker = Math.random().toString(36).slice(2);
+__diceSync.postMessage({ action: "hello", worker: __diceWorker });
 __diceSync.onmessage = (event) => {
     const message = event.data;
+    if (message.worker !== __diceWorker) return;
     if (message.action === "record") {
         __diceIds = [];
         __diceReplay = null;
         __diceRecording = { elapsed: 0, times: [], frames: [] };
-        __diceSync.postMessage({ action: "recording" });
+        __diceSync.postMessage({ action: "recording", worker: __diceWorker });
     } else if (message.action === "finish") {
         const recording = __diceRecording;
         __diceRecording = null;
         __diceSync.postMessage({
             action: "recorded",
+            worker: __diceWorker,
             ids: __diceIds,
             times: recording ? recording.times : [],
             frames: recording ? recording.frames : [],
@@ -49,7 +54,7 @@ __diceSync.onmessage = (event) => {
         __diceIds = [];
         __diceRecording = null;
         __diceReplay = { ids: message.ids, times: message.times, frames: message.frames, cursor: 0, elapsed: 0, moved: new Map(), asleep: [] };
-        __diceSync.postMessage({ action: "replaying" });
+        __diceSync.postMessage({ action: "replaying", worker: __diceWorker });
     }
 };
 const __diceAdded = (id) => {
@@ -162,6 +167,12 @@ const channel =
         ? new BroadcastChannel(CHANNEL)
         : null;
 
+/** The newest physics worker, the one of the dice box on screen */
+let current_worker: string | null = null;
+channel?.addEventListener("message", (event) => {
+    if (event.data?.action === "hello") current_worker = event.data.worker;
+});
+
 /** Sends a command to the physics worker and waits for its answer, null if it doesn't answer */
 function command(
     action: string,
@@ -169,19 +180,21 @@ function command(
     data: Record<string, unknown> = {},
 ): Promise<any> {
     return new Promise((resolve) => {
-        if (!channel || !dice_sync_available) return resolve(null);
+        const worker = current_worker;
+        if (!channel || !dice_sync_available || !worker) return resolve(null);
         const timeout = setTimeout(() => {
             channel.removeEventListener("message", listener);
             resolve(null);
         }, 3000);
         const listener = (event: MessageEvent) => {
-            if (event.data?.action !== answer) return;
+            if (event.data?.action !== answer || event.data.worker !== worker)
+                return;
             clearTimeout(timeout);
             channel.removeEventListener("message", listener);
             resolve(event.data);
         };
         channel.addEventListener("message", listener);
-        channel.postMessage({ action, ...data });
+        channel.postMessage({ action, worker, ...data });
     });
 }
 
@@ -232,7 +245,9 @@ export async function finish_recording(
 
 /** Ends a replay that didn't finish, e.g. because its dice never landed */
 export function stop_replay() {
-    if (channel && dice_sync_available) channel.postMessage({ action: "stop" });
+    if (channel && dice_sync_available) {
+        channel.postMessage({ action: "stop", worker: current_worker });
+    }
 }
 
 /** Call before throwing the dice of the replay, they then move like the recorded ones */
