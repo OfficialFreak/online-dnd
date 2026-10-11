@@ -881,7 +881,8 @@
                 <i class="fa-solid fa-folder-open"></i> Dateien
             </button>
         {/if}
-        <div class="dropdown dropdown-bottom my-auto">
+        <!-- Flex, as a block the button would sit on the text baseline, lower than the others -->
+        <div class="dropdown dropdown-bottom my-auto flex">
             <button
                 tabindex="0"
                 class="btn btn-soft btn-primary !text-xs px-2 h-6"
@@ -957,13 +958,13 @@
         </div>
         {#if updating}
             <div
-                class="tooltip tooltip-bottom"
+                class="tooltip tooltip-bottom my-auto flex"
                 data-tip="Die App wird sich gleich neustarten"
             >
                 <div
                     tabindex="0"
                     role="button"
-                    class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-events-none"
+                    class="btn btn-soft btn-primary !text-xs px-2 h-6 pointer-events-none"
                 >
                     Updatevorgang...
                 </div>
