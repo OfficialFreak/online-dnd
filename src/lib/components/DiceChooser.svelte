@@ -81,7 +81,10 @@
             {/if}
         </div>
         <!-- A row, as a column the dice would cover the toolbar -->
-        <ul class="dropdown-content z-1 flex flex-row gap-2 pt-3 pr-3 pb-2">
+        <!-- Smaller and wrapping on phones, so all fit on the screen -->
+        <ul
+            class="dropdown-content z-1 flex flex-row flex-wrap gap-2 max-sm:gap-1.5 pt-3 pr-3 pb-2 w-max max-w-[calc(100vw-1rem)]"
+        >
             {#each entries as [dice, count]}
                 <div class="indicator">
                     {#if count > 0}
@@ -91,7 +94,7 @@
                     {/if}
                     <div class="tooltip" data-tip={dice.toUpperCase()}>
                         <button
-                            class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center"
+                            class="btn rounded-full w-12 h-12 max-sm:w-11 max-sm:h-11 p-0 flex justify-center items-center"
                             aria-label={dice.toUpperCase()}
                             onclick={() => {
                                 dice_count[dice]++;

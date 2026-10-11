@@ -188,8 +188,9 @@
         </div>
     {/if}
     <Toolbar />
+    <!-- Above the conditions on the right, the dice reach there on phones -->
     <div
-        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-10"
+        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000]"
     >
         <DiceChooser roll_callback={roll} />
     </div>
