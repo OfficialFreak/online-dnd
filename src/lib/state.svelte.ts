@@ -590,7 +590,6 @@ export function character_marker(name: string) {
 export async function place_party() {
     const scene = gameState.scene;
     if (!appState.ws || !scene) return;
-    record_undo();
 
     const party = gameState.characters
         .map((character) => character_marker(character.name))
@@ -603,6 +602,7 @@ export async function place_party() {
         );
         return;
     }
+    record_undo();
 
     // Everything in grid cells, the map is `columns` cells wide
     const columns = scene.columns;
