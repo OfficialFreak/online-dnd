@@ -923,17 +923,24 @@
                     />
                 {/if}
                 {#if label}
+                    {@const font = size * 0.28}
+                    {@const width = label.text.length * font * 0.6 + font}
+                    <rect
+                        x={label.x - width / 2}
+                        y={label.y - font * 0.75}
+                        {width}
+                        height={font * 1.5}
+                        rx={font * 0.75}
+                        fill="rgb(0 0 0 / 0.6)"
+                    />
                     <text
                         x={label.x}
                         y={label.y}
                         text-anchor="middle"
-                        dominant-baseline="middle"
-                        font-size={size * 0.4}
+                        dominant-baseline="central"
+                        font-size={font}
                         font-weight="bold"
-                        fill="white"
-                        stroke="black"
-                        stroke-width={size * 0.06}
-                        paint-order="stroke">{label.text}</text
+                        fill="white">{label.text}</text
                     >
                 {/if}
             {/each}

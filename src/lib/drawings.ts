@@ -81,7 +81,8 @@ export function drawing_shape(
         case "circle":
             return {
                 shape: { type: "circle", cx: ax, cy: ay, r: length },
-                label: { x: ax, y: ay, text: feet(length) },
+                // Under the middle, where the target usually stands
+                label: { x: ax, y: ay + length * 0.7, text: feet(length) },
             };
         case "cone": {
             // A 5e cone is as wide as it is long
