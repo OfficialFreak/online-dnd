@@ -49,9 +49,7 @@
         markers,
         editable = false,
     } = $props();
-    let gridCanvas: any = $state();
     let fogCanvas: any = $state();
-    let gridCtx: CanvasRenderingContext2D | null = $state(null);
     let fogCtx: CanvasRenderingContext2D | null = $state(null);
     let w = $state(0);
     let h = $state(0);
@@ -62,6 +60,33 @@
     $effect(() => {
         set_rows(rows);
     });
+
+    // Lines instead of a canvas, they stay sharp when zoomed and on high-DPI screens
+    let grid_path = $derived.by(() => {
+        if (!size || !rows) return "";
+        let path = "";
+        for (let i = 1; i < columns; i++) {
+            path += `M${size * i + x_offset} ${y_offset}V${(rows - 1) * size + y_offset}`;
+        }
+        for (let i = 1; i < rows - 1; i++) {
+            path += `M${x_offset} ${size * i + y_offset}H${w + x_offset}`;
+        }
+        return path;
+    });
+
+    /**
+     * Pixels of the fog canvas per pixel of the map: sharp on high-DPI screens, but small
+     * enough for phones, whose browsers refuse very large canvases
+     */
+    let fog_resolution = $derived(
+        Math.max(
+            1,
+            Math.min(
+                window.devicePixelRatio || 1,
+                Math.sqrt(8_000_000 / Math.max(1, w * h)),
+            ),
+        ),
+    );
 
     let ruler_origin: { x: null | number; y: null | number } = $state({
         x: null,
@@ -121,6 +146,9 @@
         if (!editable) return;
 
         if (fogCtx) {
+            // Setting the canvas size resets the transform
+            fog_resolution;
+            fogCtx.setTransform(fog_resolution, 0, 0, fog_resolution, 0, 0);
             fogCtx.globalCompositeOperation = "source-over";
             fogCtx.clearRect(0, 0, w, h);
         }
@@ -153,35 +181,11 @@
             if (fogPattern && !painting) {
                 fogCtx.globalCompositeOperation = "source-in";
                 fogCtx.fillStyle = fogPattern;
-                fogCtx.filter = "blur(5px)";
+                // The blur works in pixels of the canvas, not of the map
+                fogCtx.filter = `blur(${5 * fog_resolution}px)`;
                 fogCtx.fillRect(-5, -5, w + 10, h + 10);
                 fogCtx.filter = "none";
             }
-        }
-    });
-
-    $effect(() => {
-        if (gridCtx) {
-            gridCtx.clearRect(0, 0, w, h);
-            // Draw Grid
-
-            gridCtx.beginPath();
-
-            for (let i = 1; i < columns; i++) {
-                gridCtx.moveTo(size * i + x_offset, 0 + y_offset);
-                gridCtx.lineTo(
-                    size * i + x_offset,
-                    (rows - 1) * size + y_offset,
-                );
-            }
-
-            for (let i = 1; i < rows - 1; i++) {
-                gridCtx.moveTo(0 + x_offset, size * i + y_offset);
-                gridCtx.lineTo(w + x_offset, size * i + y_offset);
-            }
-
-            gridCtx.strokeStyle = "black";
-            gridCtx.stroke();
         }
     });
 
@@ -510,7 +514,6 @@
     }
 
     onMount(() => {
-        gridCtx = gridCanvas.getContext("2d");
         if (!editable) return;
         fogCtx = fogCanvas.getContext("2d");
         appState.map_confetti_function = confetti.create(confetti_canvas, {
@@ -919,15 +922,24 @@
         class="w-full"
         fetchpriority={editable ? "high" : "auto"}
     />
-    <canvas
-        bind:this={gridCanvas}
+    <div
+        class="absolute top-0 left-0 w-full h-full pointer-events-none"
         bind:clientWidth={w}
         bind:clientHeight={h}
-        width={w as number}
-        height={h as number}
-        class="absolute top-0 left-0 w-full h-full z-0 opacity-50"
+    ></div>
+    <!-- One screen pixel wide at any zoom -->
+    <svg
+        class="absolute top-0 left-0 w-full h-full z-0 opacity-50 pointer-events-none"
+        viewBox="0 0 {w || 1} {h || 1}"
+        aria-hidden="true"
     >
-    </canvas>
+        <path
+            d={grid_path}
+            fill="none"
+            stroke="black"
+            stroke-width={editable ? 1 / appState.zoom : 1}
+        />
+    </svg>
     {#if editable}
         <!-- Effects canvas -->
         <canvas
@@ -1024,8 +1036,8 @@
         <!-- Fog -->
         <canvas
             bind:this={fogCanvas}
-            width={w as number}
-            height={h as number}
+            width={Math.round(w * fog_resolution)}
+            height={Math.round(h * fog_resolution)}
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
             style="opacity: {gameState.dm ? '60' : '100'}%"
         >
