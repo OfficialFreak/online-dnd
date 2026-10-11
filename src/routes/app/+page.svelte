@@ -102,6 +102,7 @@
                 mode: result.mode,
                 d20s: result.d20s,
                 private: privacy_level === "private",
+                local: true,
             });
         }
         if (appState.ws && privacy_level !== "private") {

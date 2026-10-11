@@ -3,8 +3,11 @@ import type { DiceReplay } from "./dice-sync";
 
 export type RollMode = "normal" | "advantage" | "disadvantage";
 
-/** A roll in the history. Private rolls never left this client. */
-export type RollEntry = AnyRoll & { private?: boolean };
+/**
+ * A roll in the history. Private rolls never left this client, local ones are only in its
+ * history: the server doesn't send them back or keep them for this client.
+ */
+export type RollEntry = AnyRoll & { private?: boolean; local?: boolean };
 
 /** What the dice roller rolled. d20s are both d20s of a roll with advantage or disadvantage. */
 export type RollOutcome = {

@@ -606,7 +606,11 @@
                     gameState.combat = message.active;
                     break;
                 case MessageType.ROLL_HISTORY:
-                    gameState.rolls = message.rolls;
+                    // Rolls the server doesn't have for this client stay
+                    gameState.rolls = [
+                        ...message.rolls,
+                        ...gameState.rolls.filter((roll) => roll.local),
+                    ].toSorted((a, b) => (a.time ?? 0) - (b.time ?? 0));
                     break;
             }
         });
