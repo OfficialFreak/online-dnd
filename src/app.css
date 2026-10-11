@@ -60,3 +60,100 @@ html, body {
     clip-path: url(#hexClip);
     mask: none !important;
 }
+/* Conditions of markers on the map, see src/lib/conditions.ts. Each one moves the marker
+   with a different property, so several conditions can play at once. */
+@keyframes cond-tremble {
+    0%,
+    100% {
+        translate: 0 0;
+    }
+    25% {
+        translate: -3% 1%;
+    }
+    50% {
+        translate: 3% -1%;
+    }
+    75% {
+        translate: -2% -1%;
+    }
+}
+
+@keyframes cond-jitter {
+    0%,
+    86%,
+    100% {
+        translate: 0 0;
+    }
+    88% {
+        translate: 4% 0;
+    }
+    90% {
+        translate: -4% 0;
+    }
+    92% {
+        translate: 3% 0;
+    }
+    94% {
+        translate: -2% 0;
+    }
+}
+
+@keyframes cond-squeeze {
+    0%,
+    100% {
+        scale: 1 1;
+    }
+    50% {
+        scale: 0.9 1.05;
+    }
+}
+
+@keyframes cond-wobble {
+    0%,
+    100% {
+        rotate: -8deg;
+    }
+    50% {
+        rotate: 8deg;
+    }
+}
+
+@keyframes cond-nausea {
+    0%,
+    100% {
+        rotate: -3deg;
+        scale: 1;
+    }
+    50% {
+        rotate: 3deg;
+        scale: 1.04;
+    }
+}
+
+@keyframes cond-droop {
+    0%,
+    100% {
+        translate: 0 0;
+        rotate: 0deg;
+    }
+    50% {
+        translate: 0 4%;
+        rotate: -4deg;
+    }
+}
+
+@keyframes cond-shimmer {
+    0%,
+    100% {
+        opacity: 0.25;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .condition-animated {
+        animation: none !important;
+    }
+}

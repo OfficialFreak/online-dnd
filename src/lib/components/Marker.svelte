@@ -8,13 +8,17 @@
     } from "../state.svelte";
     import { draggable } from "@neodrag/svelte";
     // @ts-ignore
-    import MultiSelect from "svelte-multiselect";
-    // @ts-ignore
     import throttle from "just-throttle";
     import { Blood, PutScene } from "$lib/types/messaging/client_messages";
     import CharacterPreview from "./CharacterPreview.svelte";
     import { spill_blood } from "$lib/effects";
+    import {
+        CONDITION_KEYS,
+        CONDITIONS,
+        normalize_condition,
+    } from "$lib/conditions";
     import Display from "./Display.svelte";
+    import ConditionEffects from "./ConditionEffects.svelte";
 
     let {
         marker,
@@ -69,19 +73,47 @@
         old_name = scene_marker.name;
     });
 
-    const effect_style_mapping = {
-        knocked: ["--background: #8e3a38;", "filter: grayscale(0.8);", null],
-        petrified: ["--background: gray;", "filter: grayscale(1);", null],
-        poisoned: ["--background: #36d903;", "filter: blur(0.5px);", null],
-        burning: [
-            "--background: #ff4300;",
-            "filter: brightness(1.5) sepia(1) hue-rotate(333deg) saturate(3);",
-            "burning.gif",
-        ],
-        invisible: ["--background: #cccccc44;", "filter: opacity(0.5);", null],
-    };
-
     let connected_character = $derived(getCharacter(marker.name));
+
+    /** The marker's conditions, and those of its character from D&D Beyond */
+    let effects: string[] = $derived(
+        [
+            ...new Set([
+                ...(marker.status_effects ?? []).map(normalize_condition),
+                ...(connected_character?.activeStatusEffects ?? []),
+            ]),
+        ].filter((effect) => CONDITIONS[effect]),
+    );
+    let conditions = $derived(effects.map((effect) => CONDITIONS[effect]));
+    // Animations only play on the map, not in the initiative bar or previews
+    let animated = $derived(mapUse && !banner);
+    let image_filter = $derived(
+        conditions
+            .map((condition) => condition.filter)
+            .filter(Boolean)
+            .join(" "),
+    );
+    let animation = $derived(
+        animated
+            ? conditions
+                  .map((condition) => condition.animation)
+                  .filter(Boolean)
+                  .join(", ")
+            : "",
+    );
+    let prone = $derived(
+        animated && conditions.some((condition) => condition.prone),
+    );
+
+    function toggle_condition(effect: string) {
+        const current = (scene_marker.status_effects ?? []).map(
+            normalize_condition,
+        );
+        scene_marker.status_effects = current.includes(effect)
+            ? current.filter((active) => active !== effect)
+            : [...current, effect];
+        throttled_save();
+    }
 </script>
 
 <div
@@ -158,17 +190,17 @@
             </span>
         {/if}
         <div
-            class={"relative mask pointer-events-none !flex justify-center items-center aspect-square " +
+            class={"condition-animated relative mask pointer-events-none !flex justify-center items-center aspect-square " +
                 (banner ? "mask-banner" : "mask-hexagon")}
-            style="padding: calc(3% + 0.03vw); --background: var(--color-neutral); width: {typeof columnCount ===
+            style="padding: calc(3% + 0.03vw); --background: {conditions[0]
+                ?.color ?? 'var(--color-neutral)'}; width: {typeof columnCount ===
             'string'
                 ? columnCount
-                : `${(marker.size / columnCount) * 100}vw`}; {marker.status_effects &&
-            marker.status_effects[0]
-                ? effect_style_mapping[marker.status_effects[0]][0]
-                : ''}; {banner
+                : `${(marker.size / columnCount) * 100}vw`}; {banner
                 ? 'transition: width 0.05s ease-out'
-                : ''}; {connected_character
+                : 'transition: transform 0.4s ease-out'}; transform: {prone
+                ? 'rotate(90deg)'
+                : 'none'}; animation: {animation || 'none'}; {connected_character
                 ? `background: conic-gradient(var(--background) ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg, #ff002b73 ${(connected_character.currentHealth / connected_character.maxHealth) * 360}deg) !important;`
                 : 'background: var(--background)'}"
         >
@@ -179,19 +211,22 @@
                 hoverVideoOnly={true}
                 thumbnail={!(mapUse || banner)}
                 asset={marker.file}
-                style={marker.status_effects && marker.status_effects[0]
-                    ? effect_style_mapping[marker.status_effects[0]][1]
-                    : ""}
+                style={image_filter ? `filter: ${image_filter};` : ""}
             />
-            {#if marker.status_effects && marker.status_effects[0] && effect_style_mapping[marker.status_effects[0]][2] !== null}
-                <img
-                    alt="Effect Overlay"
-                    class={"absolute w-full aspect-square mask " +
-                        (banner ? "mask-banner" : "mask-hexagon")}
-                    src={effect_style_mapping[marker.status_effects[0]][2]}
-                />
-            {/if}
+            {#each conditions as condition}
+                {#if condition.overlay}
+                    <img
+                        alt="Effect Overlay"
+                        class={"absolute w-full aspect-square mask " +
+                            (banner ? "mask-banner" : "mask-hexagon")}
+                        src={condition.overlay}
+                    />
+                {/if}
+            {/each}
         </div>
+        {#if animated && interactive && effects.length > 0}
+            <ConditionEffects {effects} />
+        {/if}
         {#if gameState.dm && mapUse}
             <ul
                 class="dropdown-content menu bg-base-100 rounded-box z-1 min-w-52 p-2 shadow-sm !transition-none"
@@ -241,16 +276,35 @@
                         }}
                     />
                     <legend class="fieldset-legend pointer-events-none"
-                        >Statuseffekte</legend
+                        >Zustände</legend
                     >
-                    <MultiSelect
-                        onchange={throttled_save}
-                        options={Object.keys(effect_style_mapping)}
-                        bind:selected={scene_marker.status_effects}
-                        --sms-options-bg="var(--color-base-100)"
-                        --sms-max-width="13rem"
-                        --sms-min-height="2.5rem"
-                    ></MultiSelect>
+                    <!-- The menu lays out its direct children in a row, so the grid needs a wrapper -->
+                    <div class="p-0 hover:bg-transparent">
+                    <div class="grid grid-cols-3 gap-1 w-80">
+                        {#each CONDITION_KEYS as effect (effect)}
+                            {@const active = scene_marker.status_effects
+                                ?.map(normalize_condition)
+                                .includes(effect)}
+                            <!-- svelte-ignore node_invalid_placement_ssr -->
+                            <button
+                                class="btn btn-xs gap-1 px-1.5 justify-start {active
+                                    ? 'btn-neutral'
+                                    : 'btn-ghost'}"
+                                aria-pressed={active}
+                                onclick={() => toggle_condition(effect)}
+                            >
+                                <span
+                                    class="w-2 h-2 rounded-full"
+                                    style="background: {CONDITIONS[effect]
+                                        .color}"
+                                ></span>
+                                <span class="truncate"
+                                    >{CONDITIONS[effect].label}</span
+                                >
+                            </button>
+                        {/each}
+                    </div>
+                    </div>
                 </li>
                 <li class="mt-2 flex flex-row gap-1">
                     {#if !gameState.scene?.state.initiative.some((initiative) => initiative[1] === scene_marker.name)}

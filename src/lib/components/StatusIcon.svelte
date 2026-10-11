@@ -1,10 +1,16 @@
 <script lang="ts">
-    let { effect } = $props();
+    import { CONDITIONS, condition_label } from "$lib/conditions";
+
+    /** Compact icons fill their parent and have no tooltip, e.g. on markers */
+    let { effect, compact = false }: { effect: string; compact?: boolean } =
+        $props();
 </script>
 
 <div
-    class="p-2 rounded-full flex justify-center items-center bg-base-100 tooltip"
-    data-tip={effect}
+    class="rounded-full flex justify-center items-center bg-base-100 {compact
+        ? 'compact w-full h-full p-[18%]'
+        : 'p-2 tooltip'}"
+    data-tip={compact ? undefined : condition_label(effect)}
 >
     {#if effect === "blinded"}
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" class="icon"
@@ -344,8 +350,9 @@
                 height="4.5"
             ></rect></svg
         >
-    {:else if effect === "exhaustion"}
-        <i class="fa-solid fa-battery-quarter icon text-white text-center"></i>
+    {:else if CONDITIONS[effect]?.icon}
+        <i class="fa-solid {CONDITIONS[effect].icon} icon text-white text-center"
+        ></i>
     {:else}
         ?
     {/if}
@@ -355,5 +362,14 @@
     .icon {
         width: 1.25rem;
         height: 1.25rem;
+    }
+
+    .compact .icon {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12cqw;
     }
 </style>

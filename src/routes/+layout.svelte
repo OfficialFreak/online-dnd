@@ -42,6 +42,7 @@
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
+    import { normalize_condition } from "$lib/conditions";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
     import { invoke } from "@tauri-apps/api/core";
@@ -369,6 +370,9 @@
                     let new_markers = message.state.markers.map((marker) => {
                         return {
                             ...marker,
+                            status_effects: (marker.status_effects ?? []).map(
+                                normalize_condition,
+                            ),
                             x: new Tween(marker.x, {
                                 duration: 50,
                                 easing: circOut,
@@ -670,10 +674,6 @@
     <style>
         .modal {
             width: 100vw !important;
-        }
-        div.multiselect > ul.selected > li {
-            display: flex;
-            flex-direction: row;
         }
     </style>
 </svelte:head>
