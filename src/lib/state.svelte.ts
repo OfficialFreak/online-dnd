@@ -135,8 +135,11 @@ export const dialogs: {
         open(map_path?: string): void;
         edit(scene: Scene): void;
     } | null;
-    /** With a path, that file is uploaded as the new marker's image */
-    marker: { open(image_path?: string): void } | null;
+    marker: {
+        /** With a path, that file is uploaded as the new marker's image */
+        open(image_path?: string): void;
+        edit(marker: MarkerTemplate): void;
+    } | null;
 } = { scene: null, marker: null };
 
 export type Panel = "characters" | "markers" | "scenes";

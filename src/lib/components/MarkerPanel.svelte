@@ -70,20 +70,32 @@
                     ></i>
                     {marker.size}
                 </span>
-                <button
-                    class="btn btn-xs absolute top-1 right-1 {confirm_delete ===
-                    marker.name
-                        ? 'btn-error'
-                        : 'btn-ghost btn-square opacity-0 group-hover:opacity-100'}"
-                    aria-label="Marker löschen"
-                    onclick={() => request_delete(marker.name)}
-                >
-                    {#if confirm_delete === marker.name}
-                        Löschen?
-                    {:else}
-                        <i class="fa-solid fa-trash"></i>
+                <div class="absolute top-1 right-1 flex flex-row gap-0.5">
+                    {#if confirm_delete !== marker.name}
+                        <button
+                            class="btn btn-xs btn-ghost btn-square opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            aria-label="Marker bearbeiten"
+                            title="Bearbeiten"
+                            onclick={() => dialogs.marker?.edit(marker)}
+                        >
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
                     {/if}
-                </button>
+                    <button
+                        class="btn btn-xs {confirm_delete === marker.name
+                            ? 'btn-error'
+                            : 'btn-ghost btn-square opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}"
+                        aria-label="Marker löschen"
+                        title="Löschen"
+                        onclick={() => request_delete(marker.name)}
+                    >
+                        {#if confirm_delete === marker.name}
+                            Löschen?
+                        {:else}
+                            <i class="fa-solid fa-trash"></i>
+                        {/if}
+                    </button>
+                </div>
             </div>
         {:else}
             <p class="col-span-3 text-center text-base-content/60 py-4">

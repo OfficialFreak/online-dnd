@@ -228,6 +228,19 @@ export class PutMarker {
     }
 }
 
+export class UpdateMarker {
+    /** A different name renames the marker */
+    static create(old_name: string, name: string, file: string, size: number): string {
+        return JSON.stringify({
+            type: "update_marker",
+            old_name: old_name,
+            name: name,
+            file: file,
+            size: size
+        });
+    }
+}
+
 export class ImportCharacter {
     static create(character_url: string, selected_player: string): string {
         return JSON.stringify({
