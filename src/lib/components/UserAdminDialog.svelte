@@ -99,16 +99,18 @@
                         {@const self = user.name === gameState.name}
                         <tr>
                             <td>
-                                <span
-                                    class="status {user.online
-                                        ? 'status-success'
-                                        : 'status-neutral'}"
-                                    title={user.online ? "Online" : "Offline"}
-                                ></span>
-                                {user.name}
-                                {#if self}
-                                    <span class="badge badge-xs">Du</span>
-                                {/if}
+                                <div class="flex flex-row items-center gap-2">
+                                    <span
+                                        class="status {user.online
+                                            ? 'status-success'
+                                            : 'status-neutral'}"
+                                        title={user.online ? "Online" : "Offline"}
+                                    ></span>
+                                    {user.name}
+                                    {#if self}
+                                        <span class="badge badge-xs">Du</span>
+                                    {/if}
+                                </div>
                             </td>
                             <td>
                                 <input
@@ -139,81 +141,89 @@
                                     ••••{user.key.slice(-4)}
                                 {/if}
                             </td>
-                            <td class="flex flex-row gap-1 justify-end">
-                                {#if user.key}
-                                    <button
-                                        class="btn btn-xs btn-ghost btn-square"
-                                        title={shown_key === user.name
-                                            ? "Verbergen"
-                                            : "Anzeigen"}
-                                        aria-label="Schlüssel anzeigen"
-                                        onclick={() =>
-                                            (shown_key =
-                                                shown_key === user.name
-                                                    ? null
-                                                    : user.name)}
-                                    >
-                                        <i
-                                            class="fa-solid {shown_key ===
-                                            user.name
-                                                ? 'fa-eye-slash'
-                                                : 'fa-eye'}"
-                                        ></i>
-                                    </button>
-                                    <button
-                                        class="btn btn-xs btn-ghost btn-square"
-                                        title="Kopieren"
-                                        aria-label="Schlüssel kopieren"
-                                        onclick={() => copy_key(user.key)}
-                                    >
-                                        <i class="fa-solid fa-copy"></i>
-                                    </button>
-                                {/if}
-                                <button
-                                    class="btn btn-xs {confirm ===
-                                    `key:${user.name}`
-                                        ? 'btn-warning'
-                                        : 'btn-ghost btn-square'}"
-                                    title="Neuer Schlüssel, der alte gilt nicht mehr"
-                                    aria-label="Neuer Schlüssel"
-                                    onclick={() =>
-                                        request(`key:${user.name}`, () => {
-                                            appState.ws?.send(
-                                                RegenerateKey.create(user.name),
-                                            );
-                                            shown_key = user.name;
-                                        })}
-                                >
-                                    {#if confirm === `key:${user.name}`}
-                                        Neu?
+                            <td>
+                                <!-- Empty slots keep the buttons of all rows in line -->
+                                <div class="flex flex-row gap-1 justify-end">
+                                    {#if user.key}
+                                        <button
+                                            class="btn btn-xs btn-ghost btn-square"
+                                            title={shown_key === user.name
+                                                ? "Verbergen"
+                                                : "Anzeigen"}
+                                            aria-label="Schlüssel anzeigen"
+                                            onclick={() =>
+                                                (shown_key =
+                                                    shown_key === user.name
+                                                        ? null
+                                                        : user.name)}
+                                        >
+                                            <i
+                                                class="fa-solid {shown_key ===
+                                                user.name
+                                                    ? 'fa-eye-slash'
+                                                    : 'fa-eye'}"
+                                            ></i>
+                                        </button>
+                                        <button
+                                            class="btn btn-xs btn-ghost btn-square"
+                                            title="Kopieren"
+                                            aria-label="Schlüssel kopieren"
+                                            onclick={() => copy_key(user.key)}
+                                        >
+                                            <i class="fa-solid fa-copy"></i>
+                                        </button>
                                     {:else}
-                                        <i class="fa-solid fa-arrows-rotate"></i>
+                                        <span class="w-6 shrink-0"></span>
+                                        <span class="w-6 shrink-0"></span>
                                     {/if}
-                                </button>
-                                {#if !self}
                                     <button
                                         class="btn btn-xs {confirm ===
-                                        `delete:${user.name}`
-                                            ? 'btn-error'
+                                        `key:${user.name}`
+                                            ? 'btn-warning'
                                             : 'btn-ghost btn-square'}"
-                                        aria-label="Spieler löschen"
-                                        title="Löschen"
+                                        title="Neuer Schlüssel, der alte gilt nicht mehr"
+                                        aria-label="Neuer Schlüssel"
                                         onclick={() =>
-                                            request(`delete:${user.name}`, () =>
+                                            request(`key:${user.name}`, () => {
                                                 appState.ws?.send(
-                                                    DeleteUser.create(
-                                                        user.name,
-                                                    ),
-                                                ),
-                                            )}
+                                                    RegenerateKey.create(user.name),
+                                                );
+                                                shown_key = user.name;
+                                            })}
                                     >
-                                        {#if confirm === `delete:${user.name}`}
-                                            Löschen?
+                                        {#if confirm === `key:${user.name}`}
+                                            Neu?
                                         {:else}
-                                            <i class="fa-solid fa-trash"></i>
+                                            <i class="fa-solid fa-arrows-rotate"></i>
                                         {/if}
                                     </button>
-                                {/if}
+                                    {#if !self}
+                                        <button
+                                            class="btn btn-xs {confirm ===
+                                            `delete:${user.name}`
+                                                ? 'btn-error'
+                                                : 'btn-ghost btn-square'}"
+                                            aria-label="Spieler löschen"
+                                            title="Löschen"
+                                            onclick={() =>
+                                                request(`delete:${user.name}`, () =>
+                                                    appState.ws?.send(
+                                                        DeleteUser.create(
+                                                            user.name,
+                                                        ),
+                                                    ),
+                                                )}
+                                        >
+                                            {#if confirm === `delete:${user.name}`}
+                                                Löschen?
+                                            {:else}
+                                                <i class="fa-solid fa-trash"></i>
+                                            {/if}
+                                        </button>
+                                    {:else}
+                                        <span class="w-6 shrink-0"></span>
+                                    {/if}
+                                </div>
                             </td>
                         </tr>
                     {/each}
@@ -221,41 +231,42 @@
             </table>
         </div>
         <form
-            class="flex flex-row flex-wrap items-end gap-2"
+            class="fieldset"
             onsubmit={(event) => {
                 event.preventDefault();
                 create_user();
             }}
         >
-            <fieldset class="fieldset">
-                <legend class="fieldset-legend">Neuer Spieler</legend>
+            <span class="fieldset-legend">Neuer Spieler</span>
+            <div class="flex flex-row flex-wrap items-center gap-3">
                 <input
                     type="text"
-                    class="input input-sm {name_taken ? 'input-error' : ''}"
+                    class="input input-sm w-56 {name_taken ? 'input-error' : ''}"
                     placeholder="Name"
                     maxlength="40"
                     bind:value={new_name}
                 />
-            </fieldset>
-            <label class="label text-sm mb-2">
-                <input
-                    type="checkbox"
-                    class="checkbox checkbox-sm"
-                    bind:checked={new_dm}
-                />
-                DM
-            </label>
-            <button
-                class="btn btn-sm btn-neutral mb-1"
-                disabled={!new_name.trim() || name_taken}
-            >
-                Anlegen
-            </button>
-            {#if name_taken}
-                <span class="text-error text-sm mb-2"
-                    >Den Namen gibt es schon</span
+                <label class="label text-sm gap-2">
+                    <input
+                        type="checkbox"
+                        class="toggle toggle-sm toggle-primary"
+                        bind:checked={new_dm}
+                    />
+                    DM
+                </label>
+                <button
+                    class="btn btn-sm btn-neutral"
+                    disabled={!new_name.trim() || name_taken}
                 >
-            {/if}
+                    <i class="fa-solid fa-user-plus"></i>
+                    Anlegen
+                </button>
+                {#if name_taken}
+                    <span class="text-error text-sm"
+                        >Den Namen gibt es schon</span
+                    >
+                {/if}
+            </div>
         </form>
     </div>
     <form method="dialog" class="modal-backdrop">

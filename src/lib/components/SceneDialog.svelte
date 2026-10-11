@@ -172,7 +172,7 @@
             <input
                 type="text"
                 bind:value={scene_name}
-                class="input {name_taken
+                class="input w-full {name_taken
                     ? editing
                         ? 'input-error'
                         : 'input-warning'
@@ -192,30 +192,33 @@
             {/if}
 
             {#if !scene_file}
-                <button
-                    class="btn btn-neutral mt-4"
-                    disabled={uploadState.uploading}
-                    onclick={() => {
-                        upload_map();
-                    }}
-                >
-                    {#if uploadState.uploading}
-                        <span class="loading loading-spinner"></span>
-                        Wird hochgeladen…
-                    {:else}
-                        Map hochladen
-                    {/if}
-                </button>
-                <button class="btn btn-sm btn-ghost" onclick={pick_map}>
-                    <i class="fa-solid fa-folder-open"></i>
-                    Aus den Dateien wählen
-                </button>
+                <div class="grid grid-cols-2 gap-2 mt-4">
+                    <button
+                        class="btn btn-neutral"
+                        disabled={uploadState.uploading}
+                        onclick={() => {
+                            upload_map();
+                        }}
+                    >
+                        {#if uploadState.uploading}
+                            <span class="loading loading-spinner"></span>
+                            Wird hochgeladen…
+                        {:else}
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                            Map hochladen
+                        {/if}
+                    </button>
+                    <button class="btn btn-soft" onclick={pick_map}>
+                        <i class="fa-solid fa-folder-open"></i>
+                        Aus den Dateien
+                    </button>
+                </div>
             {:else}
                 <legend class="fieldset-legend">Spalten</legend>
                 <input
                     type="number"
                     bind:value={scene_columns}
-                    class="input"
+                    class="input w-full"
                     placeholder="10"
                 />
                 {#if editing && to_int(scene_columns, 10, 1) !== editing.columns}
@@ -228,7 +231,7 @@
                 <input
                     type="number"
                     bind:value={scene_x_offset}
-                    class="input"
+                    class="input w-full"
                     placeholder="10"
                 />
 
@@ -236,7 +239,7 @@
                 <input
                     type="number"
                     bind:value={scene_y_offset}
-                    class="input"
+                    class="input w-full"
                     placeholder="10"
                 />
 
@@ -251,47 +254,55 @@
                         markers={[]}
                     />
                 </div>
-                <button
-                    class="btn btn-sm btn-ghost self-start"
-                    disabled={uploadState.uploading}
-                    onclick={() => {
-                        upload_map();
-                    }}
-                >
-                    {#if uploadState.uploading}
-                        <span class="loading loading-spinner loading-xs"></span>
-                    {:else}
-                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                    {/if}
-                    Andere Map hochladen
-                </button>
-                <button class="btn btn-sm btn-ghost self-start" onclick={pick_map}>
-                    <i class="fa-solid fa-folder-open"></i>
-                    Andere Map aus den Dateien
-                </button>
-
-                {#if !background_file}
+                <div class="grid grid-cols-2 gap-2">
                     <button
-                        class="btn btn-neutral mt-4"
+                        class="btn btn-sm btn-soft"
                         disabled={uploadState.uploading}
                         onclick={() => {
-                            upload_background();
+                            upload_map();
                         }}
                     >
                         {#if uploadState.uploading}
-                            <span class="loading loading-spinner"></span>
-                            Wird hochgeladen…
+                            <span class="loading loading-spinner loading-xs"
+                            ></span>
                         {:else}
-                            Hintergrundbild hochladen
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
                         {/if}
+                        Andere Map hochladen
                     </button>
-                    <button
-                        class="btn btn-sm btn-ghost"
-                        onclick={pick_background}
-                    >
+                    <button class="btn btn-sm btn-soft" onclick={pick_map}>
                         <i class="fa-solid fa-folder-open"></i>
-                        Aus den Dateien wählen
+                        Andere aus den Dateien
                     </button>
+                </div>
+
+                {#if !background_file}
+                    <legend class="fieldset-legend mt-2">Hintergrundbild</legend>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button
+                            class="btn btn-sm btn-soft"
+                            disabled={uploadState.uploading}
+                            onclick={() => {
+                                upload_background();
+                            }}
+                        >
+                            {#if uploadState.uploading}
+                                <span class="loading loading-spinner loading-xs"
+                                ></span>
+                            {:else}
+                                <i class="fa-solid fa-arrow-up-from-bracket"
+                                ></i>
+                            {/if}
+                            Hochladen
+                        </button>
+                        <button
+                            class="btn btn-sm btn-soft"
+                            onclick={pick_background}
+                        >
+                            <i class="fa-solid fa-folder-open"></i>
+                            Aus den Dateien
+                        </button>
+                    </div>
                     <p class="fieldset-label">
                         Hintergrundbilder sind optional
                     </p>
@@ -302,7 +313,7 @@
                         type="range"
                         min="0"
                         max="30"
-                        class="range"
+                        class="range w-full"
                     />
                     <div
                         class="relative w-full h-30 pt-[30px] mt-4 overflow-hidden"
@@ -313,19 +324,25 @@
                             position={"relative"}
                         />
                     </div>
-                    <div class="flex flex-row gap-1">
+                    <div class="grid grid-cols-2 gap-2">
                         <button
-                            class="btn btn-sm btn-ghost"
+                            class="btn btn-sm btn-soft"
                             disabled={uploadState.uploading}
                             onclick={() => {
                                 upload_background();
                             }}
                         >
-                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                            {#if uploadState.uploading}
+                                <span class="loading loading-spinner loading-xs"
+                                ></span>
+                            {:else}
+                                <i class="fa-solid fa-arrow-up-from-bracket"
+                                ></i>
+                            {/if}
                             Anderes Hintergrundbild
                         </button>
                         <button
-                            class="btn btn-sm btn-ghost"
+                            class="btn btn-sm btn-soft"
                             onclick={() => (background_file = null)}
                         >
                             <i class="fa-solid fa-xmark"></i>

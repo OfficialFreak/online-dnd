@@ -151,7 +151,7 @@
             <input
                 type="text"
                 bind:value={marker_name}
-                class="input {name_taken
+                class="input w-full {name_taken
                     ? editing
                         ? 'input-error'
                         : 'input-warning'
@@ -187,7 +187,7 @@
             <input
                 type="number"
                 bind:value={marker_size}
-                class="input"
+                class="input w-full"
                 placeholder="1"
             />
             <p class="fieldset-label">
@@ -199,7 +199,7 @@
                 type="number"
                 min="1"
                 bind:value={marker_max_hp}
-                class="input"
+                class="input w-full"
                 placeholder="Optional"
             />
             <p class="fieldset-label">
@@ -208,53 +208,64 @@
             </p>
 
             {#if !marker_file}
-                <button
-                    class="btn btn-neutral mt-4"
-                    disabled={uploadState.uploading}
-                    onclick={() => {
-                        upload_image();
-                    }}
-                >
-                    {#if uploadState.uploading}
-                        <span class="loading loading-spinner"></span>
-                        Wird hochgeladen…
-                    {:else}
-                        Marker-Bild
-                    {/if}
-                </button>
-                <button class="btn btn-sm btn-ghost" onclick={pick_image}>
-                    <i class="fa-solid fa-folder-open"></i>
-                    Aus den Dateien wählen
-                </button>
+                <div class="grid grid-cols-2 gap-2 mt-4">
+                    <button
+                        class="btn btn-neutral"
+                        disabled={uploadState.uploading}
+                        onclick={() => {
+                            upload_image();
+                        }}
+                    >
+                        {#if uploadState.uploading}
+                            <span class="loading loading-spinner"></span>
+                            Wird hochgeladen…
+                        {:else}
+                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                            Marker-Bild
+                        {/if}
+                    </button>
+                    <button class="btn btn-soft" onclick={pick_image}>
+                        <i class="fa-solid fa-folder-open"></i>
+                        Aus den Dateien
+                    </button>
+                </div>
             {:else}
-                <Marker
-                    columnCount="100%"
-                    dragOptions={{ disabled: true }}
-                    marker={{
-                        name: marker_name,
-                        size: marker_size,
-                        file: marker_file,
-                    }}
-                    mapUse={false}
-                />
-                <button
-                    class="btn btn-sm btn-ghost self-start"
-                    disabled={uploadState.uploading}
-                    onclick={() => {
-                        upload_image();
-                    }}
-                >
-                    {#if uploadState.uploading}
-                        <span class="loading loading-spinner loading-xs"></span>
-                    {:else}
-                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                    {/if}
-                    Anderes Bild hochladen
-                </button>
-                <button class="btn btn-sm btn-ghost self-start" onclick={pick_image}>
-                    <i class="fa-solid fa-folder-open"></i>
-                    Anderes Bild aus den Dateien
-                </button>
+                <div class="flex flex-row items-center gap-4 mt-2">
+                    <div class="w-28 shrink-0">
+                        <Marker
+                            columnCount="100%"
+                            dragOptions={{ disabled: true }}
+                            marker={{
+                                name: marker_name,
+                                size: marker_size,
+                                file: marker_file,
+                            }}
+                            mapUse={false}
+                        />
+                    </div>
+                    <div class="flex-1 flex flex-col gap-2">
+                        <button
+                            class="btn btn-sm btn-soft"
+                            disabled={uploadState.uploading}
+                            onclick={() => {
+                                upload_image();
+                            }}
+                        >
+                            {#if uploadState.uploading}
+                                <span class="loading loading-spinner loading-xs"
+                                ></span>
+                            {:else}
+                                <i class="fa-solid fa-arrow-up-from-bracket"
+                                ></i>
+                            {/if}
+                            Anderes Bild hochladen
+                        </button>
+                        <button class="btn btn-sm btn-soft" onclick={pick_image}>
+                            <i class="fa-solid fa-folder-open"></i>
+                            Anderes Bild aus den Dateien
+                        </button>
+                    </div>
+                </div>
                 {#if editing}
                     <p class="fieldset-label">
                         Schon platzierte Marker bleiben, wie sie sind.

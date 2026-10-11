@@ -1058,7 +1058,7 @@
                 <legend class="fieldset-legend">Charakter URL</legend>
                 <input
                     type="text"
-                    class="input"
+                    class="input w-full"
                     placeholder="https://www.dndbeyond.com/characters/xxxxxxxxx"
                     bind:value={character_url}
                 />
@@ -1066,10 +1066,7 @@
                     Es ist wichtig, dass der Charakter öffentlich gestellt ist
                 </p>
                 <legend class="fieldset-legend">Zugehöriger Spieler</legend>
-                <select
-                    class="select select-sm !bg-[var(--color-base-100)]"
-                    bind:value={selected_player}
-                >
+                <select class="select w-full" bind:value={selected_player}>
                     <option value="" disabled>Spieler wählen</option>
                     {#each gameState.users as player}
                         <option value={player.name}

@@ -88,8 +88,9 @@
                         <span class="badge badge-info badge-xs">Aktiv</span>
                     {/if}
                 </div>
+                <!-- Only while hovering, so the names get the space otherwise -->
                 <button
-                    class="btn btn-ghost btn-square btn-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    class="btn btn-ghost btn-square btn-sm hidden group-hover:inline-flex group-focus-within:inline-flex"
                     aria-label="Szene bearbeiten"
                     title="Bearbeiten"
                     onclick={() => dialogs.scene?.edit(scene)}
@@ -97,18 +98,9 @@
                     <i class="fa-solid fa-pen"></i>
                 </button>
                 <button
-                    class="btn btn-ghost btn-square btn-sm"
-                    aria-label="Szene aktivieren"
-                    title="Aktivieren"
-                    disabled={active}
-                    onclick={() => activate_scene(scene.name)}
-                >
-                    <i class="fa-solid fa-play"></i>
-                </button>
-                <button
                     class="btn btn-sm {confirm_delete === scene.name
                         ? 'btn-error'
-                        : 'btn-ghost btn-square opacity-0 group-hover:opacity-100'}"
+                        : 'btn-ghost btn-square hidden group-hover:inline-flex group-focus-within:inline-flex'}"
                     aria-label="Szene löschen"
                     title={active
                         ? "Die aktive Szene kann nicht gelöscht werden"
@@ -121,6 +113,15 @@
                     {:else}
                         <i class="fa-solid fa-trash"></i>
                     {/if}
+                </button>
+                <button
+                    class="btn btn-ghost btn-square btn-sm"
+                    aria-label="Szene aktivieren"
+                    title="Aktivieren"
+                    disabled={active}
+                    onclick={() => activate_scene(scene.name)}
+                >
+                    <i class="fa-solid fa-play"></i>
                 </button>
             </li>
         {:else}

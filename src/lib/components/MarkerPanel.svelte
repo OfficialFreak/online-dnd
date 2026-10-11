@@ -73,7 +73,7 @@
                 <div class="absolute top-1 right-1 flex flex-row gap-0.5">
                     {#if confirm_delete !== marker.name}
                         <button
-                            class="btn btn-xs btn-ghost btn-square opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                            class="btn btn-xs btn-square shadow-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                             aria-label="Marker bearbeiten"
                             title="Bearbeiten"
                             onclick={() => dialogs.marker?.edit(marker)}
@@ -84,7 +84,7 @@
                     <button
                         class="btn btn-xs {confirm_delete === marker.name
                             ? 'btn-error'
-                            : 'btn-ghost btn-square opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}"
+                            : 'btn-square shadow-sm opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}"
                         aria-label="Marker löschen"
                         title="Löschen"
                         onclick={() => request_delete(marker.name)}
