@@ -72,11 +72,13 @@
                 appState.selectedTool === Tools.Select)
                 ? "auto"
                 : "none";
-        markerElement.style.setProperty(
-            "--y-translate",
-            `${0.8 - 0.8 / appState.zoom}rem`,
-        );
     });
+
+    // The map is laid out at its zoom, during a zoom gesture it is scaled on top. Menus and
+    // names stay the same size on the screen.
+    let gesture_scale = $derived(
+        mapUse ? appState.zoom / appState.layout_zoom : 1,
+    );
 
     /**
      * Sends the marker's settings but not its position, so moves of other markers that
@@ -294,13 +296,13 @@
     {#if !gameState.dm && !banner && !getCharacter(marker.name)}
         <span
             class="tooltip-content justify-center items-center flex !absolute"
-            style="border-radius: {1 / appState.zoom}rem; padding: 0 {1 /
-                appState.zoom}rem; transform: translate({20 /
-                appState.zoom}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
+            style="border-radius: {1 / gesture_scale}rem; padding: 0 {1 /
+                gesture_scale}rem; transform: translate({20 /
+                gesture_scale}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
         >
             <span
-                style="font-size: {16 / appState.zoom}px; height: {40 /
-                    appState.zoom}px; line-height: {40 / appState.zoom}px;"
+                style="font-size: {16 / gesture_scale}px; height: {40 /
+                    gesture_scale}px; line-height: {40 / gesture_scale}px;"
                 class="flex justify-center items-center">{marker.name}</span
             >
         </span>
@@ -350,7 +352,7 @@
                 ?.color ?? 'var(--color-neutral)'}; width: {typeof columnCount ===
             'string'
                 ? columnCount
-                : `${(marker.size / columnCount) * 100}vw`}; {banner
+                : `calc(${(marker.size / columnCount) * 100}vw * ${mapUse && !banner ? appState.layout_zoom : 1})`}; {banner
                 ? 'transition: width 0.05s ease-out'
                 : 'transition: transform 0.4s ease-out'}; transform: {prone
                 ? 'rotate(90deg)'
@@ -391,7 +393,7 @@
             <section
                 class="dropdown-content bg-base-100 rounded-box z-1 w-84 p-3 shadow-sm flex flex-col gap-3 text-left cursor-default !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(
-                    1 / appState.zoom,
+                    1 / gesture_scale,
                     1,
                 )})"
                 use:keep_in_view={{ below: "initiative-bar" }}
@@ -657,7 +659,7 @@
             <ul
                 class="dropdown-content menu z-1 p-0 shadow-sm w-80 flex flex-row justify-start items-start text-left !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(
-                    0.8 / appState.zoom,
+                    0.8 / gesture_scale,
                     1,
                 )})"
                 use:keep_in_view={{ below: "initiative-bar" }}

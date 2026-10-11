@@ -47,7 +47,13 @@ export const appState = $state({
     baseUrl: "dnd.wiegraebe.dev",
     selectedTool: Tools.None,
     dragging: false,
+    /** How large the map is shown */
     zoom: 1,
+    /**
+     * The zoom the map is laid out at, so it is drawn sharp. It follows the zoom once a
+     * zoom gesture ends, in between the map is scaled by zoom / layout_zoom.
+     */
+    layout_zoom: 1,
     /** Zooms the map around the window center, set by the map that is shown */
     zoom_by: null as ((factor: number) => void) | null,
     /** Height divided by width of the shown map */

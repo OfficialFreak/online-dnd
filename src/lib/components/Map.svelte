@@ -79,12 +79,9 @@
      * enough for phones, whose browsers refuse very large canvases
      */
     let fog_resolution = $derived(
-        Math.max(
-            1,
-            Math.min(
-                window.devicePixelRatio || 1,
-                Math.sqrt(8_000_000 / Math.max(1, w * h)),
-            ),
+        Math.min(
+            window.devicePixelRatio || 1,
+            Math.sqrt(8_000_000 / Math.max(1, w * h)),
         ),
     );
 
@@ -180,9 +177,11 @@
                 appState.mouseDown;
             if (fogPattern && !painting) {
                 fogCtx.globalCompositeOperation = "source-in";
+                // The texture grows with the map, like at the zoom it was made for
+                fogPattern.setTransform(new DOMMatrix().scale(layout_zoom));
                 fogCtx.fillStyle = fogPattern;
                 // The blur works in pixels of the canvas, not of the map
-                fogCtx.filter = `blur(${5 * fog_resolution}px)`;
+                fogCtx.filter = `blur(${5 * fog_resolution * layout_zoom}px)`;
                 fogCtx.fillRect(-5, -5, w + 10, h + 10);
                 fogCtx.filter = "none";
             }
@@ -633,8 +632,9 @@
     onMount(() => {
         if (!editable) return;
         fogCtx = fogCanvas.getContext("2d");
+        // The canvas keeps the size of the map at 100%, zoomed in it would get huge
         appState.map_confetti_function = confetti.create(confetti_canvas, {
-            resize: true,
+            resize: false,
         });
     });
 
@@ -720,13 +720,42 @@
         grid: appState.ctrlPressed ? grid : undefined,
     });
 
-    // Zoom scales the map from its top left corner, so zooming in makes the page
-    // scrollable to the right and bottom. Below 100% it shrinks towards its center.
+    // The map is laid out at the zoom, so the image, grid and markers are drawn sharp.
+    // Laying it out on every step of a pinch would stutter, so a zoom gesture scales it
+    // and it is laid out anew once the gesture ends.
+    let layout_zoom = $derived(editable ? appState.layout_zoom : 1);
+    let gesture_scale = $derived(editable ? appState.zoom / layout_zoom : 1);
+    /** Size of the map at 100%, w and h grow with the layout zoom */
+    let base_w = $derived(w / layout_zoom);
+    let base_h = $derived(h / layout_zoom);
+    let pinching = false;
+    let layout_timer: ReturnType<typeof setTimeout> | undefined;
+
+    function lay_out_zoom() {
+        clearTimeout(layout_timer);
+        layout_timer = setTimeout(() => {
+            if (pinching || appState.zoom === appState.layout_zoom) return;
+            // The new size right away, the browser measures it only after the next frame,
+            // and markers placed by the old one would flash in the wrong spot
+            const ratio = appState.zoom / appState.layout_zoom;
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+            appState.layout_zoom = appState.zoom;
+        }, 200);
+    }
+
+    $effect(() => {
+        if (!editable) return;
+        if (appState.zoom !== appState.layout_zoom) lay_out_zoom();
+    });
+
+    // Zooming in makes the page scrollable to the right and bottom. Below 100% the map
+    // shrinks towards its center.
     let zoom_offset_x = $derived(
-        editable && appState.zoom < 1 ? (w * (1 - appState.zoom)) / 2 : 0,
+        editable && appState.zoom < 1 ? (base_w * (1 - appState.zoom)) / 2 : 0,
     );
     let zoom_offset_y = $derived(
-        editable && appState.zoom < 1 ? (h * (1 - appState.zoom)) / 2 : 0,
+        editable && appState.zoom < 1 ? (base_h * (1 - appState.zoom)) / 2 : 0,
     );
     let map_element: HTMLDivElement | null = $state(null);
 
@@ -746,7 +775,7 @@
         const old_zoom = appState.zoom;
         new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), MAX_ZOOM);
         // The tolerance keeps rounding errors from stopping again right after a stop
-        const fit_height = (window.innerHeight - 30) / h;
+        const fit_height = (window.innerHeight - 30) / base_h;
         for (const stop of [1, fit_height]) {
             const at_stop = Math.abs(old_zoom - stop) < 0.001;
             const passes = (old_zoom - stop) * (new_zoom - stop) < 0;
@@ -800,7 +829,7 @@
         let pinch: {
             distance: number;
             zoom: number;
-            /** The map point between the fingers, in map pixels before the zoom */
+            /** The map point between the fingers, as fractions of the map */
             x: number;
             y: number;
         } | null = null;
@@ -820,9 +849,10 @@
             pinch = {
                 distance: spread(event.touches),
                 zoom: appState.zoom,
-                x: ((center.x - rect.left) / rect.width) * w,
-                y: ((center.y - rect.top) / rect.height) * h,
+                x: (center.x - rect.left) / rect.width,
+                y: (center.y - rect.top) / rect.height,
             };
+            pinching = true;
         };
         const on_touch_move = (event: TouchEvent) => {
             if (!pinch || event.touches.length !== 2) return;
@@ -843,13 +873,18 @@
                 if (!map_element) return;
                 const rect = map_element.getBoundingClientRect();
                 window.scrollBy(
-                    rect.left + (x / w) * rect.width - center.x,
-                    rect.top + (y / h) * rect.height - center.y,
+                    rect.left + x * rect.width - center.x,
+                    rect.top + y * rect.height - center.y,
                 );
             });
         };
         const on_touch_end = (event: TouchEvent) => {
-            if (event.touches.length < 2) pinch = null;
+            if (event.touches.length >= 2) return;
+            pinch = null;
+            if (pinching) {
+                pinching = false;
+                lay_out_zoom();
+            }
         };
         // Safari zooms the page with its own gesture events
         const on_gesture = (event: Event) => event.preventDefault();
@@ -995,7 +1030,7 @@
 
     /** Whether the center of a marker lies in the fog */
     function in_fog(marker: any) {
-        const marker_px = (marker.size / columns) * window.innerWidth;
+        const marker_px = (marker.size / columns) * w;
         return isFogAt(
             fog_squares,
             Math.floor((marker.x.current * w + marker_px / 2 - x_offset) / size),
@@ -1062,7 +1097,7 @@
 <!-- Marker menus may reach past the bottom of a wide map, on a tablet the window is
      taller than the map. With the selection tool a finger draws a box instead of panning. -->
 <div
-    class="w-full relative select-none {editable
+    class="relative select-none {editable
         ? 'overflow-x-clip'
         : 'overflow-hidden'} {appState.selectedTool === Tools.Select
         ? 'touch-none'
@@ -1075,8 +1110,8 @@
     onpointermove={pan}
     onpointerup={end_pan}
     onpointercancel={end_pan}
-    style="transform-origin: 0 0; transform: {editable
-        ? `translate(${zoom_offset_x}px, ${zoom_offset_y}px) scale(${appState.zoom})`
+    style="width: {layout_zoom * 100}%; transform-origin: 0 0; transform: {editable
+        ? `translate(${zoom_offset_x}px, ${zoom_offset_y}px) scale(${gesture_scale})`
         : 'none'}"
 >
     <Display
@@ -1101,15 +1136,15 @@
             d={grid_path}
             fill="none"
             stroke="black"
-            stroke-width={editable ? 1 / appState.zoom : 1}
+            stroke-width={1 / gesture_scale}
         />
     </svg>
     {#if editable}
         <!-- Effects canvas -->
         <canvas
             bind:this={confetti_canvas}
-            width={w as number}
-            height={h as number}
+            width={Math.round(base_w)}
+            height={Math.round(base_h)}
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
         ></canvas>
         <!-- Non Player Markers under the fog, but their menu goes over it and the drawings -->
@@ -1232,7 +1267,7 @@
                 Tools.AddFog
                     ? 'border-base-content bg-base-content/30'
                     : 'border-info bg-info/10'}"
-                style="border-width: {2 / appState.zoom}px; left: {Math.min(
+                style="border-width: {2 / gesture_scale}px; left: {Math.min(
                     fog_rect.x1,
                     fog_rect.x2,
                 ) *
@@ -1248,7 +1283,7 @@
         {#if box}
             <div
                 class="absolute border-info bg-info/10 pointer-events-none"
-                style="border-width: {2 / appState.zoom}px; left: {Math.min(
+                style="border-width: {2 / gesture_scale}px; left: {Math.min(
                     box.x1,
                     box.x2,
                 ) *
@@ -1288,7 +1323,7 @@
                 <div
                     class="origin-left block bg-base-100 text-base-content rounded-full shadow-sm"
                     style="width: {ruler_size}px; height: {0.5 /
-                        appState.zoom}rem; translate: 0 -50%; transform: rotate({((ruler_angle ||
+                        gesture_scale}rem; translate: 0 -50%; transform: rotate({((ruler_angle ||
                         0) /
                         (2 * Math.PI)) *
                         360}deg);"
@@ -1299,7 +1334,7 @@
                             Math.PI / 2 || (ruler_angle || 0) < -Math.PI / 2
                             ? 'rotate-180'
                             : ''}"
-                        style="scale: {1 / appState.zoom}"
+                        style="scale: {1 / gesture_scale}"
                     >
                         {ruler_size
                             ? ((ruler_size / size) * 5).toFixed(1)
