@@ -242,14 +242,25 @@
 
     let debounced_fog_save = debounce(saveSceneFog, 500);
 
-    function clickHandler(event: MouseEvent, click: boolean) {
+    /**
+     * Where an event happened on the map, in its pixels before the zoom. From the client
+     * position, offsetX of a finger outside the element differs between browsers.
+     */
+    function local(event: { clientX: number; clientY: number }) {
+        const rect = map_element!.getBoundingClientRect();
+        return {
+            x: ((event.clientX - rect.left) / rect.width) * w,
+            y: ((event.clientY - rect.top) / rect.height) * h,
+        };
+    }
+
+    function clickHandler(event: PointerEvent, click: boolean) {
         if (!editable) return;
-        let currentMouseX = event.offsetX / w;
-        // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
-        let currentMouseY = event.offsetY / h;
-        let x = Math.floor((event.offsetX - x_offset) / size);
-        // 30px is the margin from the titlebar (that offsetTop somehow doesn't get)
-        let y = Math.floor((event.offsetY - y_offset) / size);
+        const point = local(event);
+        let currentMouseX = point.x / w;
+        let currentMouseY = point.y / h;
+        let x = Math.floor((point.x - x_offset) / size);
+        let y = Math.floor((point.y - y_offset) / size);
 
         if (
             !click &&
@@ -269,14 +280,13 @@
             // Calculate Length of Ruler
             ruler_size =
                 Math.sqrt(
-                    ((event.offsetX - x_offset) / size - ruler_origin.x) ** 2 +
-                        ((event.offsetY - y_offset) / size - ruler_origin.y) **
-                            2,
+                    ((point.x - x_offset) / size - ruler_origin.x) ** 2 +
+                        ((point.y - y_offset) / size - ruler_origin.y) ** 2,
                 ) * size;
             // Calculate angle ruler should be at
             ruler_angle = Math.atan2(
-                (event.offsetY - y_offset) / size - ruler_origin.y,
-                (event.offsetX - x_offset) / size - ruler_origin.x,
+                (point.y - y_offset) / size - ruler_origin.y,
+                (point.x - x_offset) / size - ruler_origin.x,
             );
         }
 
@@ -361,20 +371,28 @@
     let shown_drawings = $derived(drawing ? [...drawings, drawing] : drawings);
 
     /**
-     * Calls done when the mouse is released, also outside of the map. Not an effect on
-     * appState.mouseDown: the body only sets it after the map's mousedown, and Svelte runs
-     * effects in between, so it would end what just started.
+     * Calls done when the mouse or finger is released, also outside of the map. Not an
+     * effect on appState.mouseDown: the body only sets it after the map's mousedown, and
+     * Svelte runs effects in between, so it would end what just started.
      */
     function on_release(done: () => void) {
-        window.addEventListener("mouseup", done, { once: true });
+        const finish = () => {
+            window.removeEventListener("pointerup", finish);
+            window.removeEventListener("pointercancel", finish);
+            done();
+        };
+        window.addEventListener("pointerup", finish);
+        window.addEventListener("pointercancel", finish);
     }
 
-    function start_drawing(event: MouseEvent) {
+    /** Ctrl or the snap switch of the drawing menu, phones and tablets have no Ctrl */
+    let snapping = $derived(appState.ctrlPressed || drawState.snap);
+
+    function start_drawing(event: PointerEvent) {
         if (event.button !== 0 || !editable) return;
-        let px = event.offsetX;
-        let py = event.offsetY;
+        let { x: px, y: py } = local(event);
         // Ctrl starts at a corner of the grid
-        if (appState.ctrlPressed) {
+        if (snapping) {
             px = Math.round((px - x_offset) / size) * size + x_offset;
             py = Math.round((py - y_offset) / size) * size + y_offset;
         }
@@ -391,10 +409,9 @@
         on_release(finish_drawing);
     }
 
-    function continue_drawing(event: MouseEvent) {
+    function continue_drawing(event: PointerEvent) {
         if (!drawing) return;
-        const px = event.offsetX;
-        const py = event.offsetY;
+        const { x: px, y: py } = local(event);
         if (drawing.kind === "free") {
             const points = drawing.points!;
             const [last_x, last_y] = points[points.length - 1];
@@ -407,7 +424,7 @@
             return;
         }
         // Spell areas grow freely, with Ctrl in steps of 5 ft like the grid
-        const snap = appState.ctrlPressed;
+        const snap = snapping;
         const ax = drawing.x * w;
         const ay = drawing.y * h;
         const dx = px - ax;
@@ -447,9 +464,11 @@
         appState.ws?.send(AddDrawing.create(done));
     }
 
-    /** Right click deletes the drawing under the mouse, players can only delete theirs */
-    function delete_drawing_at(event: MouseEvent) {
-        event.preventDefault();
+    /**
+     * Right click or a long press deletes the drawing at this point of the map, players can
+     * only delete theirs. Returns whether there was one.
+     */
+    function delete_drawing_at(x: number, y: number) {
         const hit = drawings
             .toReversed()
             .find(
@@ -457,12 +476,110 @@
                     (gameState.dm || drawing.owner === gameState.name) &&
                     shape_contains(
                         drawing_shape(drawing, w, h, size).shape,
-                        event.offsetX,
-                        event.offsetY,
+                        x,
+                        y,
                         Math.max(6, size * 0.2),
                     ),
             );
         if (hit) appState.ws?.send(DeleteDrawings.create({ ids: [hit.id] }));
+        return !!hit;
+    }
+
+    // Touch: one finger uses the tool, a second one turns it into a pinch. The fog waits
+    // for the finger to move, so the first finger of a pinch doesn't paint.
+    const fingers = new Set<number>();
+    let waiting_fog: PointerEvent | null = null;
+    let long_press: ReturnType<typeof setTimeout> | undefined;
+    let press_start = { x: 0, y: 0 };
+    /** How far a finger may move and still count as holding still, in screen pixels */
+    const HOLD_STILL = 8;
+    /** A mouse sets the ruler's start with a click, a finger while it touches */
+    let last_pointer = "mouse";
+
+    /** Drops what a finger started, e.g. when a second one starts a pinch */
+    function cancel_stroke() {
+        drawing = null;
+        fog_rect = null;
+        brush_cell = null;
+        waiting_fog = null;
+        clearTimeout(long_press);
+        if (appState.selectedTool === Tools.Ruler) {
+            ruler_origin = { x: null, y: null };
+            ruler_size = null;
+        }
+    }
+
+    function tool_down(event: PointerEvent) {
+        if (!editable) return;
+        if (event.pointerType === "touch") {
+            // The first finger of a touch, a lost pointerup must not count forever
+            if (event.isPrimary) fingers.clear();
+            fingers.add(event.pointerId);
+            if (fingers.size > 1) {
+                cancel_stroke();
+                return;
+            }
+            press_start = { x: event.clientX, y: event.clientY };
+            const tool = appState.selectedTool;
+            // A finger measures while it moves, a mouse from one click to the next
+            if (tool === Tools.Ruler) {
+                const point = local(event);
+                ruler_origin = {
+                    x: (point.x - x_offset) / size,
+                    y: (point.y - y_offset) / size,
+                };
+                ruler_size = null;
+                return;
+            }
+            if (tool === Tools.AddFog || tool === Tools.RemoveFog) {
+                waiting_fog = event;
+                return;
+            }
+            if (tool === Tools.Draw) {
+                const point = local(event);
+                clearTimeout(long_press);
+                long_press = setTimeout(() => {
+                    if (delete_drawing_at(point.x, point.y)) drawing = null;
+                }, 600);
+            }
+        }
+        if (appState.selectedTool === Tools.Draw) start_drawing(event);
+        clickHandler(event, true);
+    }
+
+    function tool_move(event: PointerEvent) {
+        if (!editable) return;
+        if (event.pointerType === "touch") {
+            if (fingers.size > 1) return;
+            const moved =
+                Math.hypot(
+                    event.clientX - press_start.x,
+                    event.clientY - press_start.y,
+                ) > HOLD_STILL;
+            if (moved) clearTimeout(long_press);
+            if (waiting_fog) {
+                if (!moved) return;
+                const start = waiting_fog;
+                waiting_fog = null;
+                clickHandler(start, true);
+            }
+        }
+        if (appState.selectedTool === Tools.Draw) continue_drawing(event);
+        clickHandler(event, false);
+    }
+
+    function tool_up(event: PointerEvent) {
+        clearTimeout(long_press);
+        fingers.delete(event.pointerId);
+        // A tap paints a single spot
+        if (waiting_fog && event.type === "pointerup") {
+            const start = waiting_fog;
+            waiting_fog = null;
+            clickHandler(start, true);
+        }
+        waiting_fog = null;
+        finish_fog_rect();
+        finish_drawing();
     }
 
     /** A rectangle of fog being drawn, in cells */
@@ -624,18 +741,13 @@
      * Zooms so that the map point under (client_x, client_y) stays under it. Steps stop
      * at 100% and at "fills the window height", a pinch glides past them.
      */
-    function zoom_to(
-        new_zoom: number,
-        client_x: number,
-        client_y: number,
-        stops = true,
-    ) {
+    function zoom_to(new_zoom: number, client_x: number, client_y: number) {
         if (!map_element) return;
         const old_zoom = appState.zoom;
         new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), MAX_ZOOM);
         // The tolerance keeps rounding errors from stopping again right after a stop
         const fit_height = (window.innerHeight - 30) / h;
-        for (const stop of stops ? [1, fit_height] : []) {
+        for (const stop of [1, fit_height]) {
             const at_stop = Math.abs(old_zoom - stop) < 0.001;
             const passes = (old_zoom - stop) * (new_zoom - stop) < 0;
             if (Math.abs(new_zoom - stop) < 0.001 || (passes && !at_stop)) {
@@ -683,29 +795,58 @@
         // Not passive, otherwise the whole window would zoom instead
         window.addEventListener("wheel", on_wheel, { passive: false });
 
-        // On touch screens two fingers pinch the map, one finger pans it like a page
-        let pinch: { distance: number; zoom: number } | null = null;
+        // On touch screens two fingers pinch and pan the map. One finger pans it like a
+        // page, unless a tool is active, then it uses the tool.
+        let pinch: {
+            distance: number;
+            zoom: number;
+            /** The map point between the fingers, in map pixels before the zoom */
+            x: number;
+            y: number;
+        } | null = null;
         const spread = (touches: TouchList) =>
             Math.hypot(
                 touches[0].clientX - touches[1].clientX,
                 touches[0].clientY - touches[1].clientY,
             );
+        const middle = (touches: TouchList) => ({
+            x: (touches[0].clientX + touches[1].clientX) / 2,
+            y: (touches[0].clientY + touches[1].clientY) / 2,
+        });
         const on_touch_start = (event: TouchEvent) => {
-            if (event.touches.length === 2) {
-                pinch = { distance: spread(event.touches), zoom: appState.zoom };
-            }
+            if (event.touches.length !== 2 || !map_element) return;
+            const rect = map_element.getBoundingClientRect();
+            const center = middle(event.touches);
+            pinch = {
+                distance: spread(event.touches),
+                zoom: appState.zoom,
+                x: ((center.x - rect.left) / rect.width) * w,
+                y: ((center.y - rect.top) / rect.height) * h,
+            };
         };
         const on_touch_move = (event: TouchEvent) => {
             if (!pinch || event.touches.length !== 2) return;
             // Otherwise the browser zooms the whole page, toolbar and all
             event.preventDefault();
-            const [a, b] = [event.touches[0], event.touches[1]];
-            zoom_to(
-                (pinch.zoom * spread(event.touches)) / pinch.distance,
-                (a.clientX + b.clientX) / 2,
-                (a.clientY + b.clientY) / 2,
-                false,
+            const zoom = Math.min(
+                Math.max(
+                    (pinch.zoom * spread(event.touches)) / pinch.distance,
+                    MIN_ZOOM,
+                ),
+                MAX_ZOOM,
             );
+            appState.zoom = zoom;
+            // The map point that was between the fingers stays between them
+            const center = middle(event.touches);
+            const { x, y } = pinch;
+            tick().then(() => {
+                if (!map_element) return;
+                const rect = map_element.getBoundingClientRect();
+                window.scrollBy(
+                    rect.left + (x / w) * rect.width - center.x,
+                    rect.top + (y / h) * rect.height - center.y,
+                );
+            });
         };
         const on_touch_end = (event: TouchEvent) => {
             if (event.touches.length < 2) pinch = null;
@@ -1147,28 +1288,26 @@
         {/if}
     {/if}
     {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler || appState.selectedTool === Tools.Draw}
+        <!-- A finger uses the tool instead of panning, two fingers still pinch and pan -->
         <button
             aria-label="Click Capture Layer"
-            class="absolute inset-0 {appState.selectedTool === Tools.Draw
+            class="absolute inset-0 touch-none {appState.selectedTool ===
+            Tools.Draw
                 ? 'cursor-crosshair'
                 : ''}"
-            onmousemove={(evt) => {
-                if (!editable) return;
-                if (appState.selectedTool === Tools.Draw) continue_drawing(evt);
-                clickHandler(evt, false);
+            style="-webkit-touch-callout: none"
+            onpointermove={tool_move}
+            onpointerdown={(evt) => {
+                last_pointer = evt.pointerType;
+                tool_down(evt);
             }}
-            onmousedown={(evt) => {
-                if (!editable) return;
-                if (appState.selectedTool === Tools.Draw) start_drawing(evt);
-                clickHandler(evt, true);
-            }}
-            onmouseup={() => {
-                finish_fog_rect();
-                finish_drawing();
-            }}
+            onpointerup={tool_up}
+            onpointercancel={tool_up}
             oncontextmenu={(evt) => {
                 if (editable && appState.selectedTool === Tools.Draw) {
-                    delete_drawing_at(evt);
+                    evt.preventDefault();
+                    const point = local(evt);
+                    delete_drawing_at(point.x, point.y);
                 }
             }}
             onclick={(evt) => {
@@ -1181,11 +1320,14 @@
                     appState.ws.send(MouseLarge.create());
                 } else if (
                     evt.button === 0 &&
-                    appState.selectedTool === Tools.Ruler
+                    appState.selectedTool === Tools.Ruler &&
+                    last_pointer === "mouse"
                 ) {
-                    let x = (evt.offsetX - x_offset) / size;
-                    let y = (evt.offsetY - y_offset) / size;
-                    ruler_origin = { x: x, y: y };
+                    const point = local(evt);
+                    ruler_origin = {
+                        x: (point.x - x_offset) / size,
+                        y: (point.y - y_offset) / size,
+                    };
                 }
             }}
         ></button>

@@ -201,6 +201,8 @@ export function togglePanel(panel: Panel) {
 export const drawState = $state({
     kind: "circle" as DrawingKind,
     color: DRAWING_COLORS[0],
+    /** Snaps to the grid like Ctrl, which phones and tablets don't have */
+    snap: false,
 });
 
 export const fogState = $state({

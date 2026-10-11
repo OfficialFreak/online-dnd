@@ -804,11 +804,23 @@
                         ></button>
                     {/each}
                 </div>
+                <label class="label text-sm">
+                    <input
+                        type="checkbox"
+                        class="toggle toggle-sm"
+                        bind:checked={drawState.snap}
+                    />
+                    Am Raster einrasten, in 5-ft-Schritten
+                </label>
                 <p class="text-xs text-base-content/60">
-                    Das Lineal siehst nur du, Zeichnungen sehen alle. Mit <kbd
-                        class="kbd kbd-xs">Strg</kbd
-                    > rasten sie am Raster ein, in 5-ft-Schritten. Rechtsklick löscht
-                    eine Zeichnung.
+                    Das Lineal siehst nur du, Zeichnungen sehen alle.
+                    <span class="pointer-coarse:hidden"
+                        >Mit <kbd class="kbd kbd-xs">Strg</kbd> rasten sie auch ein.
+                        Rechtsklick löscht eine Zeichnung.</span
+                    ><span class="hidden pointer-coarse:inline"
+                        >Ein Finger misst oder zeichnet, zwei verschieben und zoomen
+                        die Karte. Lange drücken löscht eine Zeichnung.</span
+                    >
                 </p>
                 <div class="grid grid-cols-2 gap-1">
                     <button
