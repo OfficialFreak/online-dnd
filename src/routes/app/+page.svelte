@@ -184,7 +184,7 @@
 >
     {#if gameState.scene && gameState.combat}
         <div
-            class="fixed top-[calc(1.85rem+var(--safe-top))] left-[var(--safe-left)] ml-14 w-[calc(100vw-5rem-var(--safe-left)-var(--safe-right))] overflow-x-auto overflow-y-hidden flex justify-center pointer-events-none"
+            class="fixed top-[calc(1.85rem+var(--safe-top))] left-[var(--safe-left)] ml-14 w-[calc(100vw-5rem-var(--safe-left)-var(--safe-right))] overflow-x-auto overflow-y-hidden pb-12 flex justify-center pointer-events-none"
         >
             <InitiativeBar />
         </div>
