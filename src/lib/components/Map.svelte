@@ -1184,6 +1184,7 @@
         ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
         : null}
     onpointerdown={start_pan}
+    ondragstart={(event) => event.preventDefault()}
     onpointermove={pan}
     onpointerup={end_pan}
     onpointercancel={end_pan}
@@ -1197,6 +1198,7 @@
         alt="Map"
         class="w-full"
         fetchpriority={editable ? "high" : "auto"}
+        draggable="false"
     />
     <div
         class="absolute top-0 left-0 w-full h-full pointer-events-none"
