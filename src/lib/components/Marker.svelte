@@ -277,8 +277,7 @@
             : "") +
             " avatar flex " +
             (banner ? " aspect-[2/3] " : "") +
-            (!gameState.dm && banner ? " pointer-events-none " : " ") +
-            (marker.hidden && mapUse ? " opacity-50 " : "")}
+            (!gameState.dm && banner ? " pointer-events-none " : " ")}
     >
         {#if banner && !getCharacter(marker.name)}
             <span
@@ -306,6 +305,8 @@
                 {gameState.lockedMarkers[marker.name]}
             </span>
         {/if}
+        <!-- A hidden marker fades with a filter, as the invisible condition animates its
+             opacity, and the menu next to it stays opaque -->
         <div
             class={"condition-animated relative mask pointer-events-none !flex justify-center items-center aspect-square " +
                 (banner ? "mask-banner" : "mask-hexagon")}
@@ -317,7 +318,10 @@
                 ? 'transition: width 0.05s ease-out'
                 : 'transition: transform 0.4s ease-out'}; transform: {prone
                 ? 'rotate(90deg)'
-                : 'none'}; animation: {animation || 'none'}; {health
+                : 'none'}; animation: {animation || 'none'}; {marker.hidden &&
+            mapUse
+                ? 'filter: opacity(0.5);'
+                : ''} {health
                 ? `background: conic-gradient(var(--background) ${health_degrees}deg, #ff002b73 ${health_degrees}deg) !important;`
                 : 'background: var(--background)'}"
         >
