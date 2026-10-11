@@ -163,8 +163,11 @@
             }, 200);
         } else {
             reconnecting = true;
+            // First, so its close doesn't count as a lost connection
+            const old_ws = appState.ws;
+            appState.ws = null;
             try {
-                await appState.ws.disconnect();
+                await old_ws.disconnect();
             } catch {}
             let result = await connect(url);
             if (result) {
@@ -180,8 +183,13 @@
 
     async function disconnect(evt: any) {
         evt.preventDefault();
+        // First, so its close doesn't count as a lost connection
+        const old_ws = appState.ws;
+        appState.ws = null;
+        resetGamestate();
+        stop_music();
         try {
-            await appState.ws?.disconnect();
+            await old_ws?.disconnect();
         } catch {}
         appState.token = "";
         await ensureStore();
