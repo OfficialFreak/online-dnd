@@ -48,6 +48,37 @@
         }
     }
 
+    // On touch screens the fog and measuring menus open with a tap and close with a tap
+    // next to them. Hover doesn't exist there, and Safari keeps the focus that would
+    // otherwise close them.
+    let touch = $state(false);
+    let open_menu: "fog" | "measure" | null = $state(null);
+
+    function menu_state(menu: "fog" | "measure") {
+        if (!touch) return "";
+        return open_menu === menu ? "dropdown-open" : "dropdown-close";
+    }
+
+    function tap_menu(menu: "fog" | "measure") {
+        if (touch) open_menu = open_menu === menu ? null : menu;
+    }
+
+    /** Picking a tool in a menu closes it on touch screens, the map is under it */
+    function pick_tool(tool: Tools) {
+        appState.selectedTool = tool;
+        open_menu = null;
+    }
+
+    function on_pointer_down(event: PointerEvent) {
+        touch = event.pointerType !== "mouse";
+        if (
+            open_menu &&
+            !(event.target as HTMLElement).closest(`[data-menu="${open_menu}"]`)
+        ) {
+            open_menu = null;
+        }
+    }
+
     // The ruler and drawing share a button, which picks up the one used last
     let measuring = $derived(
         appState.selectedTool === Tools.Ruler ||
@@ -311,6 +342,7 @@
 </script>
 
 <svelte:window
+    onpointerdowncapture={on_pointer_down}
     onkeydown={hotkeyHandler}
     onkeyup={(e) => {
         if (!e.ctrlKey) appState.ctrlPressed = false;
@@ -502,13 +534,18 @@
                     ><i class="fa-solid fa-stopwatch"></i></button
                 >
             </div>
-            <div class="dropdown dropdown-right dropdown-hover">
+            <div
+                class="dropdown dropdown-right dropdown-hover {menu_state('fog')}"
+                data-menu="fog"
+            >
                 <button
                     tabindex="0"
                     class="btn btn-square btn-sm rounded-box {fog_active
                         ? 'btn-info'
                         : ''}"
-                    aria-label="Fog"><i class="fa-solid fa-cloud"></i></button
+                    aria-label="Fog"
+                    onclick={() => tap_menu("fog")}
+                    ><i class="fa-solid fa-cloud"></i></button
                 >
                 <div
                     class="dropdown-content bg-base-100 rounded-box z-1 w-56 p-3 shadow-sm flex flex-col gap-3"
@@ -574,7 +611,8 @@
                                     : ''}"
                                 aria-label="Nebel hinzufügen"
                                 onclick={() => {
-                                    selectTool(Tools.AddFog);
+                                    if (touch) pick_tool(Tools.AddFog);
+                                    else selectTool(Tools.AddFog);
                                 }}
                             >
                                 <i class="fa-solid fa-pen"></i>
@@ -592,7 +630,8 @@
                                     : ''}"
                                 aria-label="Nebel entfernen"
                                 onclick={() => {
-                                    selectTool(Tools.RemoveFog);
+                                    if (touch) pick_tool(Tools.RemoveFog);
+                                    else selectTool(Tools.RemoveFog);
                                 }}
                             >
                                 <i class="fa-solid fa-eraser"></i>
@@ -748,17 +787,25 @@
             </div>
         {/if}
         <!-- Drawings are measurements that stay, so they share the ruler's button -->
-        <div class="dropdown dropdown-right dropdown-end dropdown-hover">
+        <div
+            class="dropdown dropdown-right dropdown-end dropdown-hover {menu_state(
+                'measure',
+            )}"
+            data-menu="measure"
+        >
             <button
                 tabindex="0"
                 class="btn btn-square btn-sm rounded-box {measuring
                     ? 'btn-info'
                     : ''}"
                 aria-label="Messen und Zeichnen"
-                onclick={() =>
+                onclick={() => {
                     selectTool(
                         measuring ? appState.selectedTool : last_measure_tool,
-                    )}
+                    );
+                    // Tapping again puts the tool away and closes the menu
+                    if (touch) open_menu = measuring ? "measure" : null;
+                }}
                 ><i
                     class="fa-solid {last_measure_tool === Tools.Ruler
                         ? 'fa-ruler'
@@ -787,7 +834,7 @@
                             : ''}"
                         title="Lineal, nur du siehst es"
                         aria-label="Lineal"
-                        onclick={() => (appState.selectedTool = Tools.Ruler)}
+                        onclick={() => pick_tool(Tools.Ruler)}
                     >
                         <i class="fa-solid fa-ruler"></i>
                     </button>
@@ -802,7 +849,7 @@
                                 aria-label={label}
                                 onclick={() => {
                                     drawState.kind = kind;
-                                    appState.selectedTool = Tools.Draw;
+                                    pick_tool(Tools.Draw);
                                 }}
                             >
                                 <i class="fa-solid {icon}"></i>
