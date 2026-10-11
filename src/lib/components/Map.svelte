@@ -617,15 +617,22 @@
     const MIN_ZOOM = 0.3;
     const MAX_ZOOM = 5;
 
-    /** Zooms so that the map point under (client_x, client_y) stays under it. */
-    function zoom_to(new_zoom: number, client_x: number, client_y: number) {
+    /**
+     * Zooms so that the map point under (client_x, client_y) stays under it. Steps stop
+     * at 100% and at "fills the window height", a pinch glides past them.
+     */
+    function zoom_to(
+        new_zoom: number,
+        client_x: number,
+        client_y: number,
+        stops = true,
+    ) {
         if (!map_element) return;
         const old_zoom = appState.zoom;
         new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), MAX_ZOOM);
-        // Stop at 100% and at "fills the window height" when passing them. The
-        // tolerance keeps rounding errors from stopping again right after a stop.
+        // The tolerance keeps rounding errors from stopping again right after a stop
         const fit_height = (window.innerHeight - 30) / h;
-        for (const stop of [1, fit_height]) {
+        for (const stop of stops ? [1, fit_height] : []) {
             const at_stop = Math.abs(old_zoom - stop) < 0.001;
             const passes = (old_zoom - stop) * (new_zoom - stop) < 0;
             if (Math.abs(new_zoom - stop) < 0.001 || (passes && !at_stop)) {
@@ -672,6 +679,41 @@
         };
         // Not passive, otherwise the whole window would zoom instead
         window.addEventListener("wheel", on_wheel, { passive: false });
+
+        // On touch screens two fingers pinch the map, one finger pans it like a page
+        let pinch: { distance: number; zoom: number } | null = null;
+        const spread = (touches: TouchList) =>
+            Math.hypot(
+                touches[0].clientX - touches[1].clientX,
+                touches[0].clientY - touches[1].clientY,
+            );
+        const on_touch_start = (event: TouchEvent) => {
+            if (event.touches.length === 2) {
+                pinch = { distance: spread(event.touches), zoom: appState.zoom };
+            }
+        };
+        const on_touch_move = (event: TouchEvent) => {
+            if (!pinch || event.touches.length !== 2) return;
+            // Otherwise the browser zooms the whole page, toolbar and all
+            event.preventDefault();
+            const [a, b] = [event.touches[0], event.touches[1]];
+            zoom_to(
+                (pinch.zoom * spread(event.touches)) / pinch.distance,
+                (a.clientX + b.clientX) / 2,
+                (a.clientY + b.clientY) / 2,
+                false,
+            );
+        };
+        const on_touch_end = (event: TouchEvent) => {
+            if (event.touches.length < 2) pinch = null;
+        };
+        // Safari zooms the page with its own gesture events
+        const on_gesture = (event: Event) => event.preventDefault();
+        window.addEventListener("touchstart", on_touch_start, { passive: true });
+        window.addEventListener("touchmove", on_touch_move, { passive: false });
+        window.addEventListener("touchend", on_touch_end);
+        window.addEventListener("touchcancel", on_touch_end);
+        window.addEventListener("gesturestart", on_gesture);
         appState.zoom_by = (factor: number) =>
             zoom_to(
                 appState.zoom * factor,
@@ -681,6 +723,11 @@
 
         return () => {
             window.removeEventListener("wheel", on_wheel);
+            window.removeEventListener("touchstart", on_touch_start);
+            window.removeEventListener("touchmove", on_touch_move);
+            window.removeEventListener("touchend", on_touch_end);
+            window.removeEventListener("touchcancel", on_touch_end);
+            window.removeEventListener("gesturestart", on_gesture);
             appState.zoom_by = null;
         };
     });
