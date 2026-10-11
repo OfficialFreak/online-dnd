@@ -3,7 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- In a browser it can be put on the home screen of a phone and opens like an app -->
+    <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="%sveltekit.assets%/pwa/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DND Online" />
+    <meta name="theme-color" content="#1d232a" />
     <title>How to play DND Online fast</title>
     <link rel="preconnect" href="https://dnd.wiegraebe.dev">
     %sveltekit.head%
