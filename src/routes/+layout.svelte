@@ -41,6 +41,7 @@
         stop_music,
     } from "$lib/audio.svelte";
     import { onMount } from "svelte";
+    import { keep_in_view } from "$lib/keep-in-view";
     import {
         ImportCharacter,
         InitialMessage,
@@ -1022,9 +1023,12 @@
                     <i class="fa-solid fa-music animate-pulse"></i>
                 {/if}
             </button>
+            <!-- On a phone the button sits near the right edge, the menu moves into view -->
             <div
                 tabindex="-1"
                 class="dropdown-content bg-base-100 rounded-box z-20 w-60 p-3 shadow-sm flex flex-col gap-2"
+                style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
+                use:keep_in_view
             >
                 {#if audioState.music}
                     <p class="text-sm truncate">
