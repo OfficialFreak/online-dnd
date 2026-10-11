@@ -80,10 +80,13 @@
     async function hotkeyHandler(evt: any) {
         const activeElement = document.activeElement;
 
+        // Letters also pick an option in a focused select
         const isTyping =
             activeElement &&
             (activeElement.tagName === "INPUT" ||
-                activeElement.tagName === "TEXTAREA");
+                activeElement.tagName === "TEXTAREA" ||
+                activeElement.tagName === "SELECT" ||
+                (activeElement as HTMLElement).isContentEditable);
 
         if (isTyping) return;
 
