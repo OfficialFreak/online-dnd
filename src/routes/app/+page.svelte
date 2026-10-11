@@ -10,6 +10,7 @@
         advance_turn,
         get_own_character,
         remember_roll,
+        toolbarState,
     } from "../../lib/state.svelte";
     import { MessageType } from "$lib/types/messaging/server_messages";
     import { shared_roll } from "$lib/rolls";
@@ -142,6 +143,35 @@
         markers={gameState.scene.state.markers}
         editable={true}
     />
+{:else if appState.ws && gameState.users.length > 0}
+    <!-- The server sends the users after the scene, so there is none -->
+    <div
+        class="fixed inset-0 flex items-center justify-center pointer-events-none"
+        in:fade={{ duration: 300 }}
+    >
+        <div
+            class="flex flex-col items-center gap-2 max-w-sm p-6 text-center text-base-content/60"
+        >
+            <i class="fa-solid fa-map text-4xl mb-2"></i>
+            <h2 class="text-xl font-bold text-base-content/80">
+                Keine Szene aktiv
+            </h2>
+            {#if gameState.dm}
+                <p>
+                    Aktiviere eine Szene oder erstelle eine neue, dann sehen
+                    alle sie hier.
+                </p>
+                <button
+                    class="btn btn-sm mt-2 pointer-events-auto"
+                    onclick={() => (toolbarState.panel = "scenes")}
+                >
+                    <i class="fa-solid fa-map"></i> Szenen öffnen
+                </button>
+            {:else}
+                <p>Sobald der DM eine Szene startet, erscheint sie hier.</p>
+            {/if}
+        </div>
+    </div>
 {/if}
 <!-- Hidden instead of unmounted while dragging a marker, so tools keep their state -->
 <div
