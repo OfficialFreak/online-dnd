@@ -60,26 +60,37 @@
     {#if loading}
         <span class="loading loading-infinity w-30"></span>
     {:else}
-        <fieldset
+        <form
             class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box"
+            onsubmit={(event) => {
+                event.preventDefault();
+                connectLoadingWrapper();
+            }}
         >
-            <legend class="fieldset-legend bg-base-200 py-0 px-2 rounded-field"
-                >Login</legend
-            >
+            <span class="fieldset-legend">Login</span>
 
             <label class="fieldset-label" for="token">Passwort</label>
+            <!-- svelte-ignore a11y_autofocus -->
             <input
                 type="password"
-                class="input"
+                class="input w-full {error ? 'input-error' : ''}"
                 placeholder="Passwort eingeben"
+                id="token"
                 name="token"
+                autofocus
                 bind:value={token}
+                oninput={() => (error = false)}
             />
+            {#if error}
+                <p class="fieldset-label text-error">
+                    Verbinden hat nicht geklappt. Stimmt das Passwort?
+                </p>
+            {/if}
 
-            <button class="btn btn-neutral mt-4" onclick={connectLoadingWrapper}
+            <button class="btn btn-neutral mt-4" disabled={!token.trim()}
                 >Verbinden</button
             >
-        </fieldset>
+        </form>
     {/if}
 </main>
 
