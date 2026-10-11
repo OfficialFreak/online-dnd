@@ -176,7 +176,14 @@
         }
     });
 
-    // Players don't see a DM's pointer in the fog, DMs see through the fog anyway
+    // Players don't see pointers in their fog, DMs see through the fog anyway
+    // Without a name it comes from an older DM client
+    function pointer_is_dm(name: string) {
+        return (
+            !name || gameState.users.some((user) => user.name === name && user.dm)
+        );
+    }
+
     function pointer_in_fog(pointer: Pointer) {
         return (
             !gameState.dm &&
@@ -238,7 +245,6 @@
             !click &&
             editable &&
             appState.selectedTool === Tools.Pointer &&
-            gameState.dm &&
             !appState.dragging
         ) {
             throttled(currentMouseX, currentMouseY);
@@ -637,7 +643,11 @@
                         : '1'});"
                 >
                     <i class="fa-solid fa-arrow-pointer"></i>
-                    <span class="badge badge-xs">{name || gameState.DMName}</span>
+                    <span
+                        class="badge badge-xs {pointer_is_dm(name)
+                            ? ''
+                            : 'badge-accent'}">{name || gameState.DMName}</span
+                    >
                 </div>
             {/if}
         {/each}

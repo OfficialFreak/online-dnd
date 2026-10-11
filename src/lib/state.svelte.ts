@@ -87,7 +87,7 @@ export type Pointer = {
     large: boolean;
 };
 
-/** The pointers of the DMs, by name. There can be more than one DM. */
+/** The pointers of everyone else, by name */
 export const pointers: Record<string, Pointer> = $state({});
 const pointer_timeouts = new Map<
     string,
@@ -95,7 +95,7 @@ const pointer_timeouts = new Map<
 >();
 
 /**
- * Shows a DM's pointer for a moment. x and y are fractions of the map, without them
+ * Shows someone's pointer for a moment. x and y are fractions of the map, without them
  * the pointer stays where it was. A large pointer is a click to get attention.
  */
 export function show_pointer(name: string, x?: number, y?: number, large = false) {

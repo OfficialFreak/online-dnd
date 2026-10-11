@@ -108,9 +108,7 @@
                 selectTool(Tools.Ruler);
                 break;
             case "KeyY":
-                if (gameState.dm) {
-                    selectTool(Tools.Pointer);
-                }
+                selectTool(Tools.Pointer);
                 break;
             case "KeyF":
                 if (gameState.dm) {
@@ -354,23 +352,23 @@
         class="flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto"
         transition:fade|global={{ duration: 100 }}
     >
-        {#if gameState.dm}
-            <div class="tooltip tooltip-right">
-                <div class="tooltip-content">
-                    Zeiger <kbd class="kbd">Z</kbd>
-                </div>
-                <button
-                    tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
-                    Tools.Pointer
-                        ? 'btn-info'
-                        : ''}"
-                    aria-label="Zeiger"
-                    onclick={() => {
-                        selectTool(Tools.Pointer);
-                    }}><i class="fa-solid fa-arrow-pointer"></i></button
-                >
+        <div class="tooltip tooltip-right">
+            <div class="tooltip-content">
+                Zeiger <kbd class="kbd">Z</kbd>
             </div>
+            <button
+                tabindex="0"
+                class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
+                Tools.Pointer
+                    ? 'btn-info'
+                    : ''}"
+                aria-label="Zeiger"
+                onclick={() => {
+                    selectTool(Tools.Pointer);
+                }}><i class="fa-solid fa-arrow-pointer"></i></button
+            >
+        </div>
+        {#if gameState.dm}
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
                     Szenen <kbd class="kbd">S</kbd>
