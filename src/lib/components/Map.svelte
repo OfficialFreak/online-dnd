@@ -406,23 +406,26 @@
             }
             return;
         }
-        // Spell areas come in steps of 5 ft
+        // Spell areas grow freely, with Ctrl in steps of 5 ft like the grid
+        const snap = appState.ctrlPressed;
         const ax = drawing.x * w;
         const ay = drawing.y * h;
         const dx = px - ax;
         const dy = py - ay;
         if (drawing.kind === "square") {
-            const cells = Math.max(
-                1,
-                Math.round(Math.max(Math.abs(dx), Math.abs(dy)) / size),
-            );
-            drawing.x2 = (ax + (Math.sign(dx) || 1) * cells * size) / w;
-            drawing.y2 = (ay + (Math.sign(dy) || 1) * cells * size) / h;
+            const side = Math.max(Math.abs(dx), Math.abs(dy));
+            const length = snap
+                ? Math.max(1, Math.round(side / size)) * size
+                : side;
+            drawing.x2 = (ax + (Math.sign(dx) || 1) * length) / w;
+            drawing.y2 = (ay + (Math.sign(dy) || 1) * length) / h;
             return;
         }
         const length = Math.hypot(dx, dy);
         if (length === 0) return;
-        const scale = (Math.max(1, Math.round(length / size)) * size) / length;
+        const scale = snap
+            ? (Math.max(1, Math.round(length / size)) * size) / length
+            : 1;
         drawing.x2 = (ax + dx * scale) / w;
         drawing.y2 = (ay + dy * scale) / h;
     }
