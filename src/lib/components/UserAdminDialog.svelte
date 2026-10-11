@@ -21,6 +21,7 @@
     let shown_key: string | null = $state(null);
     /** "delete:Name" or "key:Name" while waiting for the second click */
     let confirm: string | null = $state(null);
+    let confirm_timeout: ReturnType<typeof setTimeout> | undefined;
 
     let users = $derived(
         adminState.users.toSorted(
@@ -72,7 +73,9 @@
             return;
         }
         confirm = action;
-        setTimeout(() => {
+        // An older timer would end this confirmation early
+        clearTimeout(confirm_timeout);
+        confirm_timeout = setTimeout(() => {
             if (confirm === action) confirm = null;
         }, 3000);
     }

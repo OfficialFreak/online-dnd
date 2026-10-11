@@ -14,6 +14,7 @@
     let filter: Filter = $state("all");
     let search = $state("");
     let confirm_delete: string | null = $state(null);
+    let confirm_timeout: ReturnType<typeof setTimeout> | undefined;
 
     /** While picking, choosing a file hands it to whoever asked for it */
     let picking: ((asset: string | null) => void) | null = $state(null);
@@ -89,7 +90,9 @@
             return;
         }
         confirm_delete = name;
-        setTimeout(() => {
+        // An older timer would end this confirmation early
+        clearTimeout(confirm_timeout);
+        confirm_timeout = setTimeout(() => {
             if (confirm_delete === name) confirm_delete = null;
         }, 3000);
     }
