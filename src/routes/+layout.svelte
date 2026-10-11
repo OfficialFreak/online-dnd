@@ -558,7 +558,7 @@
                     remember_roll(message);
                     await after_dice(message);
                     notify(
-                        `${message.sender} (${stat_label(message.stat)}${message.stat === "initiative" ? "" : "-Check"}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
+                        `${message.sender} (${message.stat === "initiative" ? "Initiative" : `Check: ${stat_label(message.stat)}`}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
                         gameState.dm ? -1 : 5000,
                     );
@@ -567,7 +567,7 @@
                     remember_roll(message);
                     await after_dice(message);
                     notify(
-                        `${message.sender} (${stat_label(message.stat)}-Rettungswurf): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
+                        `${message.sender} (Rettungswurf: ${stat_label(message.stat)}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
                         MessageTypes.Info,
                         gameState.dm ? -1 : 5000,
                     );
