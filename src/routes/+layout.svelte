@@ -1012,8 +1012,8 @@
             class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
             aria-label="Aussehen"
             onclick={() => theme_modal?.showModal()}
-            ><i class="fa-solid fa-palette sm:hidden"></i><span
-                class="max-sm:hidden">Aussehen</span
+            ><i class="fa-solid fa-palette"></i><span class="max-sm:hidden"
+                >Aussehen</span
             ></button
         >
         {#if gameState.dm}
