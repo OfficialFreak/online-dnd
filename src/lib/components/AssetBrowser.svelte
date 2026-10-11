@@ -231,8 +231,8 @@
         </div>
         {#if !picking}
             <p class="text-xs text-base-content/50">
-                Nur Dateien, die keine Szene und kein Marker mehr nutzt, lassen
-                sich löschen.
+                Nur Dateien, die keine Szene, kein Marker und kein Sound mehr
+                nutzt, lassen sich löschen.
             </p>
         {/if}
     </div>
