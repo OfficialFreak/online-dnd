@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { fade, fly } from "svelte/transition";
+    import { fade, fly, slide } from "svelte/transition";
     import {
         appState,
         toolbarState,
@@ -361,9 +361,15 @@
 
 {#if appState.controls_open}
 <div
-    class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row gap-1 pointer-events-none"
+    class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row pointer-events-none"
 >
     {#if toolbarState.panel}
+        <!-- Narrows as the panel opens and closes, so the tools beside it glide along
+             instead of waiting and jumping -->
+        <div
+            class="h-full mr-1 shrink-0"
+            transition:slide|global={{ axis: "x", duration: 200 }}
+        >
         <!-- Out of the way while a marker or scene is dragged from it onto the map. Only
              transparent, not closed or hidden: that would end the drag. -->
         <div
@@ -468,6 +474,7 @@
                     </svelte:boundary>
                 {/if}
             {/if}
+        </div>
         </div>
     {/if}
 
