@@ -103,6 +103,8 @@ export interface Marker {
     size: number;
     file: string;
     status_effects: string[];
+    /** Only DMs see hidden markers, players don't get them at all */
+    hidden?: boolean;
 }
 
 export interface SceneState {

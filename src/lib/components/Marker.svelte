@@ -32,7 +32,7 @@
     let scene_marker = $derived(
         gameState.scene?.state.markers.find(
             (new_marker) => new_marker.name === marker.name,
-        ) || { name: "", size: 1, status_effects: [] },
+        ) || { name: "", size: 1, status_effects: [], hidden: false },
     );
     let scene_marker_index = $derived(
         gameState.scene?.state.markers.findIndex(
@@ -172,13 +172,22 @@
             : "") +
             " avatar flex " +
             (banner ? " aspect-[2/3] " : "") +
-            (!gameState.dm && banner ? " pointer-events-none " : " ")}
+            (!gameState.dm && banner ? " pointer-events-none " : " ") +
+            (marker.hidden && mapUse ? " opacity-50 " : "")}
     >
         {#if banner && !getCharacter(marker.name)}
             <span
                 class="absolute bottom-0 right-1/2 translate-x-1/2 badge badge-neutral z-10 badge-xs h-fit w-full transition-opacity opacity-0 group-hover:opacity-100"
             >
                 {marker.name}
+            </span>
+        {/if}
+        {#if marker.hidden && mapUse}
+            <span
+                class="absolute top-0 left-0 badge badge-warning z-10 badge-xs"
+                title="Versteckt, nur DMs sehen diesen Marker"
+            >
+                <i class="fa-solid fa-eye-slash"></i>
             </span>
         {/if}
         {#if gameState.lockedMarkers[marker.name]}
@@ -350,6 +359,26 @@
                             Initiative
                         </button>
                     {/if}
+                    <!-- svelte-ignore node_invalid_placement_ssr -->
+                    <button
+                        class="btn btn-soft flex-1 {scene_marker.hidden
+                            ? 'btn-warning'
+                            : ''}"
+                        title={scene_marker.hidden
+                            ? "Spieler sehen den Marker wieder"
+                            : "Nur DMs sehen den Marker"}
+                        onclick={() => {
+                            scene_marker.hidden = !scene_marker.hidden;
+                            throttled_save();
+                        }}
+                    >
+                        <i
+                            class="fa-solid {scene_marker.hidden
+                                ? 'fa-eye'
+                                : 'fa-eye-slash'}"
+                        ></i>
+                        {scene_marker.hidden ? "Aufdecken" : "Verstecken"}
+                    </button>
                     <!-- svelte-ignore node_invalid_placement_ssr -->
                     <button
                         class="btn btn-soft btn-error flex-1"
