@@ -152,6 +152,8 @@
 
     async function reconnect() {
         if (!url || reconnecting) return;
+        // A tap on the dot takes the account back from another device
+        taken_over = false;
         if (!appState.ws) {
             reconnecting = true;
             let result = await connect(url);
@@ -187,9 +189,15 @@
     // or when a phone put the page to sleep. The retries wait longer each time.
     let retry_timer: ReturnType<typeof setTimeout> | undefined;
     let retry_delay = 1000;
+    /**
+     * The same account logged in on another device and this one was closed. Connecting
+     * again on its own would throw the other one out, and so on, back and forth.
+     */
+    let taken_over = false;
 
     function retry_connection() {
         clearTimeout(retry_timer);
+        if (taken_over) return;
         // A hidden page waits until it is shown again, a phone may not even run it
         if (!url || appState.ws || document.hidden) return;
         retry_timer = setTimeout(async () => {
@@ -214,7 +222,7 @@
             hidden_since = Date.now();
             return;
         }
-        if (!url) return;
+        if (!url || taken_over) return;
         retry_delay = 1000;
         if (!appState.ws) {
             retry_connection();
@@ -488,8 +496,9 @@
                             );
                             break;
                         case EventType.SELF_JOIN:
+                            taken_over = true;
                             notify(
-                                `Du hast dich von einem anderen Gerät eingeloggt`,
+                                `Du hast dich von einem anderen Gerät eingeloggt. Tipp auf den roten Punkt oben, um hier weiterzuspielen.`,
                                 MessageTypes.Warning,
                                 0,
                             );
