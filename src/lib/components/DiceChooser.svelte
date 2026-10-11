@@ -115,24 +115,26 @@
         aria-label="Vorteil oder Nachteil"
     >
         <button
-            class="btn btn-xs join-item {rollState.mode === 'advantage'
+            class="btn btn-xs join-item justify-start {rollState.mode ===
+            'advantage'
                 ? 'btn-success'
                 : 'btn-ghost'}"
             title="Der nächste W20 wird zweimal gewürfelt, der höhere zählt"
             aria-pressed={rollState.mode === "advantage"}
             onclick={() => toggle_mode("advantage")}
         >
-            <i class="fa-solid fa-angles-up"></i> Vorteil
+            <i class="fa-solid fa-fw fa-angles-up"></i> Vorteil
         </button>
         <button
-            class="btn btn-xs join-item {rollState.mode === 'disadvantage'
+            class="btn btn-xs join-item justify-start {rollState.mode ===
+            'disadvantage'
                 ? 'btn-error'
                 : 'btn-ghost'}"
             title="Der nächste W20 wird zweimal gewürfelt, der niedrigere zählt"
             aria-pressed={rollState.mode === "disadvantage"}
             onclick={() => toggle_mode("disadvantage")}
         >
-            <i class="fa-solid fa-angles-down"></i> Nachteil
+            <i class="fa-solid fa-fw fa-angles-down"></i> Nachteil
         </button>
     </div>
 </div>
