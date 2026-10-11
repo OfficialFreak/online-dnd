@@ -103,10 +103,20 @@
             </p>
         {/each}
     </div>
-    <button
-        class="btn"
-        onclick={() => {
-            dialogs.marker?.open();
-        }}>Marker erstellen</button
-    >
+    <div class="flex flex-row gap-1">
+        <button
+            class="btn flex-1"
+            onclick={() => {
+                dialogs.marker?.open();
+            }}>Marker erstellen</button
+        >
+        <button
+            class="btn flex-1"
+            title="Monster mit ihren Werten aus Open5e als Marker anlegen"
+            onclick={() => dialogs.monster?.open()}
+        >
+            <i class="fa-solid fa-dragon"></i>
+            Monster suchen
+        </button>
+    </div>
 </div>

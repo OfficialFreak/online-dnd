@@ -1,6 +1,8 @@
 <script lang="ts">
     import {
+        add_to_initiative,
         appState,
+        dialogs,
         gameState,
         getCharacter,
         Tools,
@@ -39,6 +41,7 @@
             hidden: false,
             hp: null,
             max_hp: null,
+            monster: null,
         },
     );
     let scene_marker_index = $derived(
@@ -289,6 +292,27 @@
                 style="transform: scale({Math.min(1 / appState.zoom, 1)})"
             >
                 <li>
+                    {#if scene_marker.monster}
+                        {@const monster = scene_marker.monster}
+                        <!-- The menu lays out its direct children in a row -->
+                        <div class="p-0 hover:bg-transparent">
+                            <div
+                                class="flex flex-row items-center gap-2 text-sm"
+                            >
+                                <i class="fa-solid fa-dragon"></i>
+                                <span class="flex-1"
+                                    >RK {monster.armor_class} · HG {monster.challenge_rating}</span
+                                >
+                                <!-- svelte-ignore node_invalid_placement_ssr -->
+                                <button
+                                    class="btn btn-xs btn-soft"
+                                    onclick={() =>
+                                        dialogs.monster?.show(monster.key)}
+                                    >Werte</button
+                                >
+                            </div>
+                        </div>
+                    {/if}
                     <legend class="fieldset-legend pointer-events-none"
                         >Name</legend
                     >
@@ -431,14 +455,8 @@
                         <!-- svelte-ignore node_invalid_placement_ssr -->
                         <button
                             class="btn btn-soft btn-info flex-1"
-                            onclick={async () => {
-                                gameState.scene?.state.initiative.push([
-                                    0,
-                                    scene_marker.name,
-                                ]);
-
-                                await update_initiative();
-                            }}
+                            title="Würfelt die Initiative für diesen Marker"
+                            onclick={() => add_to_initiative(scene_marker)}
                         >
                             <i class="fa-solid fa-plus"></i>
                             Initiative

@@ -6,6 +6,7 @@
         UpdateMarker,
     } from "$lib/types/messaging/client_messages";
     import type { MarkerTemplate } from "$lib/types/messaging/server_messages";
+    import type { MonsterInfo } from "$lib/monsters";
     import { MessageTypes, notify } from "$lib/notifications.svelte";
     import { file_stem_of, upload, uploadState } from "$lib/upload.svelte";
     import Marker from "./Marker.svelte";
@@ -19,6 +20,8 @@
     let marker_size = $state(1);
     let marker_file = $state("");
     let marker_max_hp: number | null = $state(null);
+    /** The monster from Open5e the marker is made from */
+    let marker_monster: MonsterInfo | null = $state(null);
 
     /** Another marker already has this name */
     let name_taken = $derived(
@@ -35,6 +38,7 @@
         marker_size = 1;
         marker_file = "";
         marker_max_hp = null;
+        marker_monster = null;
     }
 
     /** Opens the dialog for a new marker. With a path, that file is uploaded as its image. */
@@ -52,11 +56,22 @@
         marker_size = marker.size;
         marker_file = marker.file;
         marker_max_hp = marker.max_hp ?? null;
+        marker_monster = marker.monster ?? null;
+        dialog?.showModal();
+    }
+
+    /** Opens the dialog for a new marker with these values, e.g. from a monster */
+    function create_from(template: Partial<MarkerTemplate>) {
+        reset();
+        marker_name = template.name ?? "";
+        marker_size = template.size ?? 1;
+        marker_max_hp = template.max_hp ?? null;
+        marker_monster = template.monster ?? null;
         dialog?.showModal();
     }
 
     onMount(() => {
-        dialogs.marker = { open, edit };
+        dialogs.marker = { open, edit, create_from };
         return () => {
             dialogs.marker = null;
         };
@@ -95,12 +110,19 @@
                     marker_file,
                     valid_size,
                     valid_max_hp,
+                    marker_monster,
                 ),
             );
             notify("Marker gespeichert", MessageTypes.Success, 3000);
         } else {
             await appState.ws.send(
-                PutMarker.create(name, marker_file, valid_size, valid_max_hp),
+                PutMarker.create(
+                    name,
+                    marker_file,
+                    valid_size,
+                    valid_max_hp,
+                    marker_monster,
+                ),
             );
             notify(
                 name_taken ? "Marker ersetzt" : "Marker erstellt",
@@ -140,6 +162,20 @@
                     {editing
                         ? "Ein anderer Marker hat schon diesen Namen."
                         : "Einen Marker mit diesem Namen gibt es schon. Er wird ersetzt."}
+                </p>
+            {/if}
+            {#if marker_monster}
+                <p class="fieldset-label">
+                    <i class="fa-solid fa-dragon"></i>
+                    {marker_monster.type} · RK {marker_monster.armor_class} · HG
+                    {marker_monster.challenge_rating}
+                    <button
+                        class="link"
+                        onclick={() =>
+                            marker_monster &&
+                            dialogs.monster?.show(marker_monster.key)}
+                        >Werte</button
+                    >
                 </p>
             {/if}
             <legend class="fieldset-legend">Größe</legend>

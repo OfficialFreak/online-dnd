@@ -1,4 +1,5 @@
 import type { RollMode } from "$lib/rolls";
+import type { MonsterInfo } from "$lib/monsters";
 
 // Define enums for message types and event types
 export enum MessageType {
@@ -96,6 +97,8 @@ export interface MarkerTemplate {
     file: string;
     /** Hit points of the creature, placed markers start with them */
     max_hp?: number | null;
+    /** The monster from Open5e it was made from */
+    monster?: MonsterInfo | null;
 }
 
 export interface Marker {
@@ -110,6 +113,7 @@ export interface Marker {
     /** Hit points of creatures that aren't characters */
     hp?: number | null;
     max_hp?: number | null;
+    monster?: MonsterInfo | null;
 }
 
 export interface SceneState {

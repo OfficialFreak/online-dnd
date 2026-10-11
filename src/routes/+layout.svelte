@@ -39,6 +39,7 @@
     import { circOut } from "svelte/easing";
     import SceneDialog from "$lib/components/SceneDialog.svelte";
     import MarkerDialog from "$lib/components/MarkerDialog.svelte";
+    import MonsterDialog from "$lib/components/MonsterDialog.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
@@ -866,6 +867,7 @@
 {#if gameState.dm}
     <SceneDialog />
     <MarkerDialog />
+    <MonsterDialog />
     <dialog
         bind:this={modals.characterImportModal}
         class="modal scrollbar-gutter-affected"

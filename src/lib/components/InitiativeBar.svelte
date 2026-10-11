@@ -5,6 +5,7 @@
         current_round,
         gameState,
         get_sorted_initiative,
+        roll_npc_initiative,
         update_initiative,
     } from "$lib/state.svelte";
     import { flip } from "svelte/animate";
@@ -46,6 +47,16 @@
                 >
             {/key}
         </div>
+    {/if}
+    {#if gameState.dm}
+        <button
+            class="self-start mt-2 mr-1 btn btn-sm frosted"
+            title="Würfelt die Initiative für alle Marker, die keine Charaktere sind"
+            onclick={roll_npc_initiative}
+        >
+            <i class="fa-solid fa-dice-d20"></i>
+            NPCs
+        </button>
     {/if}
     {#each sorted_markers as marker (marker.name)}
         <div

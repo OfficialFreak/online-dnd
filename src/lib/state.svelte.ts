@@ -19,6 +19,7 @@ import {
 } from "./types/messaging/client_messages";
 import { MessageTypes, notify } from "./notifications.svelte";
 import type { RollEntry, RollMode } from "./rolls";
+import { roll_initiative } from "./monsters";
 
 export enum Tools {
     None,
@@ -144,8 +145,16 @@ export const dialogs: {
         /** With a path, that file is uploaded as the new marker's image */
         open(image_path?: string): void;
         edit(marker: MarkerTemplate): void;
+        /** A new marker with these values, e.g. from a monster */
+        create_from(template: Partial<MarkerTemplate>): void;
     } | null;
-} = { scene: null, marker: null };
+    monster: {
+        /** Searching monsters to make markers of */
+        open(): void;
+        /** The stat block of a monster */
+        show(key: string): void;
+    } | null;
+} = { scene: null, marker: null, monster: null };
 
 export type Panel = "characters" | "markers" | "scenes" | "rolls";
 
@@ -262,6 +271,51 @@ export async function update_initiative() {
             current_round(),
         ),
     );
+}
+
+/** The initiative bonus of a marker: its character's or its monster's */
+export function initiative_bonus(marker: Pick<MarkerTemplate, "name" | "monster">) {
+    const character = getCharacter(marker.name);
+    if (character) return character.actualInitiative as number;
+    return marker.monster?.initiative_bonus ?? 0;
+}
+
+/** Rolls initiative for a marker that isn't in the initiative yet */
+export async function add_to_initiative(marker: Pick<MarkerTemplate, "name" | "monster">) {
+    if (!gameState.scene) return;
+    if (gameState.scene.state.initiative.some((entry) => entry[1] === marker.name)) return;
+    const bonus = initiative_bonus(marker);
+    const { roll, total } = roll_initiative(bonus);
+    gameState.scene.state.initiative.push([total, marker.name]);
+    notify(
+        `${marker.name}: Initiative ${total} (${roll} ${bonus < 0 ? "−" : "+"} ${Math.abs(bonus)})`,
+        MessageTypes.Info,
+        3000,
+    );
+    await update_initiative();
+}
+
+/** Rolls initiative for all markers that aren't characters and aren't in the initiative yet */
+export async function roll_npc_initiative() {
+    const scene = gameState.scene;
+    if (!scene) return;
+    const npcs = scene.state.markers.filter(
+        (marker) =>
+            !getCharacter(marker.name) &&
+            !scene.state.initiative.some((entry) => entry[1] === marker.name),
+    );
+    if (npcs.length === 0) {
+        notify("Alle Marker sind schon in der Initiative", MessageTypes.Info, 2000);
+        return;
+    }
+    for (const marker of npcs) {
+        scene.state.initiative.push([
+            roll_initiative(initiative_bonus(marker)).total,
+            marker.name,
+        ]);
+    }
+    notify(`Initiative für ${npcs.length} Marker gewürfelt`, MessageTypes.Success, 2000);
+    await update_initiative();
 }
 
 /** Puts a marker from the library into the active scene. x and y are fractions of the map size. */

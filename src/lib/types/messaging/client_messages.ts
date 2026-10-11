@@ -1,5 +1,6 @@
 import type { SceneData, SceneState } from "./server_messages";
 import type { RollMode } from "$lib/rolls";
+import type { MonsterInfo } from "$lib/monsters";
 
 export class InitialMessage {
     static create(): string {
@@ -229,27 +230,29 @@ export class MarkerFreed {
 }
 
 export class PutMarker {
-    static create(name: string, file: string, size: number, max_hp: number | null = null): string {
+    static create(name: string, file: string, size: number, max_hp: number | null = null, monster: MonsterInfo | null = null): string {
         return JSON.stringify({
             type: "put_marker",
             name: name,
             file: file,
             size: size,
-            max_hp: max_hp
+            max_hp: max_hp,
+            monster: monster
         });
     }
 }
 
 export class UpdateMarker {
     /** A different name renames the marker */
-    static create(old_name: string, name: string, file: string, size: number, max_hp: number | null): string {
+    static create(old_name: string, name: string, file: string, size: number, max_hp: number | null, monster: MonsterInfo | null): string {
         return JSON.stringify({
             type: "update_marker",
             old_name: old_name,
             name: name,
             file: file,
             size: size,
-            max_hp: max_hp
+            max_hp: max_hp,
+            monster: monster
         });
     }
 }
