@@ -21,16 +21,19 @@ export const audioState = $state({
 
 let music: HTMLAudioElement | null = null;
 
-function music_volume() {
+export function music_volume() {
     return audioState.muted ? 0 : audioState.music_volume;
 }
 
-function effect_volume() {
+export function effect_volume() {
     return audioState.muted ? 0 : audioState.effect_volume;
 }
 
-/** Timers instead of animation frames: those stop in a minimized window */
-function fade(audio: HTMLAudioElement, to: number, done?: () => void) {
+/**
+ * Timers instead of animation frames: those stop in a minimized window. The target is
+ * read on every step, so a volume changed during the fade isn't undone.
+ */
+function fade(audio: HTMLAudioElement, to: () => number, done?: () => void) {
     const from = audio.volume;
     const steps = 24;
     let step = 0;
@@ -38,7 +41,7 @@ function fade(audio: HTMLAudioElement, to: number, done?: () => void) {
         step++;
         audio.volume = Math.min(
             1,
-            Math.max(0, from + ((to - from) * step) / steps),
+            Math.max(0, from + ((to() - from) * step) / steps),
         );
         if (step >= steps) {
             clearInterval(interval);
@@ -65,7 +68,7 @@ export function play_music(name: string, file: string, started_at: number) {
         { once: true },
     );
     audio.play().catch((e) => console.error("Playing music failed", e));
-    fade(audio, music_volume());
+    fade(audio, music_volume);
     music = audio;
     audioState.music = { name, file, started_at };
 }
@@ -73,7 +76,7 @@ export function play_music(name: string, file: string, started_at: number) {
 export function stop_music() {
     if (music) {
         const old = music;
-        fade(old, 0, () => old.pause());
+        fade(old, () => 0, () => old.pause());
         music = null;
     }
     audioState.music = null;

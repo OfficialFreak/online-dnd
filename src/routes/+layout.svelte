@@ -27,8 +27,10 @@
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
         audioState,
+        effect_volume,
         guess_sound_kind,
         load_volume,
+        music_volume,
         play_effect,
         play_music,
         set_volume,
@@ -458,6 +460,7 @@
                     ) {
                         notify("Du bist dran", MessageTypes.Info, 3_000);
                         if (sword_ping) {
+                            sword_ping.volume = effect_volume();
                             sword_ping.play();
                         }
                     }
@@ -651,6 +654,11 @@
 
     let audio: HTMLAudioElement | null = $state(null);
     let sword_ping: HTMLAudioElement | null = $state(null);
+
+    // The pressure music follows the music volume and mute
+    $effect(() => {
+        if (audio) audio.volume = music_volume();
+    });
 
     $effect(() => {
         if (!audio) return;
