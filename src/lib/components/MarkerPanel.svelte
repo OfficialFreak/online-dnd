@@ -2,8 +2,8 @@
     import { dragSource } from "$lib/drag.svelte";
     import {
         delete_marker_template,
+        dialogs,
         gameState,
-        modals,
     } from "$lib/state.svelte";
     import Display from "./Display.svelte";
 
@@ -94,7 +94,7 @@
     <button
         class="btn"
         onclick={() => {
-            modals.markerCreationModal?.showModal();
+            dialogs.marker?.open();
         }}>Marker erstellen</button
     >
 </div>

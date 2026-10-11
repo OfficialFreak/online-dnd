@@ -4,8 +4,8 @@
         activate_scene,
         appState,
         delete_scene,
+        dialogs,
         gameState,
-        modals,
     } from "$lib/state.svelte";
     import { PreloadResource } from "$lib/types/messaging/client_messages";
     import Map from "./Map.svelte";
@@ -124,7 +124,7 @@
     <button
         class="btn"
         onclick={() => {
-            modals.sceneCreationModal?.showModal();
+            dialogs.scene?.open();
         }}>Szene erstellen</button
     >
 </div>

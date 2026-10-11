@@ -3,7 +3,6 @@
     import { getVersion } from "@tauri-apps/api/app";
     import "../app.css";
     import "@fortawesome/fontawesome-free/css/all.min.css";
-    import { fileTypeFromBuffer } from "file-type";
 
     import { getCurrentWindow } from "@tauri-apps/api/window";
     import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -15,20 +14,17 @@
         ensureStore,
         show_pointer,
         modals,
+        dialogs,
         get_own_character,
         resetGamestate,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
-    import { open } from "@tauri-apps/plugin-dialog";
-    import { readFile } from "@tauri-apps/plugin-fs";
-    import { fetch } from "@tauri-apps/plugin-http";
+    import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import { onMount } from "svelte";
-    import Map from "$lib/components/Map.svelte";
     import {
         ImportCharacter,
         InitialMessage,
         PutMarker,
-        PutScene,
     } from "$lib/types/messaging/client_messages";
     import {
         EventType,
@@ -37,11 +33,11 @@
     } from "$lib/types/messaging/server_messages";
     // @ts-ignore
     import confetti from "canvas-confetti";
-    import BlurredBackground from "$lib/components/BlurredBackground.svelte";
     import { listen } from "@tauri-apps/api/event";
     import { Tween } from "svelte/motion";
     import { circOut } from "svelte/easing";
-    import Marker from "$lib/components/Marker.svelte";
+    import SceneDialog from "$lib/components/SceneDialog.svelte";
+    import MarkerDialog from "$lib/components/MarkerDialog.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { goto } from "$app/navigation";
@@ -64,197 +60,14 @@
             : null,
     );
 
-    // Keep in sync with MAX_UPLOAD_SIZE in dnd-online-server/src/constants.rs
-    const MAX_UPLOAD_MB = 50;
-
-    let uploading = $state(false);
-
-    /** Uploads a file and returns the asset name it is stored under, or null if the upload failed. */
-    async function upload_file(
-        selectedFilePath: string,
-        selectedFileName: string,
-    ): Promise<string | null> {
-        if (!appState.token) {
-            notify(
-                "Hochladen fehlgeschlagen: Du bist nicht angemeldet.",
-                MessageTypes.Error,
-                5000,
-            );
-            return null;
-        }
-
-        // Read the file as binary
-        let fileContent: Uint8Array;
-        try {
-            fileContent = await readFile(selectedFilePath);
-        } catch (e) {
-            console.error("Reading upload failed", e);
-            notify(
-                "Die Datei konnte nicht gelesen werden.",
-                MessageTypes.Error,
-                5000,
-            );
-            return null;
-        }
-
-        // Fail fast: the upload would be rejected anyway, and huge files are slow to hand over to Tauri
-        if (fileContent.byteLength > MAX_UPLOAD_MB * 1_000_000) {
-            notify(
-                `Die Datei ist zu groß (maximal ${MAX_UPLOAD_MB} MB).`,
-                MessageTypes.Error,
-                8000,
-            );
-            return null;
-        }
-
-        const fileType = await fileTypeFromBuffer(fileContent);
-
-        if (fileType && fileType.mime.startsWith("video/")) {
-            notify(
-                "Die Datei wird auf dem Server konvertiert, weshalb der Upload einige Minuten dauern kann.",
-                MessageTypes.Info,
-                5000,
-            );
-        }
-
-        // Create form data using Tauri's HTTP client
-        const formData = new FormData();
-        const blob = new Blob([fileContent]);
-        formData.append("file", blob, selectedFileName);
-
-        // Make the request using Tauri's fetch
-        let response: Response;
-        try {
-            response = await fetch(
-                `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets?key=${encodeURIComponent(appState.token)}`,
-                {
-                    method: "POST",
-                    body: formData,
-                },
-            );
-        } catch (e) {
-            console.error("Upload request failed", e);
-            notify(
-                "Hochladen fehlgeschlagen: Der Server ist nicht erreichbar.",
-                MessageTypes.Error,
-                8000,
-            );
-            return null;
-        }
-
-        if (!response.ok) {
-            // The server answers with a message meant for the user
-            const reason = await response.text().catch(() => "");
-            console.error(
-                `Upload failed: ${response.status} ${response.statusText}`,
-                reason,
-            );
-            notify(
-                reason
-                    ? `Hochladen fehlgeschlagen: ${reason}`
-                    : `Hochladen fehlgeschlagen (Fehler ${response.status}).`,
-                MessageTypes.Error,
-                8000,
-            );
-            return null;
-        }
-
-        const asset = await response.text().catch(() => "");
-        if (!asset) {
-            notify(
-                "Hochladen fehlgeschlagen: Der Server hat keinen Dateinamen zurückgegeben.",
-                MessageTypes.Error,
-                8000,
-            );
-            return null;
-        }
-        return asset;
-    }
-
-    function file_name_of(path: string) {
-        return path.split(/[/\\]/).pop() || "";
-    }
-
-    function file_stem_of(path: string) {
-        return file_name_of(path).replace(/\.[^.]+$/, "");
-    }
-
-    /** Uploads a local file and returns its asset name, or null if it failed. */
-    async function upload_path(path: string): Promise<string | null> {
-        const file_name = file_name_of(path);
-        if (!file_name) {
-            notify("Ungültiger Dateiname", MessageTypes.Error, 3000);
-            return null;
-        }
-
-        uploading = true;
-        try {
-            return await upload_file(path, file_name);
-        } finally {
-            uploading = false;
-        }
-    }
-
-    /** Uploads a file for one of the creation dialogs. Without a path a file dialog is shown. */
-    async function user_upload(
-        image_use: "scene" | "background" | "marker",
-        path?: string,
-    ) {
-        const selected = path ?? (await pick_file());
-        // User canceled the selection
-        if (selected === null) return;
-
-        const asset = await upload_path(selected);
-        if (!asset) return;
-
-        if (image_use === "scene") {
-            scene_file = asset;
-        } else if (image_use === "marker") {
-            marker_file = asset;
-        } else {
-            background_file = asset;
-        }
-    }
-
-    async function pick_file() {
-        return await open({
-            multiple: false,
-            filters: [
-                {
-                    name: "Bilder & Videos",
-                    extensions: [
-                        "png",
-                        "jpg",
-                        "jpeg",
-                        "webp",
-                        "gif",
-                        "bmp",
-                        "avif",
-                        "mp4",
-                        "webm",
-                        "mov",
-                        "mkv",
-                    ],
-                },
-                { name: "Alle Dateien", extensions: ["*"] },
-            ],
-        });
-    }
-
     /** Files dropped from the OS onto the marker or scene panel */
     async function handle_file_drop(target: string | null, paths: string[]) {
         if (!gameState.dm || paths.length === 0) return;
 
         if (target === "scenes") {
-            reset_scene_vars();
-            scene_name = file_stem_of(paths[0]);
-            modals.sceneCreationModal?.showModal();
-            await user_upload("scene", paths[0]);
+            dialogs.scene?.open(paths[0]);
         } else if (target === "markers" && paths.length === 1) {
-            reset_marker_vars();
-            marker_name = file_stem_of(paths[0]);
-            modals.markerCreationModal?.showModal();
-            await user_upload("marker", paths[0]);
+            dialogs.marker?.open(paths[0]);
         } else if (target === "markers") {
             // Several files at once become markers right away
             notify(
@@ -296,85 +109,6 @@
             element?.closest<HTMLElement>("[data-file-drop]")?.dataset
                 .fileDrop ?? null
         );
-    }
-
-    function reset_scene_vars() {
-        scene_name = "";
-        scene_file = null;
-        background_file = null;
-        background_blur = 10;
-        scene_columns = 10;
-        scene_x_offset = 0;
-        scene_y_offset = 0;
-    }
-
-    function reset_marker_vars() {
-        marker_name = "";
-        marker_size = 1;
-        marker_file = "";
-    }
-
-    // The server stores these as integers and rejects anything else
-    function to_int(value: unknown, fallback: number, min = -Infinity) {
-        const number = Math.round(Number(value));
-        return Number.isFinite(number) ? Math.max(number, min) : fallback;
-    }
-
-    async function create_scene() {
-        if (!appState.ws || !scene_file) {
-            return;
-        }
-        if (!scene_name.trim()) {
-            notify("Bitte gib der Szene einen Namen", MessageTypes.Error, 3000);
-            return;
-        }
-
-        // @ts-ignore
-        await appState.ws.send(
-            PutScene.create(
-                scene_name.trim(),
-                scene_file,
-                background_file as string,
-                to_int(background_blur, 10, 0),
-                to_int(scene_columns, 10, 1),
-                to_int(scene_rows, 10, 1),
-                to_int(scene_x_offset, 0),
-                to_int(scene_y_offset, 0),
-                {
-                    fog_squares: {},
-                    markers: [],
-                    initiative: [],
-                    turn: null,
-                },
-            ),
-        );
-
-        // Reset variables after
-        reset_scene_vars();
-        modals.sceneCreationModal?.close();
-        notify("Szene erstellt", MessageTypes.Success, 3000);
-    }
-
-    async function create_marker() {
-        if (!appState.ws || !marker_file) return;
-        if (!marker_name.trim()) {
-            notify("Bitte gib dem Marker einen Namen", MessageTypes.Error, 3000);
-            return;
-        }
-        const size = Number(marker_size);
-
-        await appState.ws.send(
-            PutMarker.create(
-                marker_name.trim(),
-                marker_file,
-                Number.isFinite(size) && size > 0 ? size : 1,
-            ),
-        );
-
-        // Reset variables after
-        reset_marker_vars();
-        modals.markerCreationModal?.close();
-        notify("Marker erstellt", MessageTypes.Success, 3000);
     }
 
     let reconnecting = $state(false);
@@ -782,20 +516,7 @@
     }
 
     let pressure = $state(false);
-    let scene_name: string = $state("");
-    let scene_file: string | null = $state(null);
-    let background_file: string | null = $state(null);
-    let background_blur: number = $state(10);
-    let scene_columns: number = $state(10);
-    let scene_rows: number = $state(10);
-    let scene_x_offset: number = $state(0);
-    let scene_y_offset: number = $state(0);
     let character_url = $state("");
-
-    let marker_name = $state("");
-    let marker_size = $state(1);
-    let marker_file = $state("");
-
 
     let audio: HTMLAudioElement | null = $state(null);
     let sword_ping: HTMLAudioElement | null = $state(null);
@@ -1131,124 +852,8 @@
     </form>
 </dialog>
 {#if gameState.dm}
-    <dialog
-        bind:this={modals.sceneCreationModal}
-        class="modal scrollbar-gutter-affected">
-        <div class="modal-box">
-            <h3 class="text-lg font-bold">Szene erstellen</h3>
-            <fieldset class="fieldset">
-                <legend class="fieldset-legend">Szenenname</legend>
-                <input
-                    type="text"
-                    bind:value={scene_name}
-                    class="input"
-                    placeholder="Goblinlager"
-                />
-
-                {#if !scene_file}
-                    <button
-                        class="btn btn-neutral mt-4"
-                        disabled={uploading}
-                        onclick={() => {
-                            user_upload("scene");
-                        }}
-                    >
-                        {#if uploading}
-                            <span class="loading loading-spinner"></span>
-                            Wird hochgeladen…
-                        {:else}
-                            Map hochladen
-                        {/if}
-                    </button>
-                {:else}
-                    <legend class="fieldset-legend">Spalten</legend>
-                    <input
-                        type="number"
-                        bind:value={scene_columns}
-                        class="input"
-                        placeholder="10"
-                    />
-
-                    <legend class="fieldset-legend">X-Offset</legend>
-                    <input
-                        type="number"
-                        bind:value={scene_x_offset}
-                        class="input"
-                        placeholder="10"
-                    />
-
-                    <legend class="fieldset-legend">Y-Offset</legend>
-                    <input
-                        type="number"
-                        bind:value={scene_y_offset}
-                        class="input"
-                        placeholder="10"
-                    />
-
-                    <div class="w-full mt-4">
-                        <Map
-                            file={scene_file}
-                            columns={scene_columns}
-                            set_rows={(rows: number) => (scene_rows = rows)}
-                            x_offset={scene_x_offset}
-                            y_offset={scene_y_offset}
-                            fog_squares={{}}
-                            markers={[]}
-                        />
-                    </div>
-
-                    {#if !background_file}
-                        <button
-                            class="btn btn-neutral mt-4"
-                            disabled={uploading}
-                            onclick={() => {
-                                user_upload("background");
-                            }}
-                        >
-                            {#if uploading}
-                                <span class="loading loading-spinner"></span>
-                                Wird hochgeladen…
-                            {:else}
-                                Hintergrundbild hochladen
-                            {/if}
-                        </button>
-                        <p class="fieldset-label">
-                            Hintergrundbilder sind optional
-                        </p>
-                    {:else}
-                        <legend class="fieldset-legend">Menge an Blur</legend>
-                        <input
-                            bind:value={background_blur}
-                            type="range"
-                            min="0"
-                            max="30"
-                            class="range"
-                        />
-                        <div
-                            class="relative w-full h-30 pt-[30px] mt-4 overflow-hidden"
-                        >
-                            <BlurredBackground
-                                file={background_file}
-                                blur={background_blur}
-                                position={"relative"}
-                            />
-                        </div>
-                    {/if}
-
-                    <button class="btn btn-neutral mt-4" onclick={create_scene}>
-                        Scene erstellen
-                    </button>
-                    <p class="fieldset-label">
-                        Du kannst Szenen überschreiben indem du eine Neue Szene
-                        mit gleichem Namen erstellst.
-                    </p>
-                {/if}
-            </fieldset>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-            <button class="outline-0" onclick={reset_scene_vars}>close</button>
-        </form>
-    </dialog>
+    <SceneDialog />
+    <MarkerDialog />
     <dialog
         bind:this={modals.characterImportModal}
         class="modal scrollbar-gutter-affected"
@@ -1289,72 +894,6 @@
         </div>
         <form method="dialog" class="modal-backdrop">
             <button class="outline-0">close</button>
-        </form>
-    </dialog>
-    <dialog
-        bind:this={modals.markerCreationModal}
-        class="modal scrollbar-gutter-affected"
-    >
-        <div class="modal-box">
-            <h3 class="text-lg font-bold">Marker erstellen</h3>
-            <fieldset class="fieldset">
-                <legend class="fieldset-legend">Markername</legend>
-                <input
-                    type="text"
-                    bind:value={marker_name}
-                    class="input"
-                    placeholder="Grom"
-                />
-                <legend class="fieldset-legend">Größe</legend>
-                <input
-                    type="number"
-                    bind:value={marker_size}
-                    class="input"
-                    placeholder="1"
-                />
-                <p class="fieldset-label">
-                    Die Größe gibt an, wie viele Spalten (und somit auch Zeilen)
-                    der Marker einnimmt.
-                </p>
-
-                {#if !marker_file}
-                    <button
-                        class="btn btn-neutral mt-4"
-                        disabled={uploading}
-                        onclick={() => {
-                            user_upload("marker");
-                        }}
-                    >
-                        {#if uploading}
-                            <span class="loading loading-spinner"></span>
-                            Wird hochgeladen…
-                        {:else}
-                            Marker-Bild
-                        {/if}
-                    </button>
-                {:else}
-                    <Marker
-                        columnCount="100%"
-                        dragOptions={{ disabled: true }}
-                        marker={{
-                            name: marker_name,
-                            size: marker_size,
-                            file: marker_file,
-                        }}
-                        mapUse={false}
-                    />
-                    <button class="btn btn-neutral mt-4" onclick={create_marker}
-                        >Marker erstellen</button
-                    >
-                    <p class="fieldset-label">
-                        Du kannst Marker überschreiben indem du einen neuen
-                        Marker mit gleichem Namen erstellst.
-                    </p>
-                {/if}
-            </fieldset>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-            <button class="outline-0" onclick={reset_marker_vars}>close</button>
         </form>
     </dialog>
 {/if}

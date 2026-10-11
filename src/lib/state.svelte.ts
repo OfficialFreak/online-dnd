@@ -125,10 +125,16 @@ export function show_pointer(name: string, x?: number, y?: number, large = false
 }
 
 export const modals: Record<string, HTMLDialogElement | null> = $state({
-    sceneCreationModal: null,
-    markerCreationModal: null,
     characterImportModal: null,
 });
+
+/** Registered by the scene and marker dialogs, which only DMs have */
+export const dialogs: {
+    /** With a path, that file is uploaded as the new scene's map */
+    scene: { open(map_path?: string): void } | null;
+    /** With a path, that file is uploaded as the new marker's image */
+    marker: { open(image_path?: string): void } | null;
+} = { scene: null, marker: null };
 
 export type Panel = "characters" | "markers" | "scenes";
 
