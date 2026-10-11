@@ -66,7 +66,7 @@
                         Würfeln
                     </button>
                     <select
-                        class="select join-item rounded-r-full h-full"
+                        class="select join-item rounded-r-full h-full w-auto bg-base-200 border-base-200 font-semibold"
                         bind:value={privacy_level}
                     >
                         <option disabled selected>Sichtbarkeit</option>
@@ -80,9 +80,8 @@
                 </button>
             {/if}
         </div>
-        <ul
-            class="dropdown-content z-1 flex flex-col !gap-2 pb-2 pr-4 pt-10 max-h-[80vh] overflow-y-auto overflow-x-hidden"
-        >
+        <!-- A row, as a column the dice would cover the toolbar -->
+        <ul class="dropdown-content z-1 flex flex-row gap-2 pt-3 pr-3 pb-2">
             {#each entries as [dice, count]}
                 <div class="indicator">
                     {#if count > 0}
