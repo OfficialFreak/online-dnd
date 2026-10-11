@@ -721,32 +721,55 @@
     });
 
     // The map is laid out at the zoom, so the image, grid and markers are drawn sharp.
-    // Laying it out on every step of a pinch would stutter, so a zoom gesture scales it
-    // and it is laid out anew once the gesture ends.
+    // Laying it out on every step of a pinch would stutter, so during a zoom gesture it is
+    // only scaled and shifted, and laid out anew once the gesture ends. The gesture doesn't
+    // scroll the page either: Safari applies scrolling during a touch late, the next step
+    // then corrected the old position again and the map jumped back and forth.
     let layout_zoom = $derived(editable ? appState.layout_zoom : 1);
     let gesture_scale = $derived(editable ? appState.zoom / layout_zoom : 1);
+    /** Where a gesture moved the map to, in screen pixels, until it becomes scrolling */
+    let shift_x = $state(0);
+    let shift_y = $state(0);
+    /**
+     * The size of the page when the gesture started. A map scaled down during it would
+     * make the page smaller, the browser would scroll back and the map jump with it.
+     */
+    let keep_page: { width: number; height: number } | null = $state(null);
     /** Size of the map at 100%, w and h grow with the layout zoom */
     let base_w = $derived(w / layout_zoom);
     let base_h = $derived(h / layout_zoom);
     let pinching = false;
-    let layout_timer: ReturnType<typeof setTimeout> | undefined;
+    let settle_timer: ReturnType<typeof setTimeout> | undefined;
 
-    function lay_out_zoom() {
-        clearTimeout(layout_timer);
-        layout_timer = setTimeout(() => {
-            if (pinching || appState.zoom === appState.layout_zoom) return;
+    /** Lays the map out at the zoom and turns the shift into scrolling, after a gesture */
+    function settle_later() {
+        clearTimeout(settle_timer);
+        settle_timer = setTimeout(settle, 200);
+    }
+
+    function settle() {
+        if (pinching) return;
+        const scroll_x = window.scrollX - shift_x;
+        const scroll_y = window.scrollY - shift_y;
+        if (appState.zoom !== appState.layout_zoom) {
             // The new size right away, the browser measures it only after the next frame,
             // and markers placed by the old one would flash in the wrong spot
             const ratio = appState.zoom / appState.layout_zoom;
             w = Math.round(w * ratio);
             h = Math.round(h * ratio);
             appState.layout_zoom = appState.zoom;
-        }, 200);
+        }
+        keep_page = null;
+        if (shift_x === 0 && shift_y === 0) return;
+        shift_x = 0;
+        shift_y = 0;
+        // Once the new layout is there, in the same frame
+        tick().then(() => window.scrollTo(scroll_x, scroll_y));
     }
 
     $effect(() => {
         if (!editable) return;
-        if (appState.zoom !== appState.layout_zoom) lay_out_zoom();
+        if (appState.zoom !== appState.layout_zoom) settle_later();
     });
 
     // Zooming in makes the page scrollable to the right and bottom. Below 100% the map
@@ -767,6 +790,62 @@
     const MAX_ZOOM = 5;
 
     /**
+     * Where the map is without the zoom's centering and the gesture's shift, from where it
+     * is on the screen now
+     */
+    function unshifted_position() {
+        const rect = map_element!.getBoundingClientRect();
+        return {
+            rect,
+            left: rect.left - zoom_offset_x - shift_x,
+            top: rect.top - zoom_offset_y - shift_y,
+        };
+    }
+
+    /**
+     * Shifts the map so that this point of it, as fractions of the map, lies under this
+     * point of the screen at the current zoom
+     */
+    function keep_under(
+        point: { x: number; y: number },
+        client_x: number,
+        client_y: number,
+        unshifted: { left: number; top: number },
+    ) {
+        // Still the page as it was before this step, the DOM changes afterwards
+        keep_page ??= {
+            width: document.documentElement.scrollWidth,
+            height: document.documentElement.scrollHeight,
+        };
+        shift_x =
+            client_x -
+            point.x * base_w * appState.zoom -
+            unshifted.left -
+            zoom_offset_x;
+        shift_y =
+            client_y -
+            point.y * base_h * appState.zoom -
+            unshifted.top -
+            zoom_offset_y;
+
+        // Only as far as scrolling can take it once the gesture ends, otherwise the map
+        // would jump there. Zoomed out it can't scroll and stays in the middle.
+        const zoom = appState.zoom;
+        const right =
+            unshifted.left +
+            window.scrollX +
+            (zoom < 1 ? (base_w * (1 + zoom)) / 2 : base_w * zoom);
+        const bottom =
+            unshifted.top +
+            window.scrollY +
+            (zoom < 1 ? (base_h * (1 + zoom)) / 2 : base_h * zoom);
+        const max_x = Math.max(0, right - document.documentElement.clientWidth);
+        const max_y = Math.max(0, bottom - document.documentElement.clientHeight);
+        shift_x = Math.min(Math.max(shift_x, window.scrollX - max_x), window.scrollX);
+        shift_y = Math.min(Math.max(shift_y, window.scrollY - max_y), window.scrollY);
+    }
+
+    /**
      * Zooms so that the map point under (client_x, client_y) stays under it. Steps stop
      * at 100% and at "fills the window height", a pinch glides past them.
      */
@@ -785,19 +864,14 @@
         }
         if (new_zoom === old_zoom) return;
 
-        const rect = map_element.getBoundingClientRect();
-        const map_x = (client_x - rect.left) / old_zoom;
-        const map_y = (client_y - rect.top) / old_zoom;
+        const unshifted = unshifted_position();
+        const point = {
+            x: (client_x - unshifted.rect.left) / unshifted.rect.width,
+            y: (client_y - unshifted.rect.top) / unshifted.rect.height,
+        };
         appState.zoom = new_zoom;
-
-        tick().then(() => {
-            if (!map_element) return;
-            const new_rect = map_element.getBoundingClientRect();
-            window.scrollBy(
-                new_rect.left + map_x * new_zoom - client_x,
-                new_rect.top + map_y * new_zoom - client_y,
-            );
-        });
+        keep_under(point, client_x, client_y, unshifted);
+        settle_later();
     }
 
     $effect(() => {
@@ -830,8 +904,8 @@
             distance: number;
             zoom: number;
             /** The map point between the fingers, as fractions of the map */
-            x: number;
-            y: number;
+            point: { x: number; y: number };
+            unshifted: { left: number; top: number };
         } | null = null;
         const spread = (touches: TouchList) =>
             Math.hypot(
@@ -844,13 +918,16 @@
         });
         const on_touch_start = (event: TouchEvent) => {
             if (event.touches.length !== 2 || !map_element) return;
-            const rect = map_element.getBoundingClientRect();
+            const unshifted = unshifted_position();
             const center = middle(event.touches);
             pinch = {
                 distance: spread(event.touches),
                 zoom: appState.zoom,
-                x: (center.x - rect.left) / rect.width,
-                y: (center.y - rect.top) / rect.height,
+                point: {
+                    x: (center.x - unshifted.rect.left) / unshifted.rect.width,
+                    y: (center.y - unshifted.rect.top) / unshifted.rect.height,
+                },
+                unshifted,
             };
             pinching = true;
         };
@@ -868,22 +945,14 @@
             appState.zoom = zoom;
             // The map point that was between the fingers stays between them
             const center = middle(event.touches);
-            const { x, y } = pinch;
-            tick().then(() => {
-                if (!map_element) return;
-                const rect = map_element.getBoundingClientRect();
-                window.scrollBy(
-                    rect.left + x * rect.width - center.x,
-                    rect.top + y * rect.height - center.y,
-                );
-            });
+            keep_under(pinch.point, center.x, center.y, pinch.unshifted);
         };
         const on_touch_end = (event: TouchEvent) => {
             if (event.touches.length >= 2) return;
             pinch = null;
             if (pinching) {
                 pinching = false;
-                lay_out_zoom();
+                settle_later();
             }
         };
         // Safari zooms the page with its own gesture events
@@ -1093,6 +1162,13 @@
     }
 </script>
 
+{#if keep_page}
+    <div
+        class="absolute top-0 left-0 invisible pointer-events-none"
+        style="width: {keep_page.width}px; height: {keep_page.height}px"
+        aria-hidden="true"
+    ></div>
+{/if}
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- Marker menus may reach past the bottom of a wide map, on a tablet the window is
      taller than the map. With the selection tool a finger draws a box instead of panning. -->
@@ -1111,7 +1187,7 @@
     onpointerup={end_pan}
     onpointercancel={end_pan}
     style="width: {layout_zoom * 100}%; transform-origin: 0 0; transform: {editable
-        ? `translate(${zoom_offset_x}px, ${zoom_offset_y}px) scale(${gesture_scale})`
+        ? `translate(${zoom_offset_x + shift_x}px, ${zoom_offset_y + shift_y}px) scale(${gesture_scale})`
         : 'none'}"
 >
     <Display
