@@ -1,7 +1,12 @@
 /** Space kept between a menu and the edges of the window */
 const MARGIN = 8;
-/** Height of the title bar */
-const TITLEBAR = 30;
+/** The dice and the turn button at the bottom of the window stay uncovered */
+const BOTTOM_CONTROLS = 48;
+
+/** Bottom of the title bar, which moves down for the notch of phones */
+function titlebar_bottom() {
+    return parseFloat(getComputedStyle(document.body).marginTop) || 30;
+}
 
 /**
  * Moves a hover menu when it opens, so it stays inside the window and below the title bar.
@@ -35,8 +40,8 @@ export function keep_in_view(
             const left = rect.left + shift_x;
             const right = rect.right + shift_x;
 
-            const bottom = window.innerHeight - MARGIN;
-            let top = TITLEBAR + MARGIN;
+            const bottom = window.innerHeight - MARGIN - BOTTOM_CONTROLS;
+            let top = titlebar_bottom() + MARGIN;
             const obstacle = options.below
                 ? document.getElementById(options.below)?.getBoundingClientRect()
                 : undefined;

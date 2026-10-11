@@ -1059,8 +1059,14 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- Marker menus may reach past the bottom of a wide map, on a tablet the window is
+     taller than the map. With the selection tool a finger draws a box instead of panning. -->
 <div
-    class="w-full relative select-none overflow-hidden"
+    class="w-full relative select-none {editable
+        ? 'overflow-x-clip'
+        : 'overflow-hidden'} {appState.selectedTool === Tools.Select
+        ? 'touch-none'
+        : ''}"
     bind:this={map_element}
     use:dropTarget={editable && gameState.dm
         ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
