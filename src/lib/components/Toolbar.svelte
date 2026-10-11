@@ -24,7 +24,7 @@
     } from "../state.svelte";
     import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
     import { keep_in_view } from "$lib/keep-in-view";
-    import { fileDropState } from "../drag.svelte";
+    import { dragState, fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
     import CharacterSheet from "./CharacterSheet.svelte";
     import MarkerPanel from "./MarkerPanel.svelte";
@@ -357,10 +357,14 @@
     class="fixed top-[calc(2.5rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row gap-1 pointer-events-none"
 >
     {#if toolbarState.panel}
+        <!-- Out of the way while a marker or scene is dragged from it onto the map. Hidden,
+             not closed: that would end the drag. -->
         <div
-            class="relative h-full w-[min(24rem,calc(100vw-4rem))] rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-shadow {fileDropState.over &&
+            class="relative h-full w-[min(24rem,calc(100vw-4rem))] rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-[box-shadow,opacity,translate,visibility] {fileDropState.over &&
             fileDropState.over === toolbarState.panel
                 ? 'ring-4 ring-info'
+                : ''} {dragState.payload
+                ? 'invisible opacity-0 -translate-x-8'
                 : ''}"
             transition:fly|global={{ x: -50, duration: 200 }}
             bind:this={scroll_container}
