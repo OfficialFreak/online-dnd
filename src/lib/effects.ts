@@ -1,6 +1,6 @@
 // @ts-ignore
 import confetti from "canvas-confetti";
-import { appState } from "./state.svelte";
+import { appState, gameState } from "./state.svelte";
 
 const blood = confetti.shapeFromText({
     text: "🔴",
@@ -12,9 +12,12 @@ const blood = confetti.shapeFromText({
  */
 export function spill_blood(x: number, y: number, size: number) {
     const duration = 10_00;
+    // The size is a fraction of the width, cells are square
+    const scene = gameState.scene;
+    const height = scene?.rows ? (size * scene.columns) / scene.rows : size;
     const origin = {
         x: x + size / 2,
-        y: y + size / 2,
+        y: y + height / 2,
     };
     appState.map_confetti_function({
         particleCount: 3,
