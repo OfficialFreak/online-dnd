@@ -375,6 +375,26 @@ export class PutSound {
     }
 }
 
+export class ImportSound {
+    /** The server downloads it from one of the sound libraries and adds it to the sounds */
+    static create(url: string, name: string, kind: Sound["kind"]): string {
+        return JSON.stringify({
+            type: "import_sound",
+            url: url,
+            name: name,
+            kind: kind
+        });
+    }
+}
+
+export class ListTabletopAudio {
+    static create(): string {
+        return JSON.stringify({
+            type: "tabletop_audio"
+        });
+    }
+}
+
 export class DeleteSound {
     static create(name: string): string {
         return JSON.stringify({

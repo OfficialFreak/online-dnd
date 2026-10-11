@@ -13,6 +13,10 @@
     } from "$lib/types/messaging/client_messages";
     import { file_stem_of, pick_file, upload_path } from "$lib/upload.svelte";
     import { uploadState } from "$lib/upload.svelte";
+    import SoundLibrary from "./SoundLibrary.svelte";
+
+    /** The DM's own sounds or the libraries to find new ones in */
+    let view: "own" | "library" = $state("own");
 
     let search = $state("");
     let confirm_delete: string | null = $state(null);
@@ -130,6 +134,22 @@
         Musik läuft für alle in Schleife, Effekte spielen einmal. Audiodateien
         aus dem Explorer kannst du hier hineinziehen.
     </p>
+    <div role="tablist" class="tabs tabs-box tabs-sm">
+        <button
+            role="tab"
+            class="tab flex-1 {view === 'own' ? 'tab-active' : ''}"
+            onclick={() => (view = "own")}
+        >
+            <i class="fa-solid fa-list mr-1.5"></i> Meine Sounds
+        </button>
+        <button
+            role="tab"
+            class="tab flex-1 {view === 'library' ? 'tab-active' : ''}"
+            onclick={() => (view = "library")}
+        >
+            <i class="fa-solid fa-compass mr-1.5"></i> Bibliothek
+        </button>
+    </div>
     {#if audioState.music}
         <div
             class="flex flex-row items-center gap-2 p-2 rounded-box bg-info/15"
@@ -151,34 +171,38 @@
             </button>
         </div>
     {/if}
-    <label class="input input-sm w-full">
-        <i class="fa-solid fa-magnifying-glass opacity-50"></i>
-        <input type="search" placeholder="Suchen" bind:value={search} />
-    </label>
-    <h2 class="font-bold">Musik</h2>
-    <ul class="flex flex-col gap-0.5">
-        {#each music as sound (sound.name)}
-            {@render sound_row(sound)}
-        {:else}
-            <li class="text-sm text-base-content/60">Noch keine Musik</li>
-        {/each}
-    </ul>
-    <h2 class="font-bold">Effekte</h2>
-    <ul class="flex flex-col gap-0.5">
-        {#each effects as sound (sound.name)}
-            {@render sound_row(sound)}
-        {:else}
-            <li class="text-sm text-base-content/60">Noch keine Effekte</li>
-        {/each}
-    </ul>
-    <button class="btn" disabled={uploadState.uploading} onclick={add_sound}>
-        {#if uploadState.uploading}
-            <span class="loading loading-spinner"></span>
-            Wird hochgeladen…
-        {:else}
-            Audio hinzufügen
-        {/if}
-    </button>
+    {#if view === "library"}
+        <SoundLibrary />
+    {:else}
+        <label class="input input-sm w-full">
+            <i class="fa-solid fa-magnifying-glass opacity-50"></i>
+            <input type="search" placeholder="Suchen" bind:value={search} />
+        </label>
+        <h2 class="font-bold">Musik</h2>
+        <ul class="flex flex-col gap-0.5">
+            {#each music as sound (sound.name)}
+                {@render sound_row(sound)}
+            {:else}
+                <li class="text-sm text-base-content/60">Noch keine Musik</li>
+            {/each}
+        </ul>
+        <h2 class="font-bold">Effekte</h2>
+        <ul class="flex flex-col gap-0.5">
+            {#each effects as sound (sound.name)}
+                {@render sound_row(sound)}
+            {:else}
+                <li class="text-sm text-base-content/60">Noch keine Effekte</li>
+            {/each}
+        </ul>
+        <button class="btn" disabled={uploadState.uploading} onclick={add_sound}>
+            {#if uploadState.uploading}
+                <span class="loading loading-spinner"></span>
+                Wird hochgeladen…
+            {:else}
+                Audio hinzufügen
+            {/if}
+        </button>
+    {/if}
 </div>
 
 <style>

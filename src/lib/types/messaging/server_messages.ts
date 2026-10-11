@@ -4,6 +4,7 @@ import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
 import type { AssetInfo } from "$lib/assets";
 import type { Sound } from "$lib/audio.svelte";
+import type { TabletopTrack } from "$lib/sound-library";
 import type { AdminUser } from "$lib/state.svelte";
 
 // Define enums for message types and event types
@@ -35,7 +36,9 @@ export enum MessageType {
     SOUND_LIB = "sound_lib",
     PLAY_SOUND = "play_sound",
     STOP_MUSIC = "stop_music",
-    USER_ADMIN = "user_admin"
+    USER_ADMIN = "user_admin",
+    TABLETOP_AUDIO = "tabletop_audio",
+    SOUND_IMPORT_FAILED = "sound_import_failed"
 }
 
 export enum EventType {
@@ -297,6 +300,16 @@ export interface UserAdmin extends BaseServerMessage {
     users: AdminUser[];
 }
 
+export interface TabletopAudio extends BaseServerMessage {
+    type: MessageType.TABLETOP_AUDIO;
+    tracks: TabletopTrack[];
+}
+
+export interface SoundImportFailed extends BaseServerMessage {
+    type: MessageType.SOUND_IMPORT_FAILED;
+    name: string;
+}
+
 export type AnyRoll = RollResult | CheckResult | SaveResult;
 
 /** The latest rolls, sent after connecting */
@@ -335,7 +348,9 @@ export type ServerMessage =
     | SoundLib
     | PlaySound
     | StopMusic
-    | UserAdmin;
+    | UserAdmin
+    | TabletopAudio
+    | SoundImportFailed;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -407,6 +422,10 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as StopMusic;
         case MessageType.USER_ADMIN:
             return data as UserAdmin;
+        case MessageType.TABLETOP_AUDIO:
+            return data as TabletopAudio;
+        case MessageType.SOUND_IMPORT_FAILED:
+            return data as SoundImportFailed;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

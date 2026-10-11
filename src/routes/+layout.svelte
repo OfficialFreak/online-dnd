@@ -559,6 +559,28 @@
                 }
                 case MessageType.SOUND_LIB:
                     audioState.sounds = message.sounds;
+                    // Sounds from a library are there once the server downloaded them
+                    for (const name of audioState.importing) {
+                        if (message.sounds.some((sound) => sound.name === name)) {
+                            notify(`„${name}“ hinzugefügt`, MessageTypes.Success, 2000);
+                        }
+                    }
+                    audioState.importing = audioState.importing.filter(
+                        (name) => !message.sounds.some((sound) => sound.name === name),
+                    );
+                    break;
+                case MessageType.TABLETOP_AUDIO:
+                    audioState.tabletop = message.tracks;
+                    break;
+                case MessageType.SOUND_IMPORT_FAILED:
+                    audioState.importing = audioState.importing.filter(
+                        (name) => name !== message.name,
+                    );
+                    notify(
+                        `„${message.name}“ ließ sich nicht herunterladen`,
+                        MessageTypes.Error,
+                        4000,
+                    );
                     break;
                 case MessageType.PLAY_SOUND:
                     if (message.kind === "music") {

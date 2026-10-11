@@ -1,4 +1,5 @@
 import { asset_url } from "./assets";
+import type { TabletopTrack } from "./sound-library";
 import { appState, ensureStore } from "./state.svelte";
 
 /** Music or a sound effect the DM can play for everyone */
@@ -17,6 +18,10 @@ export const audioState = $state({
     music: null as { name: string; file: string; started_at: number } | null,
     /** The sound library, only DMs get it */
     sounds: [] as Sound[],
+    /** The tracks of Tabletop Audio, once the DM opened the library */
+    tabletop: null as TabletopTrack[] | null,
+    /** Names of sounds the server is downloading from a library */
+    importing: [] as string[],
 });
 
 let music: HTMLAudioElement | null = null;
