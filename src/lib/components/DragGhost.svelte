@@ -25,14 +25,15 @@
         style="left: {dragState.x}px; top: {dragState.y}px;"
     >
         {#if dragState.payload.kind === "marker"}
+            <!-- Both sides set: Safari let a large image make it taller than wide -->
             <div
-                class="mask mask-hexagon aspect-square bg-neutral p-[3%] opacity-80"
-                style="width: {marker_size}px"
+                class="mask mask-hexagon bg-neutral p-[3%] opacity-80 overflow-hidden"
+                style="width: {marker_size}px; height: {marker_size}px"
             >
                 <Display
                     asset={dragState.payload.marker.file}
                     alt={dragState.payload.marker.name}
-                    class="w-full aspect-square mask mask-hexagon object-cover object-top"
+                    class="w-full h-full mask mask-hexagon object-cover object-top"
                 />
             </div>
         {:else}
