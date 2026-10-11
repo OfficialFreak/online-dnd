@@ -303,8 +303,10 @@
         ) {
             if (fog_rect || (click && (fogState.shape === "rect" || event.shiftKey))) {
                 // The rectangle is filled when the mouse is released
-                if (click) fog_rect = { x1: x, y1: y, x2: x, y2: y };
-                else if (fog_rect) {
+                if (click) {
+                    fog_rect = { x1: x, y1: y, x2: x, y2: y };
+                    on_release(finish_fog_rect);
+                } else if (fog_rect) {
                     fog_rect.x2 = x;
                     fog_rect.y2 = y;
                 }
@@ -328,6 +330,15 @@
     );
     let shown_drawings = $derived(drawing ? [...drawings, drawing] : drawings);
 
+    /**
+     * Calls done when the mouse is released, also outside of the map. Not an effect on
+     * appState.mouseDown: the body only sets it after the map's mousedown, and Svelte runs
+     * effects in between, so it would end what just started.
+     */
+    function on_release(done: () => void) {
+        window.addEventListener("mouseup", done, { once: true });
+    }
+
     function start_drawing(event: MouseEvent) {
         if (event.button !== 0 || !editable) return;
         let px = event.offsetX;
@@ -347,6 +358,7 @@
             y2: py / h,
             points: drawState.kind === "free" ? [[px / w, py / h]] : undefined,
         };
+        on_release(finish_drawing);
     }
 
     function continue_drawing(event: MouseEvent) {
@@ -402,11 +414,6 @@
         appState.ws?.send(AddDrawing.create(done));
     }
 
-    // The mouse may be released outside of the map
-    $effect(() => {
-        if (!appState.mouseDown && drawing) finish_drawing();
-    });
-
     /** Right click deletes the drawing under the mouse, players can only delete theirs */
     function delete_drawing_at(event: MouseEvent) {
         event.preventDefault();
@@ -448,11 +455,6 @@
         fog_rect = null;
         paint_fog(cells);
     }
-
-    // The mouse may be released outside of the map
-    $effect(() => {
-        if (!appState.mouseDown && fog_rect) finish_fog_rect();
-    });
 
     /** Adds or removes fog in these cells for the players being edited */
     function paint_fog(cells: [number, number][]) {
