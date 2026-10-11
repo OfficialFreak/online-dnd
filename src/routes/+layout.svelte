@@ -28,6 +28,7 @@
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
         audioState,
+        duck_music,
         effect_volume,
         guess_sound_kind,
         load_volume,
@@ -756,12 +757,22 @@
 
     $effect(() => {
         if (!audio) return;
+        // The pressure music would play over the DM's music
+        duck_music(gameState.pressure);
         if (gameState.pressure) {
-            audio.play();
+            // Browsers may refuse sound before the first tap on the page
+            audio.play().catch((e) => console.error("Playing the pressure music failed", e));
             let duration = 15 * 1000;
             let end = Date.now() + duration;
+            let last = 0;
 
             (function frame() {
+                if (Date.now() < end && gameState.pressure) {
+                    requestAnimationFrame(frame);
+                }
+                // As many as at 60 frames a second, phones and tablets draw up to 120
+                if (Date.now() - last < 15) return;
+                last = Date.now();
                 confetti_function({
                     particleCount: 2,
                     angle: 60,
@@ -778,10 +789,6 @@
                     origin: { x: 1 },
                     shapes: [stopwatch, time],
                 });
-
-                if (Date.now() < end && gameState.pressure) {
-                    requestAnimationFrame(frame);
-                }
             })();
         } else {
             audio.pause();

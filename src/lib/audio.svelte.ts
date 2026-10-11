@@ -27,6 +27,8 @@ export const audioState = $state({
 });
 
 let music: HTMLAudioElement | null = null;
+/** Pressure plays its own music, the DM's waits silently underneath */
+let ducked = false;
 /** An effect the DM plays again before it ends plays twice at once */
 const effects = new Map<string, Set<HTMLAudioElement>>();
 
@@ -36,6 +38,17 @@ export function music_volume() {
 
 export function effect_volume() {
     return audioState.muted ? 0 : audioState.effect_volume;
+}
+
+function playing_music_volume() {
+    return ducked ? 0 : music_volume();
+}
+
+/** Fades the DM's music out while something else plays and back in afterwards */
+export function duck_music(on: boolean) {
+    if (ducked === on) return;
+    ducked = on;
+    if (music) fade(music, playing_music_volume);
 }
 
 /**
@@ -77,7 +90,7 @@ export function play_music(name: string, file: string, started_at: number) {
         { once: true },
     );
     audio.play().catch((e) => console.error("Playing music failed", e));
-    fade(audio, music_volume);
+    fade(audio, playing_music_volume);
     music = audio;
     audioState.music = { name, file, started_at };
 }
@@ -155,7 +168,7 @@ export function set_volume(
     >,
 ) {
     Object.assign(audioState, change);
-    if (music) music.volume = music_volume();
+    if (music) music.volume = playing_music_volume();
     for (const playing of effects.values()) {
         for (const audio of playing) audio.volume = effect_volume();
     }
