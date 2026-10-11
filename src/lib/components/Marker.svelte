@@ -15,7 +15,7 @@
     import { draggable } from "@neodrag/svelte";
     // @ts-ignore
     import throttle from "just-throttle";
-    import { PutScene } from "$lib/types/messaging/client_messages";
+    import { UpdateSceneMarker } from "$lib/types/messaging/client_messages";
     import CharacterPreview from "./CharacterPreview.svelte";
     import {
         CONDITION_KEYS,
@@ -35,7 +35,7 @@
         interactive = true,
     } = $props();
     let markerElement: HTMLDivElement | null = $state(null);
-    // The same object first, a name typed into the menu may briefly match another marker
+    // The same object first, it stays the same marker if names ever repeat
     let scene_marker = $derived(
         gameState.scene?.state.markers.find(
             (new_marker) => new_marker === marker,
@@ -75,56 +75,74 @@
         );
     });
 
-    let throttled_save = throttle(
-        () => {
-            if (!gameState.scene) return;
-            appState.ws?.send(PutScene.update(gameState.scene));
-        },
-        200,
-        { leading: false, trailing: true },
-    );
-
-    // What follows the marker while it gets renamed, taken when the input gets focus.
-    // An effect can't track the old name: Svelte runs effects between the listeners of
-    // the input event, so it would already hold the new name. The initiative entry is
-    // kept by reference, as the name may briefly match another marker while typing.
-    let rename: {
-        name: string;
-        current: string;
-        initiative?: [number, string];
-        turn: boolean;
-        selected: boolean;
-    } | null = null;
-    let name_taken = $derived(
-        gameState.scene?.state.markers.some(
-            (other) => other !== scene_marker && other.name === scene_marker.name,
-        ) ?? false,
-    );
-
-    function start_rename() {
-        record_undo();
-        const name = scene_marker.name;
-        rename = {
-            name,
-            current: name,
-            initiative: gameState.scene?.state.initiative.find(
-                (initiative) => initiative[1] === name,
-            ),
-            turn: gameState.scene?.state.turn === name,
-            selected: selection.has(name),
-        };
+    /**
+     * Sends the marker's settings but not its position, so moves of other markers that
+     * this client doesn't know about yet stay as they are
+     */
+    function save_marker() {
+        if (!scene_marker.name) return;
+        appState.ws?.send(
+            UpdateSceneMarker.create(scene_marker.name, scene_marker),
+        );
     }
 
-    /** Initiative, turn and selection follow the renamed marker */
-    function follow_rename(name: string) {
-        if (!rename || !gameState.scene) return;
-        if (rename.initiative) rename.initiative[1] = name;
-        if (rename.turn) gameState.scene.state.turn = name;
-        if (rename.selected) {
-            selection.delete(rename.current);
-            selection.add(name);
+    // Quick changes, like several conditions in a row, go out together
+    let throttled_save = throttle(save_marker, 200, {
+        leading: false,
+        trailing: true,
+    });
+
+    /** Hit points are whole numbers, the server takes no others */
+    function whole(value: unknown) {
+        if (value === null || value === undefined || value === "") return null;
+        const number = Math.round(Number(value));
+        return Number.isFinite(number) ? Math.max(0, number) : null;
+    }
+
+    // The name is edited as a draft and applied when leaving the field. Applied while
+    // typing, a name may briefly match another marker or a character, which moves the
+    // marker to the characters on the map.
+    let name_draft = $state("");
+    let editing_name = false;
+    $effect.pre(() => {
+        const name = scene_marker.name;
+        if (!editing_name) name_draft = name;
+    });
+    let name_problem = $derived.by(() => {
+        const name = name_draft.trim();
+        if (name === scene_marker.name) return null;
+        if (!name) return "Ein Marker braucht einen Namen";
+        if (
+            gameState.scene?.state.markers.some(
+                (other) => other !== scene_marker && other.name === name,
+            )
+        ) {
+            return "Ein anderer Marker heißt schon so";
         }
-        rename.current = name;
+        if (getCharacter(name)) return "So heißt ein Charakter";
+        return null;
+    });
+
+    /** Renames the marker, the initiative, turn and selection follow */
+    function commit_rename() {
+        editing_name = false;
+        const old_name = scene_marker.name;
+        const name = name_draft.trim();
+        if (name_problem || name === old_name) {
+            name_draft = old_name;
+            return;
+        }
+        record_undo();
+        const state = gameState.scene?.state;
+        if (state) {
+            for (const entry of state.initiative) {
+                if (entry[1] === old_name) entry[1] = name;
+            }
+            if (state.turn === old_name) state.turn = name;
+        }
+        if (selection.delete(old_name)) selection.add(name);
+        scene_marker.name = name;
+        appState.ws?.send(UpdateSceneMarker.create(old_name, scene_marker));
     }
 
     let connected_character = $derived(getCharacter(marker.name));
@@ -175,10 +193,13 @@
     );
 
     let hp_change: number | null = $state(null);
+    let has_hp = $derived(scene_marker.hp != null || scene_marker.max_hp != null);
 
     /** Damage is negative. At 0 hit points the creature falls unconscious. */
     function change_hp(delta: number) {
-        if (!delta) return;
+        delta = Math.round(delta);
+        // Without hit points any damage would knock it out
+        if (!delta || !has_hp) return;
         record_undo();
         const before = scene_marker.hp ?? scene_marker.max_hp ?? 0;
         const after = Math.max(
@@ -376,26 +397,24 @@
                 <div class="flex flex-row gap-2">
                     <fieldset class="fieldset flex-1 p-0">
                         <legend class="fieldset-legend pt-0">Name</legend>
+                        <!-- Names identify markers, an empty or taken one goes back -->
                         <input
                             type="text"
-                            class="input input-sm w-full {name_taken
+                            class="input input-sm w-full {name_problem
                                 ? 'input-error'
                                 : ''}"
                             placeholder="Grom"
-                            title={name_taken
-                                ? "Ein anderer Marker heißt schon so"
-                                : undefined}
-                            bind:value={scene_marker.name}
-                            onfocus={start_rename}
-                            oninput={() => follow_rename(scene_marker.name)}
-                            onchange={() => {
-                                // Names identify markers, so an empty or taken one goes back
-                                if (rename && (!scene_marker.name.trim() || name_taken)) {
-                                    follow_rename(rename.name);
-                                    scene_marker.name = rename.name;
-                                    return;
+                            title={name_problem ?? undefined}
+                            bind:value={name_draft}
+                            onfocus={() => (editing_name = true)}
+                            onblur={commit_rename}
+                            onkeydown={(event) => {
+                                if (event.key === "Enter") {
+                                    event.currentTarget.blur();
+                                } else if (event.key === "Escape") {
+                                    name_draft = scene_marker.name;
+                                    event.currentTarget.blur();
                                 }
-                                throttled_save();
                             }}
                         />
                     </fieldset>
@@ -430,7 +449,10 @@
                                 aria-label="Aktuelle Trefferpunkte"
                                 bind:value={scene_marker.hp}
                                 onfocus={record_undo}
-                                onchange={throttled_save}
+                                onchange={() => {
+                                    scene_marker.hp = whole(scene_marker.hp);
+                                    throttled_save();
+                                }}
                             />
                             <span class="text-base-content/50">/</span>
                             <input
@@ -442,6 +464,7 @@
                                 bind:value={scene_marker.max_hp}
                                 onfocus={record_undo}
                                 onchange={() => {
+                                    scene_marker.max_hp = whole(scene_marker.max_hp) || null;
                                     scene_marker.hp ??= scene_marker.max_hp;
                                     throttled_save();
                                 }}
@@ -475,8 +498,9 @@
                                 type="number"
                                 min="0"
                                 class="input input-sm join-item flex-1 min-w-0"
-                                placeholder="Wert"
+                                placeholder={has_hp ? "Wert" : "Erst TP eintragen"}
                                 aria-label="Schaden oder Heilung"
+                                disabled={!has_hp}
                                 bind:value={hp_change}
                                 onkeydown={(event) => {
                                     if (event.key === "Enter") {
@@ -488,12 +512,14 @@
                             <button
                                 class="btn btn-sm btn-soft btn-error join-item"
                                 title="Enter im Feld zieht auch ab"
+                                disabled={!has_hp}
                                 onclick={() => change_hp(-(hp_change ?? 0))}
                                 >Schaden</button
                             >
                             <!-- svelte-ignore node_invalid_placement_ssr -->
                             <button
                                 class="btn btn-sm btn-soft btn-success join-item"
+                                disabled={!has_hp}
                                 onclick={() => change_hp(hp_change ?? 0)}
                                 >Heilung</button
                             >

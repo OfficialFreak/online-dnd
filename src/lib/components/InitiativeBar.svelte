@@ -15,8 +15,7 @@
         (gameState.scene?.state.initiative.length || 0) > 17 ? 30 : 20,
     );
 
-    // Each name once, the banners are keyed by it and a name typed into a marker's
-    // menu may briefly match another one
+    // Each name once, the banners are keyed by it
     let sorted_markers = $derived(
         (
             get_sorted_initiative()?.map((initiative) =>

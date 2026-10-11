@@ -147,6 +147,24 @@ export class SetTurn {
     }
 }
 
+export class UpdateSceneMarker {
+    /** Changes one placed marker of the active scene but not its position, a different name renames it */
+    static create(old_name: string, marker: { name: string; size: number; status_effects: string[]; hidden?: boolean; hp?: number | null; max_hp?: number | null }): string {
+        return JSON.stringify({
+            type: "update_scene_marker",
+            old_name: old_name,
+            marker: {
+                name: marker.name,
+                size: marker.size,
+                status_effects: marker.status_effects,
+                hidden: !!marker.hidden,
+                hp: marker.hp ?? null,
+                max_hp: marker.max_hp ?? null
+            }
+        });
+    }
+}
+
 export class UpdateScene {
     /** Changes everything but the scene's state, a different name renames it */
     static create(old_name: string, name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number): string {
