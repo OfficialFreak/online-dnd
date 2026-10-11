@@ -355,7 +355,7 @@
                                 class="btn"
                                 onclick={() => {
                                     modals.characterImportModal?.showModal();
-                                }}>Charakter Importieren</button
+                                }}>Charakter importieren</button
                             >
                             <button
                                 class="btn"
@@ -660,7 +660,7 @@
                     class="btn btn-square btn-sm rounded-box {gameState.combat
                         ? 'btn-info'
                         : ''}"
-                    aria-label="Zeiger"
+                    aria-label="Kampf"
                     onclick={() => {
                         toggleCombat();
                     }}><i class="fa-solid fa-hand-fist"></i></button

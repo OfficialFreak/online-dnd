@@ -406,7 +406,7 @@
                     // Everyone sees the dice land first
                     await after_dice(message);
                     notify(
-                        `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${mode_suffix(message.mode, message.d20s)}${message.dm_only ? " [DM Only]" : ""}`,
+                        `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${mode_suffix(message.mode, message.d20s)}${message.dm_only ? " (nur DM)" : ""}`,
                         MessageTypes.Info,
                         gameState.dm ? -1 : 5000,
                     );
@@ -1087,9 +1087,9 @@
         class="modal scrollbar-gutter-affected"
     >
         <div class="modal-box">
-            <h3 class="text-lg font-bold">Charakter Importieren</h3>
+            <h3 class="text-lg font-bold">Charakter importieren</h3>
             <fieldset class="fieldset">
-                <legend class="fieldset-legend">Charakter URL</legend>
+                <legend class="fieldset-legend">Charakter-URL</legend>
                 <input
                     type="text"
                     class="input w-full"

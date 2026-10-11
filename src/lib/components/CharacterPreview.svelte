@@ -96,7 +96,7 @@
     {#if (gameState.dm || character.player_name === gameState.name) && callback !== null}
         <button
             class="btn btn-ghost btn-square absolute top-1 right-1 btn-sm"
-            aria-label="Character ansehen"
+            aria-label="Charakter ansehen"
             onclick={callback}
         >
             <i class="fa-solid fa-circle-info"></i>
@@ -107,7 +107,7 @@
         >
             <button
                 class="btn btn-ghost btn-square btn-sm"
-                aria-label="Aktualisiren"
+                aria-label="Aktualisieren"
                 onclick={updateCharacter}
             >
                 <i class="fa-solid fa-rotate-right"></i>
