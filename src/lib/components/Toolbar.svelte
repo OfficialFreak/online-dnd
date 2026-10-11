@@ -88,7 +88,8 @@
                 activeElement.tagName === "SELECT" ||
                 (activeElement as HTMLElement).isContentEditable);
 
-        if (isTyping) return;
+        // Typing in a dialog, e.g. a monster search after clicking a result, isn't a shortcut
+        if (isTyping || document.querySelector("dialog[open]")) return;
 
         if (evt.ctrlKey) {
             appState.ctrlPressed = true;
