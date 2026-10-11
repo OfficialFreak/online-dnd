@@ -2,6 +2,7 @@ import type { RollMode } from "$lib/rolls";
 import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
 import type { AssetInfo } from "$lib/assets";
+import type { Sound } from "$lib/audio.svelte";
 
 // Define enums for message types and event types
 export enum MessageType {
@@ -28,7 +29,10 @@ export enum MessageType {
     ROLL_HISTORY = "roll_history",
     DRAWING_ADDED = "drawing_added",
     DRAWINGS_DELETED = "drawings_deleted",
-    ASSET_LIST = "asset_list"
+    ASSET_LIST = "asset_list",
+    SOUND_LIB = "sound_lib",
+    PLAY_SOUND = "play_sound",
+    STOP_MUSIC = "stop_music"
 }
 
 export enum EventType {
@@ -264,6 +268,24 @@ export interface AssetList extends BaseServerMessage {
     assets: AssetInfo[];
 }
 
+export interface SoundLib extends BaseServerMessage {
+    type: MessageType.SOUND_LIB;
+    sounds: Sound[];
+}
+
+export interface PlaySound extends BaseServerMessage {
+    type: MessageType.PLAY_SOUND;
+    name: string;
+    file: string;
+    kind: Sound["kind"];
+    /** When the DM started it, in milliseconds since 1970 */
+    started_at: number;
+}
+
+export interface StopMusic extends BaseServerMessage {
+    type: MessageType.STOP_MUSIC;
+}
+
 export type AnyRoll = RollResult | CheckResult | SaveResult;
 
 /** The latest rolls, sent after connecting */
@@ -298,7 +320,10 @@ export type ServerMessage =
     | RollHistory
     | DrawingAdded
     | DrawingsDeleted
-    | AssetList;
+    | AssetList
+    | SoundLib
+    | PlaySound
+    | StopMusic;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -362,6 +387,12 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as DrawingsDeleted;
         case MessageType.ASSET_LIST:
             return data as AssetList;
+        case MessageType.SOUND_LIB:
+            return data as SoundLib;
+        case MessageType.PLAY_SOUND:
+            return data as PlaySound;
+        case MessageType.STOP_MUSIC:
+            return data as StopMusic;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

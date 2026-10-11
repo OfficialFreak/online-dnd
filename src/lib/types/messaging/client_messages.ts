@@ -2,6 +2,7 @@ import type { SceneData, SceneState } from "./server_messages";
 import type { RollMode } from "$lib/rolls";
 import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
+import type { Sound } from "$lib/audio.svelte";
 
 export class InitialMessage {
     static create(): string {
@@ -312,6 +313,44 @@ export class DeleteAsset {
         return JSON.stringify({
             type: "delete_asset",
             name: name
+        });
+    }
+}
+
+export class PutSound {
+    static create(name: string, file: string, kind: Sound["kind"]): string {
+        return JSON.stringify({
+            type: "put_sound",
+            name: name,
+            file: file,
+            kind: kind
+        });
+    }
+}
+
+export class DeleteSound {
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "delete_sound",
+            name: name
+        });
+    }
+}
+
+export class PlaySound {
+    /** Music replaces what is playing, effects play on top */
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "play_sound",
+            name: name
+        });
+    }
+}
+
+export class StopMusic {
+    static create(): string {
+        return JSON.stringify({
+            type: "stop_music"
         });
     }
 }

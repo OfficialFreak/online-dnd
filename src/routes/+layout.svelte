@@ -22,11 +22,21 @@
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
+    import {
+        audioState,
+        guess_sound_kind,
+        load_volume,
+        play_effect,
+        play_music,
+        set_volume,
+        stop_music,
+    } from "$lib/audio.svelte";
     import { onMount } from "svelte";
     import {
         ImportCharacter,
         InitialMessage,
         PutMarker,
+        PutSound,
     } from "$lib/types/messaging/client_messages";
     import {
         EventType,
@@ -74,6 +84,18 @@
             dialogs.scene?.open(paths[0]);
         } else if (target === "markers" && paths.length === 1) {
             dialogs.marker?.open(paths[0]);
+        } else if (target === "sounds") {
+            for (const path of paths) {
+                const asset = await upload_path(path);
+                if (!asset || !appState.ws) continue;
+                await appState.ws.send(
+                    PutSound.create(
+                        file_stem_of(path),
+                        asset,
+                        await guess_sound_kind(asset),
+                    ),
+                );
+            }
         } else if (target === "markers") {
             // Several files at once become markers right away
             notify(
@@ -99,7 +121,7 @@
             }
         } else {
             notify(
-                "Zieh Bilder auf das Marker- oder Szenen-Panel, um sie hochzuladen.",
+                "Zieh Bilder auf das Marker- oder Szenen-Panel und Audio auf das Musik-Panel, um sie hochzuladen.",
                 MessageTypes.Info,
                 4000,
             );
@@ -173,6 +195,7 @@
                 ws.disconnect().catch(() => {});
                 appState.ws = null;
                 resetGamestate();
+                stop_music();
             } else {
                 // @ts-ignore
                 console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
@@ -207,6 +230,7 @@
             ).value || "dark";
         html?.setAttribute("data-theme", appState.theme);
 
+        await load_volume();
         audio = new Audio("speed.mp3");
         audio.loop = true;
 
@@ -491,6 +515,19 @@
                     gameState.scene.state.drawings = [...drawings, message.drawing];
                     break;
                 }
+                case MessageType.SOUND_LIB:
+                    audioState.sounds = message.sounds;
+                    break;
+                case MessageType.PLAY_SOUND:
+                    if (message.kind === "music") {
+                        play_music(message.name, message.file, message.started_at);
+                    } else {
+                        play_effect(message.file);
+                    }
+                    break;
+                case MessageType.STOP_MUSIC:
+                    stop_music();
+                    break;
                 case MessageType.ASSET_LIST:
                     assetState.assets = message.assets;
                     break;
@@ -732,6 +769,80 @@
             class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6"
             onclick={() => theme_modal?.showModal()}>Aussehen</button
         >
+        <div class="dropdown dropdown-bottom my-auto">
+            <button
+                tabindex="0"
+                class="btn btn-soft btn-primary !text-xs px-2 h-6"
+                aria-label="Lautstärke"
+                title={audioState.music
+                    ? `Läuft: ${audioState.music.name}`
+                    : "Lautstärke"}
+            >
+                <i
+                    class="fa-solid {audioState.muted
+                        ? 'fa-volume-xmark'
+                        : 'fa-volume-high'}"
+                ></i>
+                {#if audioState.music}
+                    <i class="fa-solid fa-music animate-pulse"></i>
+                {/if}
+            </button>
+            <div
+                tabindex="-1"
+                class="dropdown-content bg-base-100 rounded-box z-20 w-60 p-3 shadow-sm flex flex-col gap-2"
+            >
+                {#if audioState.music}
+                    <p class="text-sm truncate">
+                        <i class="fa-solid fa-music"></i>
+                        {audioState.music.name}
+                    </p>
+                {/if}
+                <label class="text-xs">
+                    Musik
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        class="range range-xs"
+                        value={audioState.music_volume}
+                        oninput={(event) =>
+                            set_volume({
+                                music_volume: Number(
+                                    event.currentTarget.value,
+                                ),
+                            })}
+                    />
+                </label>
+                <label class="text-xs">
+                    Effekte
+                    <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        class="range range-xs"
+                        value={audioState.effect_volume}
+                        oninput={(event) =>
+                            set_volume({
+                                effect_volume: Number(
+                                    event.currentTarget.value,
+                                ),
+                            })}
+                    />
+                </label>
+                <label class="label text-xs">
+                    <input
+                        type="checkbox"
+                        class="toggle toggle-xs"
+                        checked={audioState.muted}
+                        onchange={(event) =>
+                            set_volume({ muted: event.currentTarget.checked })}
+                    />
+                    Stumm
+                </label>
+            </div>
+        </div>
         {#if updating}
             <div
                 class="tooltip tooltip-bottom"

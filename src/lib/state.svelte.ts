@@ -171,7 +171,7 @@ export const dialogs: {
 /** The files on the server, the DM asks for them in the file browser */
 export const assetState = $state({ assets: [] as AssetInfo[] });
 
-export type Panel = "characters" | "markers" | "scenes" | "rolls";
+export type Panel = "characters" | "markers" | "scenes" | "rolls" | "sounds";
 
 export const toolbarState = $state({
     panel: null as Panel | null,

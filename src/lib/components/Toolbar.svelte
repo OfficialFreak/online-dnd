@@ -30,6 +30,7 @@
     import MarkerPanel from "./MarkerPanel.svelte";
     import ScenePanel from "./ScenePanel.svelte";
     import RollLog from "./RollLog.svelte";
+    import SoundPanel from "./SoundPanel.svelte";
     import {
         DeleteDrawings,
         CombatState,
@@ -173,6 +174,11 @@
                 break;
             case "KeyV":
                 togglePanel("rolls");
+                break;
+            case "KeyB":
+                if (gameState.dm) {
+                    togglePanel("sounds");
+                }
                 break;
             // "+" is BracketRight and "-" is Slash on German keyboards
             case "BracketRight":
@@ -320,6 +326,8 @@
                 <ScenePanel />
             {:else if toolbarState.panel === "rolls"}
                 <RollLog />
+            {:else if toolbarState.panel === "sounds"}
+                <SoundPanel />
             {:else if !toolbarState.characterOpen}
                 <div class="p-2 px-4">
                     <h1 class="text-3xl font-bold">Charaktere</h1>
@@ -601,6 +609,22 @@
                     }}
                 >
                     <i class="fa-solid fa-location-pin"></i>
+                </button>
+            </div>
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    Musik <kbd class="kbd">B</kbd>
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                    'sounds'
+                        ? 'btn-info'
+                        : ''}"
+                    aria-label="Musik"
+                    onclick={() => togglePanel("sounds")}
+                >
+                    <i class="fa-solid fa-music"></i>
                 </button>
             </div>
             <div class="tooltip tooltip-right">

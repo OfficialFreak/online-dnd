@@ -1,4 +1,13 @@
+import { appState } from "./state.svelte";
+
 export type AssetKind = "image" | "video" | "audio" | "other";
+
+/** Where an uploaded file can be loaded from */
+export function asset_url(name: string) {
+    return appState.token
+        ? `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets/${name}?key=${encodeURIComponent(appState.token)}`
+        : "";
+}
 
 /** An uploaded file on the server */
 export type AssetInfo = {

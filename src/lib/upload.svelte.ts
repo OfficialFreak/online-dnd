@@ -136,8 +136,19 @@ export async function upload_path(path: string): Promise<string | null> {
     }
 }
 
-/** Lets the user pick an image or video, null if they canceled */
-export async function pick_file() {
+const AUDIO_EXTENSIONS = ["mp3", "ogg", "opus", "wav", "m4a", "flac"];
+
+/** Lets the user pick an image or video, or an audio file, null if they canceled */
+export async function pick_file(kind: "visual" | "audio" = "visual") {
+    if (kind === "audio") {
+        return await open({
+            multiple: false,
+            filters: [
+                { name: "Audio", extensions: AUDIO_EXTENSIONS },
+                { name: "Alle Dateien", extensions: ["*"] },
+            ],
+        });
+    }
     return await open({
         multiple: false,
         filters: [
