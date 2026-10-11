@@ -293,40 +293,77 @@
             y >= 0 &&
             y < rows
         ) {
-            let edit_players =
-                fogState.selected_player === "all"
-                    ? gameState.users.map((user) => user.name)
-                    : [fogState.selected_player];
-            for (const player of edit_players) {
-                if (!gameState.scene.state.fog_squares[player]) {
-                    gameState.scene.state.fog_squares[player] =
-                        new Array<number>(Math.ceil((columns * rows) / 32));
-                    gameState.scene.state.fog_squares[player].fill(0);
+            if (fog_rect || (click && (fogState.shape === "rect" || event.shiftKey))) {
+                // The rectangle is filled when the mouse is released
+                if (click) fog_rect = { x1: x, y1: y, x2: x, y2: y };
+                else if (fog_rect) {
+                    fog_rect.x2 = x;
+                    fog_rect.y2 = y;
                 }
-                if (
-                    appState.selectedTool === Tools.AddFog &&
-                    !isFogAt(gameState.scene.state.fog_squares[player], x, y)
-                ) {
-                    setFogAt(
-                        gameState.scene.state.fog_squares[player],
-                        x,
-                        y,
-                        true,
-                    );
-                } else if (
-                    appState.selectedTool === Tools.RemoveFog &&
-                    isFogAt(gameState.scene.state.fog_squares[player], x, y)
-                ) {
-                    setFogAt(
-                        gameState.scene.state.fog_squares[player],
-                        x,
-                        y,
-                        false,
-                    );
+                return;
+            }
+            const reach = Math.floor((fogState.brush - 1) / 2);
+            const cells: [number, number][] = [];
+            for (let dx = -reach; dx <= reach; dx++) {
+                for (let dy = -reach; dy <= reach; dy++) {
+                    cells.push([x + dx, y + dy]);
                 }
             }
-            debounced_fog_save();
+            paint_fog(cells);
         }
+    }
+
+    /** A rectangle of fog being drawn, in cells */
+    let fog_rect: { x1: number; y1: number; x2: number; y2: number } | null =
+        $state(null);
+
+    function finish_fog_rect() {
+        if (!fog_rect) return;
+        const cells: [number, number][] = [];
+        for (
+            let x = Math.min(fog_rect.x1, fog_rect.x2);
+            x <= Math.max(fog_rect.x1, fog_rect.x2);
+            x++
+        ) {
+            for (
+                let y = Math.min(fog_rect.y1, fog_rect.y2);
+                y <= Math.max(fog_rect.y1, fog_rect.y2);
+                y++
+            ) {
+                cells.push([x, y]);
+            }
+        }
+        fog_rect = null;
+        paint_fog(cells);
+    }
+
+    // The mouse may be released outside of the map
+    $effect(() => {
+        if (!appState.mouseDown && fog_rect) finish_fog_rect();
+    });
+
+    /** Adds or removes fog in these cells for the players being edited */
+    function paint_fog(cells: [number, number][]) {
+        if (!gameState.scene) return;
+        const add = appState.selectedTool === Tools.AddFog;
+        let edit_players =
+            fogState.selected_player === "all"
+                ? gameState.users.map((user) => user.name)
+                : [fogState.selected_player];
+        for (const player of edit_players) {
+            if (!gameState.scene.state.fog_squares[player]) {
+                gameState.scene.state.fog_squares[player] = new Array<number>(
+                    Math.ceil((columns * rows) / 32),
+                );
+                gameState.scene.state.fog_squares[player].fill(0);
+            }
+            const fog = gameState.scene.state.fog_squares[player];
+            for (const [x, y] of cells) {
+                if (x < 0 || x >= columns || y < 0 || y >= rows) continue;
+                if (isFogAt(fog, x, y) !== add) setFogAt(fog, x, y, add);
+            }
+        }
+        debounced_fog_save();
     }
 
     onMount(() => {
@@ -761,6 +798,21 @@
                 />
             {/each}
         </div>
+        {#if fog_rect}
+            <div
+                class="absolute border-2 border-dashed pointer-events-none {appState.selectedTool ===
+                Tools.AddFog
+                    ? 'border-base-content bg-base-content/30'
+                    : 'border-info bg-info/10'}"
+                style="left: {Math.min(fog_rect.x1, fog_rect.x2) * size +
+                    x_offset}px; top: {Math.min(fog_rect.y1, fog_rect.y2) *
+                    size +
+                    y_offset}px; width: {(Math.abs(fog_rect.x2 - fog_rect.x1) +
+                    1) *
+                    size}px; height: {(Math.abs(fog_rect.y2 - fog_rect.y1) + 1) *
+                    size}px;"
+            ></div>
+        {/if}
         {#if box}
             <div
                 class="absolute border-2 border-info bg-info/10 pointer-events-none"
@@ -832,6 +884,7 @@
                 if (!editable) return;
                 clickHandler(evt, true);
             }}
+            onmouseup={() => finish_fog_rect()}
             onclick={(evt) => {
                 if (!editable) return;
                 if (

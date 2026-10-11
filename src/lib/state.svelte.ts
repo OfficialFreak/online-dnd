@@ -172,6 +172,10 @@ export function togglePanel(panel: Panel) {
 
 export const fogState = $state({
     selected_player: "all",
+    /** Paint cell by cell or fill a rectangle, Shift draws a rectangle too */
+    shape: "brush" as "brush" | "rect",
+    /** Width of the brush in cells */
+    brush: 1,
 });
 
 export const roller: any = $state({ value: null });

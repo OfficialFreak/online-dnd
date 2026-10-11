@@ -474,6 +474,42 @@
                             {/each}
                         </select>
                     </li>
+                    <li>
+                        <legend
+                            class="-ml-2 fieldset-legend pointer-events-none"
+                            >Pinsel</legend
+                        >
+                        <!-- The menu lays out its direct children in a row -->
+                        <div class="p-0 hover:bg-transparent">
+                            <div class="flex flex-row gap-1">
+                                <div class="join">
+                                    {#each [1, 3, 5] as brush}
+                                        <button
+                                            class="btn btn-xs join-item {fogState.shape ===
+                                                'brush' &&
+                                            fogState.brush === brush
+                                                ? 'btn-info'
+                                                : ''}"
+                                            title="{brush} × {brush} Felder"
+                                            onclick={() => {
+                                                fogState.shape = "brush";
+                                                fogState.brush = brush;
+                                            }}>{brush}</button
+                                        >
+                                    {/each}
+                                </div>
+                                <button
+                                    class="btn btn-xs {fogState.shape === 'rect'
+                                        ? 'btn-info'
+                                        : ''}"
+                                    title="Ein Rechteck aufziehen, geht auch mit gedrückter Shift-Taste"
+                                    onclick={() => (fogState.shape = "rect")}
+                                >
+                                    <i class="fa-regular fa-square"></i> Rechteck
+                                </button>
+                            </div>
+                        </div>
+                    </li>
                     <li class="flex flex-row gap-1 mt-1">
                         <div class="tooltip tooltip-bottom p-0 rounded-box">
                             <div class="tooltip-content">
