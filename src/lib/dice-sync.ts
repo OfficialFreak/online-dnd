@@ -173,7 +173,7 @@ function command(
         const timeout = setTimeout(() => {
             channel.removeEventListener("message", listener);
             resolve(null);
-        }, 1000);
+        }, 3000);
         const listener = (event: MessageEvent) => {
             if (event.data?.action !== answer) return;
             clearTimeout(timeout);
