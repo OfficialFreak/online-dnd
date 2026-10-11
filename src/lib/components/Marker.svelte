@@ -9,6 +9,7 @@
         dialogs,
         gameState,
         getCharacter,
+        initiative_bonus,
         remove_from_initiative,
         Tools,
     } from "../state.svelte";
@@ -195,6 +196,14 @@
     );
 
     let hp_change: number | null = $state(null);
+    /** Typed in by the DM for markers whose initiative bonus isn't known */
+    let initiative_value: number | null = $state(null);
+
+    function enter_initiative() {
+        if (initiative_value == null || !Number.isFinite(initiative_value)) return;
+        add_to_initiative(scene_marker, Math.round(initiative_value));
+        initiative_value = null;
+    }
     let has_hp = $derived(scene_marker.hp != null || scene_marker.max_hp != null);
 
     /** Damage is negative. At 0 hit points the creature falls unconscious. */
@@ -568,15 +577,40 @@
                 </fieldset>
                 <div class="grid grid-cols-2 gap-2">
                     {#if !gameState.scene?.state.initiative.some((initiative) => initiative[1] === scene_marker.name)}
-                        <!-- svelte-ignore node_invalid_placement_ssr -->
-                        <button
-                            class="btn btn-sm btn-soft btn-info"
-                            title="Würfelt die Initiative für diesen Marker"
-                            onclick={() => add_to_initiative(scene_marker)}
-                        >
-                            <i class="fa-solid fa-plus"></i>
-                            Initiative
-                        </button>
+                        {#if initiative_bonus(scene_marker) !== null}
+                            <!-- svelte-ignore node_invalid_placement_ssr -->
+                            <button
+                                class="btn btn-sm btn-soft btn-info"
+                                title="Würfelt die Initiative mit dem Bonus aus dem Charakterbogen oder den Werten"
+                                onclick={() => add_to_initiative(scene_marker)}
+                            >
+                                <i class="fa-solid fa-dice-d20"></i>
+                                Initiative
+                            </button>
+                        {:else}
+                            <!-- Without a known bonus a roll would only look right -->
+                            <div class="join">
+                                <input
+                                    type="number"
+                                    class="input input-sm join-item min-w-0 flex-1"
+                                    placeholder="Initiative"
+                                    aria-label="Initiative"
+                                    bind:value={initiative_value}
+                                    onkeydown={(event) => {
+                                        if (event.key === "Enter") enter_initiative();
+                                    }}
+                                />
+                                <!-- svelte-ignore node_invalid_placement_ssr -->
+                                <button
+                                    class="btn btn-sm btn-soft btn-info join-item"
+                                    aria-label="In die Initiative eintragen"
+                                    disabled={initiative_value == null}
+                                    onclick={enter_initiative}
+                                >
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        {/if}
                     {:else}
                         <!-- svelte-ignore node_invalid_placement_ssr -->
                         <button

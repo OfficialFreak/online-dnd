@@ -6,7 +6,7 @@
         gameState,
         get_sorted_initiative,
         record_undo,
-        roll_npc_initiative,
+        roll_known_initiative,
         update_initiative,
     } from "$lib/state.svelte";
     import { flip } from "svelte/animate";
@@ -65,12 +65,13 @@
             {#if gameState.dm}
                 <div class="tooltip tooltip-bottom">
                     <div class="tooltip-content">
-                        Initiative für alle NPCs würfeln
+                        Initiative würfeln für alle mit bekanntem Bonus:
+                        Charaktere und Monster aus der Bibliothek
                     </div>
                     <button
                         class="btn btn-sm btn-ghost btn-square"
-                        aria-label="Initiative für alle NPCs würfeln"
-                        onclick={roll_npc_initiative}
+                        aria-label="Initiative würfeln"
+                        onclick={roll_known_initiative}
                     >
                         <i class="fa-solid fa-dice-d20"></i>
                     </button>

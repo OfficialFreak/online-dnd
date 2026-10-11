@@ -350,49 +350,80 @@ export async function update_initiative() {
     );
 }
 
-/** The initiative bonus of a marker: its character's or its monster's */
-export function initiative_bonus(marker: Pick<MarkerTemplate, "name" | "monster">) {
+/**
+ * The initiative bonus of a marker: its character's from D&D Beyond or its monster's stat
+ * block. Null for other markers, rolling d20 + 0 for them would only look right.
+ */
+export function initiative_bonus(
+    marker: Pick<MarkerTemplate, "name" | "monster">,
+): number | null {
     const character = getCharacter(marker.name);
     if (character) return character.actualInitiative as number;
-    return marker.monster?.initiative_bonus ?? 0;
+    return marker.monster?.initiative_bonus ?? null;
 }
 
-/** Rolls initiative for a marker that isn't in the initiative yet */
-export async function add_to_initiative(marker: Pick<MarkerTemplate, "name" | "monster">) {
+/**
+ * Puts a marker that isn't in the initiative yet into it. Without a value it is rolled,
+ * which needs a known bonus.
+ */
+export async function add_to_initiative(
+    marker: Pick<MarkerTemplate, "name" | "monster">,
+    value?: number,
+) {
     if (!gameState.scene) return;
     if (gameState.scene.state.initiative.some((entry) => entry[1] === marker.name)) return;
-    record_undo();
     const bonus = initiative_bonus(marker);
-    const { roll, total } = roll_initiative(bonus);
+    if (value === undefined && bonus === null) return;
+    record_undo();
+    let total = value;
+    if (total === undefined) {
+        const rolled = roll_initiative(bonus!);
+        total = rolled.total;
+        notify(
+            `${marker.name}: Initiative ${total} (${rolled.roll} ${bonus! < 0 ? "−" : "+"} ${Math.abs(bonus!)})`,
+            MessageTypes.Info,
+            3000,
+        );
+    }
     gameState.scene.state.initiative.push([total, marker.name]);
-    notify(
-        `${marker.name}: Initiative ${total} (${roll} ${bonus < 0 ? "−" : "+"} ${Math.abs(bonus)})`,
-        MessageTypes.Info,
-        3000,
-    );
     await appState.ws?.send(InitiativeEntries.create([[total, marker.name]]));
 }
 
-/** Rolls initiative for all markers that aren't characters and aren't in the initiative yet */
-export async function roll_npc_initiative() {
+/**
+ * Rolls initiative for the markers on the map that aren't in it yet and whose bonus is
+ * known: characters and monsters from the library. The DM enters the others' in their menu.
+ */
+export async function roll_known_initiative() {
     const scene = gameState.scene;
     if (!scene) return;
-    const npcs = scene.state.markers.filter(
-        (marker) =>
-            !getCharacter(marker.name) &&
-            !scene.state.initiative.some((entry) => entry[1] === marker.name),
+    const missing = scene.state.markers.filter(
+        (marker) => !scene.state.initiative.some((entry) => entry[1] === marker.name),
     );
-    if (npcs.length === 0) {
-        notify("Alle NPCs sind schon in der Initiative", MessageTypes.Info, 2000);
+    const entries: [number, string][] = [];
+    for (const marker of missing) {
+        const bonus = initiative_bonus(marker);
+        if (bonus !== null) entries.push([roll_initiative(bonus).total, marker.name]);
+    }
+    const unknown = missing.length - entries.length;
+    const skipped =
+        unknown === 1
+            ? "Ein Marker ohne bekannten Bonus, trag seine Initiative in seinem Menü ein"
+            : `${unknown} Marker ohne bekannten Bonus, trag ihre Initiative in ihrem Menü ein`;
+    if (entries.length === 0) {
+        notify(
+            unknown > 0 ? skipped : "Alle sind schon in der Initiative",
+            MessageTypes.Info,
+            unknown > 0 ? 4000 : 2000,
+        );
         return;
     }
     record_undo();
-    const entries: [number, string][] = npcs.map((marker) => [
-        roll_initiative(initiative_bonus(marker)).total,
-        marker.name,
-    ]);
     scene.state.initiative.push(...entries);
-    notify(`Initiative für ${npcs.length} NPCs gewürfelt`, MessageTypes.Success, 2000);
+    notify(
+        `Initiative für ${entries.length} gewürfelt` + (unknown > 0 ? `. ${skipped}` : ""),
+        MessageTypes.Success,
+        unknown > 0 ? 4000 : 2000,
+    );
     await appState.ws?.send(InitiativeEntries.create(entries));
 }
 
