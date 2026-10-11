@@ -598,6 +598,8 @@
             move_group(offsetX / w, offsetY / h, true);
         },
         bounds: "parent",
+        // Selecting text or clicking in a marker's menu doesn't move the marker
+        cancel: ".dropdown-content",
         onDrag: throttledMarkerDrag,
         legacyTranslate: false,
         grid: appState.ctrlPressed ? grid : undefined,
