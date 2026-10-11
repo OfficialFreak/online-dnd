@@ -628,6 +628,17 @@
                 </button>
             </div>
             <div class="tooltip tooltip-right">
+                <div class="tooltip-content">Spieler verwalten</div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box"
+                    aria-label="Spieler verwalten"
+                    onclick={() => dialogs.users?.open()}
+                >
+                    <i class="fa-solid fa-users-gear"></i>
+                </button>
+            </div>
+            <div class="tooltip tooltip-right">
                 <div class="tooltip-content">Dateien</div>
                 <button
                     tabindex="0"

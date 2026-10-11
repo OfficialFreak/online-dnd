@@ -17,6 +17,7 @@
         dialogs,
         remember_roll,
         assetState,
+        adminState,
         get_own_character,
         resetGamestate,
     } from "../lib/state.svelte";
@@ -52,6 +53,7 @@
     import MarkerDialog from "$lib/components/MarkerDialog.svelte";
     import MonsterDialog from "$lib/components/MonsterDialog.svelte";
     import AssetBrowser from "$lib/components/AssetBrowser.svelte";
+    import UserAdminDialog from "$lib/components/UserAdminDialog.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
@@ -528,6 +530,9 @@
                 case MessageType.STOP_MUSIC:
                     stop_music();
                     break;
+                case MessageType.USER_ADMIN:
+                    adminState.users = message.users;
+                    break;
                 case MessageType.ASSET_LIST:
                     assetState.assets = message.assets;
                     break;
@@ -1000,6 +1005,7 @@
     <MarkerDialog />
     <MonsterDialog />
     <AssetBrowser />
+    <UserAdminDialog />
     <dialog
         bind:this={modals.characterImportModal}
         class="modal scrollbar-gutter-affected"

@@ -355,6 +355,53 @@ export class StopMusic {
     }
 }
 
+export class ListUsers {
+    static create(): string {
+        return JSON.stringify({
+            type: "list_users"
+        });
+    }
+}
+
+export class CreateUser {
+    static create(name: string, dm: boolean): string {
+        return JSON.stringify({
+            type: "create_user",
+            name: name,
+            dm: dm
+        });
+    }
+}
+
+export class SetDm {
+    static create(name: string, dm: boolean): string {
+        return JSON.stringify({
+            type: "set_dm",
+            name: name,
+            dm: dm
+        });
+    }
+}
+
+export class RegenerateKey {
+    /** The old key stops working right away */
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "regenerate_key",
+            name: name
+        });
+    }
+}
+
+export class DeleteUser {
+    static create(name: string): string {
+        return JSON.stringify({
+            type: "delete_user",
+            name: name
+        });
+    }
+}
+
 export class CombatState {
     static create(active: boolean): string {
         return JSON.stringify({

@@ -166,7 +166,20 @@ export const dialogs: {
         /** Choosing an uploaded file, null if none was chosen */
         pick(kinds: AssetKind[]): Promise<string | null>;
     } | null;
-} = { scene: null, marker: null, monster: null, assets: null };
+    /** Managing players and their keys */
+    users: { open(): void } | null;
+} = { scene: null, marker: null, monster: null, assets: null, users: null };
+
+export type AdminUser = {
+    name: string;
+    dm: boolean;
+    key?: string | null;
+    online: boolean;
+    has_character: boolean;
+};
+
+/** All users with their keys, only DMs get them */
+export const adminState = $state({ users: [] as AdminUser[] });
 
 /** The files on the server, the DM asks for them in the file browser */
 export const assetState = $state({ assets: [] as AssetInfo[] });

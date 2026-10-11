@@ -3,6 +3,7 @@ import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
 import type { AssetInfo } from "$lib/assets";
 import type { Sound } from "$lib/audio.svelte";
+import type { AdminUser } from "$lib/state.svelte";
 
 // Define enums for message types and event types
 export enum MessageType {
@@ -32,7 +33,8 @@ export enum MessageType {
     ASSET_LIST = "asset_list",
     SOUND_LIB = "sound_lib",
     PLAY_SOUND = "play_sound",
-    STOP_MUSIC = "stop_music"
+    STOP_MUSIC = "stop_music",
+    USER_ADMIN = "user_admin"
 }
 
 export enum EventType {
@@ -286,6 +288,11 @@ export interface StopMusic extends BaseServerMessage {
     type: MessageType.STOP_MUSIC;
 }
 
+export interface UserAdmin extends BaseServerMessage {
+    type: MessageType.USER_ADMIN;
+    users: AdminUser[];
+}
+
 export type AnyRoll = RollResult | CheckResult | SaveResult;
 
 /** The latest rolls, sent after connecting */
@@ -323,7 +330,8 @@ export type ServerMessage =
     | AssetList
     | SoundLib
     | PlaySound
-    | StopMusic;
+    | StopMusic
+    | UserAdmin;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -393,6 +401,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as PlaySound;
         case MessageType.STOP_MUSIC:
             return data as StopMusic;
+        case MessageType.USER_ADMIN:
+            return data as UserAdmin;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }
