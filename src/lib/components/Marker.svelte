@@ -408,6 +408,30 @@
                                         }}
                                     />
                                 </div>
+                                {#if scene_marker.max_hp}
+                                    {@const ratio = Math.max(
+                                        0,
+                                        Math.min(
+                                            1,
+                                            (scene_marker.hp ??
+                                                scene_marker.max_hp) /
+                                                scene_marker.max_hp,
+                                        ),
+                                    )}
+                                    <div
+                                        class="h-1.5 w-full rounded-full bg-base-content/10 overflow-hidden"
+                                    >
+                                        <div
+                                            class="h-full rounded-full transition-all {ratio >
+                                            0.5
+                                                ? 'bg-success'
+                                                : ratio > 0.25
+                                                  ? 'bg-warning'
+                                                  : 'bg-error'}"
+                                            style="width: {ratio * 100}%"
+                                        ></div>
+                                    </div>
+                                {/if}
                                 <div class="join">
                                     <input
                                         type="number"
@@ -450,18 +474,23 @@
                             {@const active = scene_marker.status_effects
                                 ?.map(normalize_condition)
                                 .includes(effect)}
+                            {@const color = CONDITIONS[effect].color}
                             <!-- svelte-ignore node_invalid_placement_ssr -->
                             <button
                                 class="btn btn-xs gap-1 px-1.5 justify-start {active
-                                    ? 'btn-neutral'
-                                    : 'btn-ghost'}"
+                                    ? 'font-semibold'
+                                    : 'btn-ghost font-normal'}"
+                                style={active
+                                    ? `background: color-mix(in srgb, ${color} 30%, transparent); border-color: ${color};`
+                                    : ""}
                                 aria-pressed={active}
                                 onclick={() => toggle_condition(effect)}
                             >
                                 <span
-                                    class="w-2 h-2 rounded-full"
-                                    style="background: {CONDITIONS[effect]
-                                        .color}"
+                                    class="w-2 h-2 shrink-0 rounded-full {active
+                                        ? 'ring-2 ring-offset-1 ring-offset-base-100'
+                                        : ''}"
+                                    style="background: {color}; --tw-ring-color: {color}"
                                 ></span>
                                 <span class="truncate"
                                     >{CONDITIONS[effect].label}</span
