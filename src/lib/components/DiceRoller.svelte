@@ -79,12 +79,29 @@
     }
 
     /** Throws the dice and waits until they all landed */
-    function throw_dice(
+    async function throw_dice(
         notation: string[],
-        options: Record<string, unknown> = {},
+        options: { theme?: string; themeColor?: string } = {},
     ) {
+        // dice-box only throws dice in themes it loaded before
+        let theme = options.theme ?? "default";
+        try {
+            await diceBox.loadTheme(theme);
+        } catch (e) {
+            console.error(`Loading the dice theme ${theme} failed`, e);
+        }
+        if (!diceBox.themesLoadedData?.[theme]?.diceAvailable)
+            theme = "default";
+
         const landed = new Promise<void>((resolve) => (on_landed = resolve));
-        diceBox.roll(notation, options);
+        try {
+            diceBox.roll(notation, { ...options, theme });
+        } catch (e) {
+            // The dice after these must not wait forever
+            console.error("Throwing dice failed", e);
+            on_landed = null;
+            return;
+        }
         return landed;
     }
 
