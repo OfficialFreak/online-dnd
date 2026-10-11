@@ -1,8 +1,6 @@
-import { open } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
-import { fetch } from "@tauri-apps/plugin-http";
 import { fileTypeFromBuffer } from "file-type";
 import { appState } from "./state.svelte";
+import { in_tauri } from "./platform";
 import { MessageTypes, notify } from "./notifications.svelte";
 
 // Keep in sync with MAX_UPLOAD_SIZE in dnd-online-server/src/constants.rs
@@ -18,6 +16,7 @@ async function upload_file(
     // Read the file as binary
     let fileContent: Uint8Array;
     try {
+        const { readFile } = await import("@tauri-apps/plugin-fs");
         fileContent = await readFile(selectedFilePath);
     } catch (e) {
         console.error("Reading upload failed", e);
@@ -70,10 +69,13 @@ async function upload_content(
     const blob = new Blob([fileContent]);
     formData.append("file", blob, selectedFileName);
 
-    // Make the request using Tauri's fetch
+    // Tauri's fetch in the desktop app, it isn't held back by the browser's CORS checks
+    const http_fetch = in_tauri
+        ? (await import("@tauri-apps/plugin-http")).fetch
+        : window.fetch.bind(window);
     let response: Response;
     try {
-        response = await fetch(
+        response = await http_fetch(
             `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets?key=${encodeURIComponent(appState.token)}`,
             {
                 method: "POST",
@@ -158,8 +160,29 @@ export async function upload_path(path: string): Promise<string | null> {
 
 const AUDIO_EXTENSIONS = ["mp3", "ogg", "opus", "wav", "m4a", "flac"];
 
-/** Lets the user pick an image or video, or an audio file, null if they canceled */
-export async function pick_file(kind: "visual" | "audio" = "visual") {
+/** The browser's file picker, there are no paths there */
+function choose_file(accept: string): Promise<File | null> {
+    return new Promise((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = accept;
+        input.addEventListener("change", () => resolve(input.files?.[0] ?? null));
+        input.addEventListener("cancel", () => resolve(null));
+        input.click();
+    });
+}
+
+/**
+ * Lets the user pick an image or video, or an audio file, null if they canceled. A path
+ * in the desktop app, a File in a browser.
+ */
+export async function pick_file(
+    kind: "visual" | "audio" = "visual",
+): Promise<string | File | null> {
+    if (!in_tauri) {
+        return choose_file(kind === "audio" ? "audio/*" : "image/*,video/*");
+    }
+    const { open } = await import("@tauri-apps/plugin-dialog");
     if (kind === "audio") {
         return await open({
             multiple: false,
@@ -193,10 +216,16 @@ export async function pick_file(kind: "visual" | "audio" = "visual") {
     });
 }
 
+/** Uploads a picked file, its path in the desktop app or the File in a browser */
+export async function upload_picked(picked: string | File): Promise<string | null> {
+    if (typeof picked === "string") return await upload_path(picked);
+    return await upload_bytes(new Uint8Array(await picked.arrayBuffer()), picked.name);
+}
+
 /** Uploads the file at path, or one the user picks without a path. Null if canceled or failed. */
 export async function upload(path?: string): Promise<string | null> {
     const selected = path ?? (await pick_file());
     // User canceled the selection
     if (selected === null) return null;
-    return await upload_path(selected);
+    return await upload_picked(selected);
 }

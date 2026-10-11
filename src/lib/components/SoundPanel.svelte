@@ -11,7 +11,7 @@
         PutSound,
         StopMusic,
     } from "$lib/types/messaging/client_messages";
-    import { file_stem_of, pick_file, upload_path } from "$lib/upload.svelte";
+    import { file_stem_of, pick_file, upload_picked } from "$lib/upload.svelte";
     import { uploadState } from "$lib/upload.svelte";
     import SoundLibrary from "./SoundLibrary.svelte";
 
@@ -35,13 +35,13 @@
     let effects = $derived(sounds_of("effect"));
 
     async function add_sound() {
-        const path = await pick_file("audio");
-        if (path === null) return;
-        const asset = await upload_path(path);
+        const picked = await pick_file("audio");
+        if (picked === null) return;
+        const asset = await upload_picked(picked);
         if (!asset) return;
         appState.ws?.send(
             PutSound.create(
-                file_stem_of(path),
+                file_stem_of(typeof picked === "string" ? picked : picked.name),
                 asset,
                 await guess_sound_kind(asset),
             ),

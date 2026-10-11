@@ -6,8 +6,8 @@ import type {
     User,
     MarkerTemplate,
 } from "$lib/types/messaging/server_messages";
-import { load } from "@tauri-apps/plugin-store";
-import type WebSocket from "@tauri-apps/plugin-websocket";
+import { load_store, type KeyValueStore } from "./platform";
+import type { GameSocket } from "./connection.svelte";
 import { circOut } from "svelte/easing";
 import { Tween } from "svelte/motion";
 import { SvelteSet } from "svelte/reactivity";
@@ -39,8 +39,8 @@ export enum Tools {
 
 export const appState = $state({
     token: null as string | null,
-    ws: null as WebSocket | null,
-    store: null as any,
+    ws: null as GameSocket | null,
+    store: null as any as KeyValueStore,
     secure: true,
     baseUrl: "dnd.wiegraebe.dev",
     selectedTool: Tools.None,
@@ -229,7 +229,7 @@ export const rollState = $state({ mode: "normal" as RollMode });
 
 export async function ensureStore() {
     if (!appState.store) {
-        appState.store = await load("store.json", { autoSave: false });
+        appState.store = await load_store();
     }
 }
 

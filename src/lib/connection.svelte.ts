@@ -1,5 +1,57 @@
-import WebSocket from "@tauri-apps/plugin-websocket";
 import { appState } from "./state.svelte";
+import { in_tauri } from "./platform";
+
+/** What the WebSocket plugin of Tauri passes to listeners */
+export type SocketMessage =
+    | { type: "Text"; data: string }
+    | { type: "Binary" | "Ping" | "Pong"; data: number[] }
+    | { type: "Close"; data: unknown };
+
+/** The connection to the server, Tauri's WebSocket plugin or the browser's WebSocket */
+export type GameSocket = {
+    send(data: string): Promise<void>;
+    addListener(listener: (message: SocketMessage) => void): () => void;
+    disconnect(): Promise<void>;
+};
+
+/** The browser's WebSocket, shaped like Tauri's plugin */
+function browser_socket(url: string): Promise<GameSocket> {
+    return new Promise((resolve, reject) => {
+        const socket = new WebSocket(url);
+        const listeners = new Set<(message: SocketMessage) => void>();
+        const game_socket: GameSocket = {
+            async send(data) {
+                socket.send(data);
+            },
+            addListener(listener) {
+                listeners.add(listener);
+                return () => listeners.delete(listener);
+            },
+            async disconnect() {
+                socket.close();
+            },
+        };
+        socket.addEventListener("message", (event) => {
+            for (const listener of listeners) {
+                listener({ type: "Text", data: String(event.data) });
+            }
+        });
+        socket.addEventListener("close", (event) => {
+            for (const listener of listeners) {
+                listener({
+                    type: "Close",
+                    data: { code: event.code, reason: event.reason },
+                });
+            }
+        });
+        socket.addEventListener("open", () => resolve(game_socket), {
+            once: true,
+        });
+        socket.addEventListener("error", () => reject(new Error("Connecting failed")), {
+            once: true,
+        });
+    });
+}
 
 async function connect(url: string) {
     if (appState.ws) {
@@ -8,7 +60,14 @@ async function connect(url: string) {
         } catch {}
     }
     try {
-        appState.ws = await WebSocket.connect(url);
+        if (in_tauri) {
+            const { default: TauriSocket } = await import(
+                "@tauri-apps/plugin-websocket"
+            );
+            appState.ws = (await TauriSocket.connect(url)) as GameSocket;
+        } else {
+            appState.ws = await browser_socket(url);
+        }
 
         // Save original send method
         let originalSend = appState.ws.send.bind(appState.ws);

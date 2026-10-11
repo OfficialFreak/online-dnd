@@ -24,6 +24,7 @@
         selection,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
+    import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
         audioState,
@@ -51,7 +52,6 @@
     } from "$lib/types/messaging/server_messages";
     // @ts-ignore
     import confetti from "canvas-confetti";
-    import { listen } from "@tauri-apps/api/event";
     import { Tween } from "svelte/motion";
     import { circOut } from "svelte/easing";
     import SceneDialog from "$lib/components/SceneDialog.svelte";
@@ -67,7 +67,6 @@
     import DiceSkinPicker from "$lib/components/DiceSkinPicker.svelte";
     import { goto } from "$app/navigation";
     import { Character } from "$lib/types/character";
-    import { invoke } from "@tauri-apps/api/core";
     import { setActivity, start, stop } from "tauri-plugin-drpc";
     import { Activity, Assets, Timestamps } from "tauri-plugin-drpc/activity";
 
@@ -78,7 +77,8 @@
 
     let isDev: boolean = $state(false);
 
-    const appWindow = getCurrentWindow();
+    // Only the desktop app has a window of its own, a browser tab has its own buttons
+    const appWindow = in_tauri ? getCurrentWindow() : null;
     let url = $derived(
         appState.token
             ? `${appState.secure ? "wss://" : "ws://"}${appState.baseUrl}/ws?key=${encodeURIComponent(appState.token)}`
@@ -256,6 +256,9 @@
 
         confetti_function = confetti.create(confetti_canvas, { resize: true });
 
+        // The rest is for the desktop app
+        if (!in_tauri) return;
+
         await getCurrentWebview().onDragDropEvent((event) => {
             const payload = event.payload;
             if (payload.type === "leave") {
@@ -272,7 +275,7 @@
         });
 
         await start("1394274196603011223");
-        isDev = await invoke("is_dev");
+        isDev = (await invoke_tauri<boolean>("is_dev")) ?? false;
         if (isDev) {
             setDiscordStatus(
                 choose([
@@ -286,6 +289,7 @@
     });
 
     function setDiscordStatus(message: string, dev: boolean) {
+        if (!in_tauri) return;
         const assets = new Assets()
             .setLargeImage(!dev ? "favicon" : "dev_favicon")
             .setLargeText("How to play DND Online fast");
@@ -512,7 +516,7 @@
                             4000,
                         );
                         // Everything again, DMs get more than players
-                        ws.send(InitialMessage.create());
+                        ws.send(InitialMessage.create(!in_tauri));
                     }
                     break;
                 }
@@ -630,6 +634,12 @@
                 case MessageType.COMBAT_STATE:
                     gameState.combat = message.active;
                     break;
+                case MessageType.MOUSE_POSITION:
+                    show_pointer(message.user, message.x, message.y);
+                    break;
+                case MessageType.MARKER_POSITION:
+                    move_marker_live(message.marker_name, message.x, message.y);
+                    break;
                 case MessageType.ROLL_HISTORY:
                     // Rolls the server doesn't have for this client stay
                     gameState.rolls = [
@@ -640,7 +650,7 @@
             }
         });
         // Request initial
-        ws.send(InitialMessage.create());
+        ws.send(InitialMessage.create(!in_tauri));
         return unlisten;
     });
 
@@ -718,41 +728,42 @@
 
     let updating = $state(false);
 
-    listen("update-started", () => {
+    listen_tauri("update-started", () => {
         updating = true;
     });
 
-    listen("backend-error", (event: { payload: string }) => {
-        notify(event.payload, MessageTypes.Error, 0);
-        console.log(`Backend Error: ${event.payload}`);
+    listen_tauri<string>("backend-error", (payload) => {
+        notify(payload, MessageTypes.Error, 0);
+        console.log(`Backend Error: ${payload}`);
     });
 
-    listen("backend-debug", (event: { payload: string }) => {
-        console.log(`Backend Debug: ${event.payload}`);
+    listen_tauri<string>("backend-debug", (payload) => {
+        console.log(`Backend Debug: ${payload}`);
     });
 
-    listen(
+    /** A live position over QUIC in the desktop app, over the WebSocket in a browser */
+    function move_marker_live(marker_name: string, x: number, y: number) {
+        // The marker may be gone already, e.g. after a scene switch mid-drag
+        const marker = gameState.scene?.state.markers.find(
+            (marker) => marker.name === marker_name,
+        );
+        if (!marker) return;
+        marker.x.target = x;
+        marker.y.target = y;
+    }
+
+    listen_tauri<{ x: number; y: number; name: string }>(
         "mouse-position",
-        (event: { payload: { x: number; y: number; name: string } }) => {
-            // Without a name it comes from an older client
-            show_pointer(event.payload.name, event.payload.x, event.payload.y);
-        },
+        // Without a name it comes from an older client
+        (payload) => show_pointer(payload.name, payload.x, payload.y),
     );
 
-    listen(
+    listen_tauri<{ x: number; y: number; marker_name: string }>(
         "marker-position",
-        (event: { payload: { x: number; y: number; marker_name: string } }) => {
-            // The marker may be gone already, e.g. after a scene switch mid-drag
-            const marker = gameState.scene?.state.markers.find(
-                (marker) => marker.name === event.payload.marker_name,
-            );
-            if (!marker) return;
-            marker.x.target = event.payload.x;
-            marker.y.target = event.payload.y;
-        },
+        (payload) => move_marker_live(payload.marker_name, payload.x, payload.y),
     );
 
-    invoke("frontend_ready");
+    invoke_tauri("frontend_ready");
 
     let cw = $state();
     let ch = $state();
@@ -774,7 +785,7 @@
 <svelte:window
     onbeforeunload={async () => {
         await appState.ws?.disconnect();
-        await stop();
+        if (in_tauri) await stop();
     }}
 />
 
@@ -958,67 +969,71 @@
                 </div>
             </div>
         {/if}
-        {#await getVersion() then version}
-            <span
-                class="self-center text-base-content opacity-0 peer-hover:opacity-100 transition-opacity"
-                >{version} {isDev ? "Development Build" : ""}
-            </span>
-        {/await}
+        {#if in_tauri}
+            {#await getVersion() then version}
+                <span
+                    class="self-center text-base-content opacity-0 peer-hover:opacity-100 transition-opacity"
+                    >{version} {isDev ? "Development Build" : ""}
+                </span>
+            {/await}
+        {/if}
     </div>
 
-    <div class="flex justify-center transition-opacity">
-        <button
-            class="titlebar-button"
-            id="titlebar-minimize"
-            onclick={appWindow.minimize}
-            aria-label="Minimize"
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                ><path
-                    fill="var(--color-base-content)"
-                    d="M19 13H5v-2h14z"
-                /></svg
+    {#if appWindow}
+        <div class="flex justify-center transition-opacity">
+            <button
+                class="titlebar-button"
+                id="titlebar-minimize"
+                onclick={() => appWindow.minimize()}
+                aria-label="Minimize"
             >
-        </button>
-        <button
-            class="titlebar-button"
-            id="titlebar-maximize"
-            onclick={appWindow.toggleMaximize}
-            aria-label="Maximize"
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                ><path
-                    fill="var(--color-base-content)"
-                    d="M19 3H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 2v14H5V5z"
-                /></svg
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    ><path
+                        fill="var(--color-base-content)"
+                        d="M19 13H5v-2h14z"
+                    /></svg
+                >
+            </button>
+            <button
+                class="titlebar-button"
+                id="titlebar-maximize"
+                onclick={() => appWindow.toggleMaximize()}
+                aria-label="Maximize"
             >
-        </button>
-        <button
-            class="titlebar-button"
-            id="titlebar-close"
-            onclick={appWindow.close}
-            aria-label="Close"
-        >
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                ><path
-                    fill="var(--color-base-content)"
-                    d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
-                /></svg
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    ><path
+                        fill="var(--color-base-content)"
+                        d="M19 3H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m0 2v14H5V5z"
+                    /></svg
+                >
+            </button>
+            <button
+                class="titlebar-button"
+                id="titlebar-close"
+                onclick={() => appWindow.close()}
+                aria-label="Close"
             >
-        </button>
-    </div>
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    ><path
+                        fill="var(--color-base-content)"
+                        d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"
+                    /></svg
+                >
+            </button>
+        </div>
+    {/if}
 </div>
 <dialog bind:this={theme_modal} class="modal scrollbar-gutter-affected">
     <div class="modal-box">

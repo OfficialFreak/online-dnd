@@ -4,7 +4,7 @@
     import { goto } from "$app/navigation";
     import { appState, ensureStore } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
-    import { invoke } from "@tauri-apps/api/core";
+    import { invoke_tauri } from "$lib/platform";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
 
     let token: string = $state("");
@@ -50,7 +50,7 @@
         } else {
             loading = false;
         }
-        invoke("close_splashscreen");
+        invoke_tauri("close_splashscreen");
     });
 </script>
 

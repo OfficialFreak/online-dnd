@@ -17,7 +17,7 @@
     // @ts-ignore
     import throttle from "just-throttle";
     import debounce from "just-debounce-it";
-    import { invoke } from "@tauri-apps/api/core";
+    import { send_marker_position, send_pointer } from "$lib/live";
     import { fade } from "svelte/transition";
     import {
         AddDrawing,
@@ -206,7 +206,7 @@
 
     let throttled = throttle(
         (x: number, y: number) => {
-            invoke("send_mouse_position", { x: x, y: y, name: gameState.name });
+            send_pointer(x, y);
         },
         11, // 90 Hz
         { leading: false, trailing: true },
@@ -221,11 +221,7 @@
             if (!appState.ws || !marker) return;
             marker.x.set(offsetX / w, { duration: 0 });
             marker.y.set(offsetY / h, { duration: 0 });
-            invoke("send_marker_position", {
-                x: offsetX / w,
-                y: offsetY / h,
-                markerName: currentNode.id,
-            });
+            send_marker_position(offsetX / w, offsetY / h, currentNode.id);
             move_group(offsetX / w, offsetY / h, false);
         },
         11, // 90 Hz
@@ -564,11 +560,7 @@
                     MarkerFreed.create(member.marker.name, new_x, new_y),
                 );
             } else {
-                invoke("send_marker_position", {
-                    x: new_x,
-                    y: new_y,
-                    markerName: member.marker.name,
-                });
+                send_marker_position(new_x, new_y, member.marker.name);
             }
         }
         if (final) {

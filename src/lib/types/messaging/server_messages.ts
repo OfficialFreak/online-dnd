@@ -38,7 +38,9 @@ export enum MessageType {
     STOP_MUSIC = "stop_music",
     USER_ADMIN = "user_admin",
     TABLETOP_AUDIO = "tabletop_audio",
-    SOUND_IMPORT_FAILED = "sound_import_failed"
+    SOUND_IMPORT_FAILED = "sound_import_failed",
+    MOUSE_POSITION = "mouse_position",
+    MARKER_POSITION = "marker_position"
 }
 
 export enum EventType {
@@ -310,6 +312,21 @@ export interface SoundImportFailed extends BaseServerMessage {
     name: string;
 }
 
+/** Live positions, over the WebSocket only for clients without QUIC */
+export interface MousePosition extends BaseServerMessage {
+    type: MessageType.MOUSE_POSITION;
+    user: string;
+    x: number;
+    y: number;
+}
+
+export interface MarkerPosition extends BaseServerMessage {
+    type: MessageType.MARKER_POSITION;
+    marker_name: string;
+    x: number;
+    y: number;
+}
+
 export type AnyRoll = RollResult | CheckResult | SaveResult;
 
 /** The latest rolls, sent after connecting */
@@ -350,7 +367,9 @@ export type ServerMessage =
     | StopMusic
     | UserAdmin
     | TabletopAudio
-    | SoundImportFailed;
+    | SoundImportFailed
+    | MousePosition
+    | MarkerPosition;
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -426,6 +445,10 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as TabletopAudio;
         case MessageType.SOUND_IMPORT_FAILED:
             return data as SoundImportFailed;
+        case MessageType.MOUSE_POSITION:
+            return data as MousePosition;
+        case MessageType.MARKER_POSITION:
+            return data as MarkerPosition;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

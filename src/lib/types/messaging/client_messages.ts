@@ -9,9 +9,11 @@ import type { Drawing } from "$lib/drawings";
 import type { Sound } from "$lib/audio.svelte";
 
 export class InitialMessage {
-    static create(): string {
+    /** web: without QUIC, live positions then come over the WebSocket */
+    static create(web = false): string {
         return JSON.stringify({
             type: "initial",
+            web: web,
         });
     }
 }
@@ -228,10 +230,22 @@ export class TogglePressure {
     }
 }
 
+/** Live positions of clients without QUIC, see live.ts */
 export class MousePosition {
     static create(x: number, y: number): string {
         return JSON.stringify({
             type: "mouse_position",
+            x: x,
+            y: y
+        });
+    }
+}
+
+export class MarkerPosition {
+    static create(x: number, y: number, marker_name: string): string {
+        return JSON.stringify({
+            type: "marker_position",
+            marker_name: marker_name,
             x: x,
             y: y
         });

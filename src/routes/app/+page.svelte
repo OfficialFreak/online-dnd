@@ -17,7 +17,7 @@
     import { connect } from "../../lib/connection.svelte";
     import { RollResult } from "$lib/types/messaging/client_messages";
     import DiceRoller from "$lib/components/DiceRoller.svelte";
-    import { load } from "@tauri-apps/plugin-store";
+    import { load_store } from "$lib/platform";
     import Map from "$lib/components/Map.svelte";
     import DiceChooser from "$lib/components/DiceChooser.svelte";
     import BlurredBackground from "$lib/components/BlurredBackground.svelte";
@@ -43,7 +43,8 @@
     function try_connect() {
         appState.store
             .get("token")
-            .then((tmp_token: { value: string } | null) => {
+            .then((stored) => {
+                const tmp_token = stored as { value: string } | undefined;
                 if (!tmp_token) {
                     notify(
                         "Keine Zugangsdaten gefunden",
@@ -74,7 +75,7 @@
             if (appState.store) {
                 try_connect();
             } else {
-                load("store.json", { autoSave: false }).then((store) => {
+                load_store().then((store) => {
                     appState.store = store;
                     try_connect();
                 });
