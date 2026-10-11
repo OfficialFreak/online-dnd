@@ -2,6 +2,7 @@
     import {
         add_to_initiative,
         appState,
+        record_undo,
         dialogs,
         gameState,
         getCharacter,
@@ -135,6 +136,7 @@
     /** Damage is negative. At 0 hit points the creature falls unconscious. */
     function change_hp(delta: number) {
         if (!delta) return;
+        record_undo();
         const before = scene_marker.hp ?? scene_marker.max_hp ?? 0;
         const after = Math.max(
             0,
@@ -156,6 +158,7 @@
     }
 
     function toggle_condition(effect: string) {
+        record_undo();
         const current = (scene_marker.status_effects ?? []).map(
             normalize_condition,
         );
@@ -321,6 +324,7 @@
                         class="input"
                         placeholder="Grom"
                         bind:value={scene_marker.name}
+                        onfocus={record_undo}
                         oninput={() => {
                             if (gameState.scene?.state.turn === old_name) {
                                 gameState.scene.state.turn = scene_marker.name;
@@ -348,6 +352,7 @@
                         min="1"
                         max={gameState.scene?.columns || Infinity}
                         bind:value={scene_marker.size}
+                        onfocus={record_undo}
                         onchange={() => {
                             if (!(Number(scene_marker.size) > 0)) {
                                 scene_marker.size = 1;
@@ -370,6 +375,7 @@
                                         placeholder="–"
                                         aria-label="Aktuelle Trefferpunkte"
                                         bind:value={scene_marker.hp}
+                                        onfocus={record_undo}
                                         onchange={throttled_save}
                                     />
                                     <span>/</span>
@@ -380,6 +386,7 @@
                                         placeholder="–"
                                         aria-label="Maximale Trefferpunkte"
                                         bind:value={scene_marker.max_hp}
+                                        onfocus={record_undo}
                                         onchange={() => {
                                             scene_marker.hp ??=
                                                 scene_marker.max_hp;
@@ -497,6 +504,7 @@
                             ? "Spieler sehen den Marker wieder"
                             : "Nur DMs sehen den Marker"}
                         onclick={() => {
+                            record_undo();
                             scene_marker.hidden = !scene_marker.hidden;
                             throttled_save();
                         }}
@@ -513,6 +521,7 @@
                         class="btn btn-soft btn-error flex-1"
                         onclick={() => {
                             if (!gameState.scene) return;
+                            record_undo();
                             // Remove from initiative
                             let idx =
                                 gameState.scene.state.initiative.findIndex(

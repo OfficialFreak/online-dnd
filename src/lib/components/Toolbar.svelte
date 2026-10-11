@@ -14,6 +14,10 @@
         togglePanel,
         place_party,
         reset_round,
+        record_undo,
+        undo,
+        redo,
+        undoState,
     } from "../state.svelte";
     import { fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
@@ -78,6 +82,17 @@
 
         if (evt.ctrlKey) {
             appState.ctrlPressed = true;
+        }
+
+        // By the character, not the key: Z and Y are swapped on German keyboards
+        if (evt.ctrlKey && !evt.altKey && gameState.dm) {
+            const key = evt.key.toLowerCase();
+            if (key === "z" || key === "y") {
+                evt.preventDefault();
+                if (key === "z" && !evt.shiftKey) await undo();
+                else await redo();
+                return;
+            }
         }
 
         // Ctrl+C and friends belong to the system, only zoom uses Ctrl
@@ -201,6 +216,7 @@
 
     function fillAll() {
         if (!gameState.scene) return;
+        record_undo();
 
         let edit_players =
             fogState.selected_player === "all"
@@ -219,6 +235,7 @@
 
     function removeAll() {
         if (!gameState.scene) return;
+        record_undo();
 
         let edit_players =
             fogState.selected_player === "all"
@@ -530,6 +547,23 @@
                     }}
                 >
                     <i class="fa-solid fa-location-pin"></i>
+                </button>
+            </div>
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    Rückgängig <kbd class="kbd">Strg</kbd> + <kbd class="kbd"
+                        >Z</kbd
+                    ><br />Wiederholen <kbd class="kbd">Strg</kbd> +
+                    <kbd class="kbd">Y</kbd>
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box"
+                    aria-label="Rückgängig"
+                    disabled={undoState.undo === 0}
+                    onclick={undo}
+                >
+                    <i class="fa-solid fa-arrow-rotate-left"></i>
                 </button>
             </div>
             <div class="tooltip tooltip-right">

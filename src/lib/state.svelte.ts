@@ -1,6 +1,7 @@
 import type {
     SceneData,
     SceneState,
+    Marker,
     Scene,
     User,
     MarkerTemplate,
@@ -284,6 +285,7 @@ export function initiative_bonus(marker: Pick<MarkerTemplate, "name" | "monster"
 export async function add_to_initiative(marker: Pick<MarkerTemplate, "name" | "monster">) {
     if (!gameState.scene) return;
     if (gameState.scene.state.initiative.some((entry) => entry[1] === marker.name)) return;
+    record_undo();
     const bonus = initiative_bonus(marker);
     const { roll, total } = roll_initiative(bonus);
     gameState.scene.state.initiative.push([total, marker.name]);
@@ -308,6 +310,7 @@ export async function roll_npc_initiative() {
         notify("Alle Marker sind schon in der Initiative", MessageTypes.Info, 2000);
         return;
     }
+    record_undo();
     for (const marker of npcs) {
         scene.state.initiative.push([
             roll_initiative(initiative_bonus(marker)).total,
@@ -318,9 +321,109 @@ export async function roll_npc_initiative() {
     await update_initiative();
 }
 
+/** The active scene as it was, to undo changes of the DM */
+type SceneSnapshot = {
+    scene: string;
+    state: Omit<SceneState, "markers"> & { markers: Marker[] };
+};
+
+const MAX_UNDO = 50;
+const undo_stack: SceneSnapshot[] = [];
+const redo_stack: SceneSnapshot[] = [];
+export const undoState = $state({ undo: 0, redo: 0 });
+
+function snapshot(): SceneSnapshot | null {
+    const scene = gameState.scene;
+    if (!scene) return null;
+    return {
+        scene: scene.name,
+        state: {
+            ...$state.snapshot({
+                fog_squares: scene.state.fog_squares,
+                initiative: scene.state.initiative,
+                turn: scene.state.turn,
+                round: scene.state.round,
+            }),
+            // The positions are tweens, only where they are going counts
+            markers: scene.state.markers.map(({ x, y, ...marker }) => ({
+                ...$state.snapshot(marker),
+                x: x.target,
+                y: y.target,
+            })),
+        },
+    };
+}
+
+function update_undo_state() {
+    undoState.undo = undo_stack.length;
+    undoState.redo = redo_stack.length;
+}
+
+/** Remembers the active scene before the DM changes it, so the change can be undone */
+export function record_undo() {
+    if (!gameState.dm) return;
+    const current = snapshot();
+    if (!current) return;
+    // Focusing a field records too, even if nothing changes in the end
+    const latest = undo_stack.at(-1);
+    if (latest && JSON.stringify(latest) === JSON.stringify(current)) return;
+    undo_stack.push(current);
+    if (undo_stack.length > MAX_UNDO) undo_stack.shift();
+    redo_stack.length = 0;
+    update_undo_state();
+}
+
+/** Takes the latest snapshot of the active scene, older scenes' snapshots are dropped */
+function take(stack: SceneSnapshot[]) {
+    let taken = stack.pop();
+    while (taken && taken.scene !== gameState.scene?.name) taken = stack.pop();
+    return taken;
+}
+
+async function restore(saved: SceneSnapshot) {
+    if (!gameState.scene) return;
+    gameState.scene.state = {
+        ...saved.state,
+        markers: saved.state.markers.map((marker) => ({
+            ...marker,
+            x: new Tween(marker.x, { duration: 50, easing: circOut }),
+            y: new Tween(marker.y, { duration: 50, easing: circOut }),
+        })),
+    };
+    // Saving the whole scene sends it to everyone again
+    await save_scene();
+}
+
+export async function undo() {
+    const current = snapshot();
+    const saved = take(undo_stack);
+    if (!saved || !current) {
+        update_undo_state();
+        return;
+    }
+    redo_stack.push(current);
+    update_undo_state();
+    await restore(saved);
+    notify("Rückgängig gemacht", MessageTypes.Neutral, 1000);
+}
+
+export async function redo() {
+    const current = snapshot();
+    const saved = take(redo_stack);
+    if (!saved || !current) {
+        update_undo_state();
+        return;
+    }
+    undo_stack.push(current);
+    update_undo_state();
+    await restore(saved);
+    notify("Wiederhergestellt", MessageTypes.Neutral, 1000);
+}
+
 /** Puts a marker from the library into the active scene. x and y are fractions of the map size. */
 export async function add_marker(marker: MarkerTemplate, x = 0, y = 0) {
     if (!appState.ws || !gameState.scene) return;
+    record_undo();
     let new_marker = {
         ...marker,
         x: new Tween(x, {
@@ -379,6 +482,7 @@ export function character_marker(name: string) {
 export async function place_party() {
     const scene = gameState.scene;
     if (!appState.ws || !scene) return;
+    record_undo();
 
     const party = gameState.characters
         .map((character) => character_marker(character.name))

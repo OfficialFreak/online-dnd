@@ -4,6 +4,7 @@
         activate_scene,
         add_marker,
         appState,
+        record_undo,
         fogState,
         gameState,
         pointers,
@@ -273,6 +274,15 @@
         if ((!appState.mouseDown && !click) || !editable || !gameState.scene)
             return;
 
+        // One undo step per fog stroke
+        if (
+            click &&
+            (appState.selectedTool === Tools.AddFog ||
+                appState.selectedTool === Tools.RemoveFog)
+        ) {
+            record_undo();
+        }
+
         if (
             (appState.selectedTool === Tools.AddFog ||
                 appState.selectedTool === Tools.RemoveFog) &&
@@ -329,6 +339,7 @@
     let dragOptions: DragOptions = $derived({
         onDragStart: ({ currentNode }) => {
             appState.dragging = true;
+            record_undo();
             if (!appState.ws) return;
             appState.ws.send(MarkerLocked.create(currentNode.id));
         },
@@ -532,6 +543,7 @@
               )
             : undefined;
         if (character_marker) {
+            record_undo();
             character_marker.x.set(x);
             character_marker.y.set(y);
             // Saves the position and moves it for everyone else

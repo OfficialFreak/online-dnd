@@ -5,6 +5,7 @@
         current_round,
         gameState,
         get_sorted_initiative,
+        record_undo,
         roll_npc_initiative,
         update_initiative,
     } from "$lib/state.svelte";
@@ -74,6 +75,7 @@
                     axis: "x",
                     onDragStart: () => {
                         dragging_marker = marker.name;
+                        record_undo();
                     },
                     onDragEnd: async (evt: any) => {
                         // Otherwise this banner never animates again
