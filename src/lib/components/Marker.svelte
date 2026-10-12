@@ -226,6 +226,15 @@
               ? { current: marker.hp ?? marker.max_hp, max: marker.max_hp }
               : null,
     );
+    /**
+     * Shown beside a marker on the map while hovering it: players see the names of others'
+     * markers, the DM every name with its hit points. Not over its open menu.
+     */
+    let name_tag = $derived.by(() => {
+        if (!mapUse || banner || menu_open) return null;
+        if (!gameState.dm) return getCharacter(marker.name) ? null : marker.name;
+        return health ? `${marker.name} · ${health.current}/${health.max}` : marker.name;
+    });
     let health_degrees = $derived(
         health ? Math.max(0, Math.min(1, health.current / health.max)) * 360 : 360,
     );
@@ -371,20 +380,18 @@
         event.stopPropagation();
         toggle_selected(marker.name);
     }}
-    class="{banner ? 'group' : ''} {!gameState.dm &&
-    mapUse &&
-    !getCharacter(marker.name)
+    class="{banner ? 'group' : ''} {name_tag
         ? 'tooltip tooltip-right touch-tooltip'
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
     banner
         ? '!pointer-events-none'
-        : ''} {mapUse && !gameState.dm
+        : ''} {mapUse && (!gameState.dm || !banner)
         ? 'hover:isolate hover:z-[9999]'
         : ''} {menu_open
         ? 'menu-open isolate !z-[10000]'
         : ''}"
 >
-    {#if !gameState.dm && !banner && !getCharacter(marker.name)}
+    {#if name_tag}
         <span
             class="tooltip-content justify-center items-center flex !absolute"
             style="border-radius: {1 / gesture_scale}rem; padding: 0 {1 /
@@ -394,7 +401,8 @@
             <span
                 style="font-size: {16 / gesture_scale}px; height: {40 /
                     gesture_scale}px; line-height: {40 / gesture_scale}px;"
-                class="flex justify-center items-center">{marker.name}</span
+                class="flex justify-center items-center whitespace-nowrap"
+                >{name_tag}</span
             >
         </span>
     {/if}
