@@ -184,6 +184,8 @@
     let conditions = $derived(effects.map((effect) => CONDITIONS[effect]));
     // Animations only play on the map, not in the initiative bar or previews
     let animated = $derived(mapUse && !banner);
+    /** Moving effects, everyone can turn them off when they slow their device down */
+    let moving = $derived(animated && appState.motion);
     let image_filter = $derived(
         conditions
             .map((condition) => condition.filter)
@@ -191,7 +193,7 @@
             .join(" "),
     );
     let animation = $derived(
-        animated
+        moving
             ? conditions
                   .map((condition) => condition.animation)
                   .filter(Boolean)
@@ -460,7 +462,8 @@
                 style={image_filter ? `filter: ${image_filter};` : ""}
             />
             {#each conditions as condition}
-                {#if condition.overlay}
+                <!-- Moving flames redraw all the time, only on the map -->
+                {#if condition.overlay && moving}
                     <img
                         alt="Effect Overlay"
                         class={"absolute w-full mask " +
@@ -471,7 +474,11 @@
             {/each}
         </div>
         {#if animated && interactive && effects.length > 0}
-            <ConditionEffects {effects} rounds={marker.effect_rounds} />
+            <ConditionEffects
+                {effects}
+                rounds={marker.effect_rounds}
+                {moving}
+            />
         {/if}
         {#if gameState.dm && mapUse && !selecting_tool}
             <!-- Not a div, the avatar gives those a square shape -->

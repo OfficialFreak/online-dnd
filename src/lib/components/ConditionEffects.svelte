@@ -6,10 +6,13 @@
     let {
         effects,
         rounds = {},
+        moving = true,
     }: {
         effects: string[];
         /** Rounds left of those that end by themselves */
         rounds?: Record<string, number>;
+        /** Without, only the icons show */
+        moving?: boolean;
     } = $props();
 
     const MAX_ICONS = 4;
@@ -17,7 +20,7 @@
 
 <!-- Not a div: daisyUI clips the divs directly inside an avatar -->
 <span class="condition-effects" aria-hidden="true">
-    {#each effects as effect (effect)}
+    {#each moving ? effects : [] as effect (effect)}
         {@const condition = CONDITIONS[effect]}
         {#if condition?.aura}
             <div class="aura" style="--aura: {condition.color}"></div>

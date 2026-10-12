@@ -67,6 +67,8 @@ export const appState = $state({
     controls_open: false,
     /** Weather over the map, everyone can turn it off for themselves */
     show_weather: true,
+    /** Glowing, sparks and flames of conditions, off on devices they slow down */
+    motion: true,
     /** The marker whose menu a click or tap opened */
     open_marker_menu: null as string | null,
     theme: null as string | null,
@@ -224,6 +226,13 @@ export async function set_controls_open(open: boolean) {
     }
     await ensureStore();
     await appState.store.set("controls_open", { value: open });
+    await appState.store.save();
+}
+
+export async function set_motion(motion: boolean) {
+    appState.motion = motion;
+    await ensureStore();
+    await appState.store.set("motion", { value: motion });
     await appState.store.save();
 }
 
