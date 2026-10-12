@@ -129,7 +129,6 @@ function unlock() {
         unlocked.add(audio);
         // A song waiting for this tap plays, the others play a moment of silence
         if (audio === music) {
-            catch_up(audio);
             audio.play().catch(() => {});
             continue;
         }
@@ -218,8 +217,19 @@ function drift(audio: HTMLAudioElement, position: number) {
     return Math.min(apart, length - apart);
 }
 
-/** Everyone hears the same part of the song */
+/**
+ * Everyone hears the same part of the song. Only while it plays: iOS loses a jump made
+ * before, keeps it pending and queues every later jump behind it, so the song stays where
+ * it started and its time stands still.
+ */
 function catch_up(audio: HTMLAudioElement) {
+    if (
+        audio.paused ||
+        audio.seeking ||
+        audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA
+    ) {
+        return;
+    }
     const position = song_position(audio);
     if (position === null) return;
     try {
@@ -245,9 +255,8 @@ export function music_progress() {
 }
 
 /**
- * Corrects the song once its length is known and once it really plays, as loading,
- * buffering after the jump and the tap iOS waits for take a while. Later it keeps it in
- * step, e.g. after a stall.
+ * Corrects the song once it really plays, as loading, buffering after the jump and the tap
+ * iOS waits for take a while. Later it keeps it in step, e.g. after a stall.
  */
 function keep_in_step(audio: HTMLAudioElement) {
     let corrections = 0;
@@ -261,13 +270,8 @@ function keep_in_step(audio: HTMLAudioElement) {
         }
     };
     audio.addEventListener("play", () => (corrections = 0));
-    for (const type of [
-        "loadedmetadata",
-        "durationchange",
-        "progress",
-        "canplay",
-        "playing",
-    ]) {
+    // Playing again after the jump checks whether it landed
+    for (const type of ["playing", "durationchange"]) {
         audio.addEventListener(type, correct);
     }
     setInterval(() => {
@@ -330,7 +334,6 @@ function play_or_wait(audio: HTMLAudioElement) {
             "pointerdown",
             () => {
                 if (audio !== music || !audio.paused) return;
-                catch_up(audio);
                 audio.play().catch(() => {});
             },
             { once: true },
@@ -358,10 +361,7 @@ export function play_music(
         audioState.music?.file === file &&
         audioState.music.started_at === started_at
     ) {
-        if (music.paused && !document.hidden) {
-            catch_up(music);
-            play_or_wait(music);
-        }
+        if (music.paused && !document.hidden) play_or_wait(music);
         return;
     }
     const player = get_music_player();
@@ -369,7 +369,6 @@ export function play_music(
     set_audio_level(player, 0);
     music = player;
     audioState.music = { name, file, started_at };
-    catch_up(player);
     play_or_wait(player);
     // Slowly, music coming in at once is a jump scare
     fade(player, playing_music_volume, undefined, 3000);
@@ -380,12 +379,8 @@ export function play_music(
 if (typeof document !== "undefined" && !in_tauri && navigator.maxTouchPoints > 0) {
     document.addEventListener("visibilitychange", () => {
         if (!music || !audioState.music) return;
-        if (document.hidden) {
-            music.pause();
-        } else {
-            catch_up(music);
-            play_or_wait(music);
-        }
+        if (document.hidden) music.pause();
+        else play_or_wait(music);
     });
 }
 
