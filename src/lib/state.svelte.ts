@@ -260,11 +260,13 @@ export const wallState = $state({
     mode: "wall" as "wall" | "door" | "light" | "erase",
     /** What a light placed with the wall tool is */
     light: "torch" as LightPreset,
-    /** The player whose sight the DM looks through, null for seeing everything */
-    preview: null as string | null,
 });
 
 export const fogState = $state({
+    /**
+     * The player the DM looks at the map as: their fog, what their figures see, without
+     * hidden markers. The fog tool paints only for them. "all" is the DM's own view.
+     */
     selected_player: "all",
     /** Paint cell by cell or fill a rectangle, Shift draws a rectangle too */
     shape: "brush" as "brush" | "rect",

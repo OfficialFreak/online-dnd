@@ -139,9 +139,7 @@
         x_offset={gameState.scene.x_offset}
         y_offset={gameState.scene.y_offset}
         fog_squares={gameState.scene.state?.fog_squares[
-            (appState.selectedTool === Tools.AddFog ||
-                appState.selectedTool === Tools.RemoveFog) &&
-            fogState.selected_player != "all"
+            gameState.dm && fogState.selected_player != "all"
                 ? fogState.selected_player
                 : gameState.name
         ]}
@@ -184,6 +182,22 @@
     class="contents"
     style:visibility={appState.dragging ? "hidden" : null}
 >
+    {#if gameState.dm && fogState.selected_player !== "all"}
+        <!-- So the DM doesn't forget that the map shows a player's view -->
+        <div
+            class="fixed top-[calc(var(--titlebar)+var(--safe-top)+0.5rem)] right-[calc(1rem+var(--safe-right))] z-10 badge badge-info gap-1 pr-0.5 shadow"
+        >
+            <i class="fa-solid fa-eye"></i>
+            Ansicht von {fogState.selected_player}
+            <button
+                class="btn btn-ghost btn-xs btn-circle"
+                aria-label="Wieder alles sehen"
+                title="Wieder alles sehen"
+                onclick={() => (fogState.selected_player = "all")}
+                ><i class="fa-solid fa-xmark"></i></button
+            >
+        </div>
+    {/if}
     {#if gameState.scene && gameState.combat}
         <div
             class="fixed top-[calc(var(--titlebar)+var(--safe-top))] left-[var(--safe-left)] ml-14 w-[calc(100vw-5rem-var(--safe-left)-var(--safe-right))] overflow-x-auto overflow-y-hidden pb-12 flex justify-center pointer-events-none"

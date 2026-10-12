@@ -1202,7 +1202,13 @@
             : null,
     );
     /** Whose sight the map shows: the player's own, or the one the DM looks through */
-    let viewer = $derived(gameState.dm ? wallState.preview : gameState.name);
+    let viewer = $derived(
+        gameState.dm
+            ? fogState.selected_player === "all"
+                ? null
+                : fogState.selected_player
+            : gameState.name,
+    );
     let lighting: Lighting = $derived(gameState.scene?.state.lighting ?? "bright");
     let lights: SceneLight[] = $derived(
         editable ? scene_lights(gameState.scene?.state.lights) : [],
@@ -1391,9 +1397,9 @@
         return [(door.a[0] + door.b[0]) / 2, (door.a[1] + door.b[1]) / 2];
     }
 
-    /** Players see the doors of what they explored, the DM all */
+    /** Players see the doors of what they explored, the DM all unless looking as one */
     function door_shown(door: Door) {
-        if (gameState.dm) return true;
+        if (gameState.dm && !viewer) return true;
         const [x, y] = door_middle(door);
         return !isFogAt(
             fog_squares,
@@ -1836,7 +1842,8 @@
         >
             {#each non_player_markers as marker}
                 {@const hidden = !gameState.dm && in_fog(marker)}
-                {#if !out_of_sight(marker)}
+                <!-- Looking as a player, the DM doesn't see what they don't get -->
+                {#if !out_of_sight(marker) && !(viewer && gameState.dm && marker.hidden)}
                 {@const unclear = dim_edge(marker)}
                 <Marker
                     {marker}
@@ -1942,7 +1949,7 @@
             width={Math.round(w * fog_resolution)}
             height={Math.round(h * fog_resolution)}
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
-            style="opacity: {gameState.dm ? '60' : '100'}%"
+            style="opacity: {gameState.dm && !viewer ? '60' : '100'}%"
         >
         </canvas>
         <!-- Player Markers above the Fog, a marker with its menu open above everything -->

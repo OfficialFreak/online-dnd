@@ -56,14 +56,15 @@
     // next to them. Hover doesn't exist there, and Safari keeps the focus that would
     // otherwise close them.
     let touch = $state(false);
-    let open_menu: "fog" | "measure" | "walls" | null = $state(null);
+    type Menu = "fog" | "measure" | "walls" | "view";
+    let open_menu: Menu | null = $state(null);
 
-    function menu_state(menu: "fog" | "measure" | "walls") {
+    function menu_state(menu: Menu) {
         if (!touch) return "";
         return open_menu === menu ? "dropdown-open" : "dropdown-close";
     }
 
-    function tap_menu(menu: "fog" | "measure" | "walls") {
+    function tap_menu(menu: Menu) {
         if (touch) open_menu = open_menu === menu ? null : menu;
     }
 
@@ -590,6 +591,62 @@
                 >
             </div>
             <div
+                class="dropdown dropdown-right dropdown-hover {menu_state('view')}"
+                data-menu="view"
+            >
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box {fogState.selected_player !==
+                    'all'
+                        ? 'btn-info'
+                        : ''}"
+                    aria-label="Ansicht eines Spielers"
+                    onclick={() => tap_menu("view")}
+                    ><i class="fa-solid fa-eye"></i></button
+                >
+                <div
+                    class="dropdown-content bg-base-100 rounded-box z-1 w-60 p-3 shadow-sm flex flex-col gap-2"
+                    style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
+                    use:keep_in_view
+                >
+                    <h3 class="font-bold">Ansicht</h3>
+                    <p class="text-xs text-base-content/60">
+                        Sieh die Karte wie ein Spieler: seinen Nebel, was seine Figuren
+                        sehen, ohne versteckte Marker. Den Nebel malst du dann nur für
+                        ihn.
+                    </p>
+                    <!-- Buttons, not a select: its list opens outside the page, the menu
+                         lost the mouse there and closed -->
+                    <div class="flex flex-wrap gap-1">
+                        <button
+                            class="btn btn-xs {fogState.selected_player === 'all'
+                                ? 'btn-info'
+                                : ''}"
+                            title="Du siehst alles, Nebel malst du für alle"
+                            onclick={() => (fogState.selected_player = "all")}
+                            >Alles (DM)</button
+                        >
+                        {#each gameState.users.filter((user) => !user.dm) as player (player.name)}
+                            <button
+                                class="btn btn-xs {fogState.selected_player ===
+                                player.name
+                                    ? 'btn-info'
+                                    : ''}"
+                                title={player.active ? "Online" : "Offline"}
+                                onclick={() => (fogState.selected_player = player.name)}
+                            >
+                                <span
+                                    class="w-1.5 h-1.5 rounded-full {player.active
+                                        ? 'bg-success'
+                                        : 'bg-error'}"
+                                ></span>
+                                {player.name}
+                            </button>
+                        {/each}
+                    </div>
+                </div>
+            </div>
+            <div
                 class="dropdown dropdown-right dropdown-hover {menu_state('fog')}"
                 data-menu="fog"
             >
@@ -608,38 +665,15 @@
                     use:keep_in_view
                 >
                     <h3 class="font-bold">Nebel</h3>
-                    <fieldset class="fieldset p-0">
-                        <legend class="fieldset-legend pt-0">Spieler wählen</legend>
-                        <!-- Buttons, not a select: its list opens outside the page, the
-                             menu lost the mouse there and closed -->
-                        <div class="flex flex-wrap gap-1">
-                            <button
-                                class="btn btn-xs {fogState.selected_player === 'all'
-                                    ? 'btn-info'
-                                    : ''}"
-                                onclick={() => (fogState.selected_player = "all")}
-                                >Alle</button
-                            >
-                            {#each gameState.users as player (player.name)}
-                                <button
-                                    class="btn btn-xs {fogState.selected_player ===
-                                    player.name
-                                        ? 'btn-info'
-                                        : ''}"
-                                    title={player.active ? "Online" : "Offline"}
-                                    onclick={() =>
-                                        (fogState.selected_player = player.name)}
-                                >
-                                    <span
-                                        class="w-1.5 h-1.5 rounded-full {player.active
-                                            ? 'bg-success'
-                                            : 'bg-error'}"
-                                    ></span>
-                                    {player.name}
-                                </button>
-                            {/each}
-                        </div>
-                    </fieldset>
+                    <p class="text-xs text-base-content/60">
+                        {#if fogState.selected_player === "all"}
+                            Für alle Spieler. Einen einzelnen wählst du unter
+                            <i class="fa-solid fa-eye"></i> Ansicht.
+                        {:else}
+                            Nur für {fogState.selected_player}, aus der
+                            <i class="fa-solid fa-eye"></i> Ansicht.
+                        {/if}
+                    </p>
                     <fieldset class="fieldset p-0">
                         <legend class="fieldset-legend pt-0">Pinsel</legend>
                         <div class="flex flex-row gap-1">
@@ -820,28 +854,6 @@
                             {/each}
                         </div>
                     {/if}
-                    <fieldset class="fieldset p-0">
-                        <legend class="fieldset-legend pt-0">Sicht ansehen von</legend>
-                        <div class="flex flex-wrap gap-1">
-                            <button
-                                class="btn btn-xs {wallState.preview === null
-                                    ? 'btn-info'
-                                    : ''}"
-                                title="Du siehst alles"
-                                onclick={() => (wallState.preview = null)}
-                                >Niemand</button
-                            >
-                            {#each gameState.users.filter((user) => !user.dm) as player (player.name)}
-                                <button
-                                    class="btn btn-xs {wallState.preview === player.name
-                                        ? 'btn-info'
-                                        : ''}"
-                                    onclick={() => (wallState.preview = player.name)}
-                                    >{player.name}</button
-                                >
-                            {/each}
-                        </div>
-                    </fieldset>
                     <p class="text-xs text-base-content/60">
                         Klick setzt Punkte, Doppelklick, Rechtsklick oder Enter beendet
                         die Wand, Esc bricht ab. Am Handy beendet doppeltes Tippen.
