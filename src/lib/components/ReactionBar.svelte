@@ -1,6 +1,7 @@
 <script lang="ts">
     import { fly } from "svelte/transition";
     import { REACTIONS, reactionState, send_reaction } from "$lib/reactions.svelte";
+    import ReactionRecorder from "./ReactionRecorder.svelte";
 
     /**
      * The button for quick reactions, in the row of the dice so it moves aside when they
@@ -8,6 +9,8 @@
      */
     let open = $state(false);
     let bar: HTMLElement | undefined = $state();
+    let recorder: HTMLDialogElement | undefined = $state();
+    let recording = $state(false);
 
     function on_pointer_down(event: PointerEvent) {
         if (open && bar && !bar.contains(event.target as Node)) open = false;
@@ -40,9 +43,40 @@
                     {reaction.label}
                 </button>
             {/each}
+            <button
+                class="btn btn-sm btn-ghost"
+                title="Mit deiner eigenen Stimme einsprechen"
+                onclick={() => {
+                    open = false;
+                    recording = true;
+                    recorder?.showModal();
+                }}
+            >
+                <i class="fa-solid fa-microphone"></i> Einsprechen
+            </button>
         </div>
     {/if}
 </div>
+
+<dialog
+    bind:this={recorder}
+    class="modal"
+    onclose={() => (recording = false)}
+>
+    <div class="modal-box w-fit max-w-[calc(100vw-2rem)]">
+        <h3 class="text-lg font-bold">Reaktionen einsprechen</h3>
+        <p class="text-sm text-base-content/60 mt-1 mb-3">
+            Bis zu 3 Sekunden mit deiner Stimme. Alle hören sie, wenn du sie drückst.
+        </p>
+        {#if recording}
+            <ReactionRecorder />
+        {/if}
+        <div class="modal-action">
+            <form method="dialog"><button class="btn">Fertig</button></form>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
 <!-- Above the dice, the newest at the bottom -->
 <div
