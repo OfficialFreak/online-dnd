@@ -12,8 +12,9 @@ export type Sound = {
 };
 
 export const audioState = $state({
-    music_volume: 0.4,
-    effect_volume: 0.8,
+    // Quiet to begin with, louder ones startled when the music came in
+    music_volume: 0.15,
+    effect_volume: 0.5,
     muted: false,
     /** What is playing for everyone right now */
     music: null as { name: string; file: string; started_at: number } | null,
@@ -98,9 +99,14 @@ export function duck_music(on: boolean) {
  * Timers instead of animation frames: those stop in a minimized window. The target is
  * read on every step, so a volume changed during the fade isn't undone.
  */
-function fade(audio: HTMLAudioElement, to: () => number, done?: () => void) {
+function fade(
+    audio: HTMLAudioElement,
+    to: () => number,
+    done?: () => void,
+    duration = 1200,
+) {
     const from = level(audio);
-    const steps = 24;
+    const steps = Math.round(duration / 50);
     let step = 0;
     const interval = setInterval(() => {
         step++;
@@ -160,7 +166,8 @@ export function play_music(name: string, file: string, started_at: number) {
         once: true,
     });
     play_or_wait(audio);
-    fade(audio, playing_music_volume);
+    // Slowly, music coming in at once is a jump scare
+    fade(audio, playing_music_volume, undefined, 3000);
     music = audio;
     audioState.music = { name, file, started_at };
 }
