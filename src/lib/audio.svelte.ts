@@ -2,6 +2,7 @@ import { asset_url } from "./assets";
 import { in_tauri } from "./platform";
 import type { TabletopTrack } from "./sound-library";
 import { appState, ensureStore } from "./state.svelte";
+import { MessageTypes, notify } from "./notifications.svelte";
 
 /** Music or a sound effect the DM can play for everyone */
 export type Sound = {
@@ -28,6 +29,7 @@ export const audioState = $state({
     effects: [] as string[],
 });
 
+/** The music playing for everyone, the music player while a song plays */
 let music: HTMLAudioElement | null = null;
 /** Pressure plays its own music, the DM's waits silently underneath */
 let ducked = false;
@@ -52,11 +54,25 @@ function playing_music_volume() {
 let context: AudioContext | null = null;
 const gains = new WeakMap<HTMLAudioElement, GainNode>();
 
+/** Whether the server's files come from the page's own origin */
+function assets_same_origin() {
+    try {
+        const server = `${appState.secure ? "https://" : "http://"}${appState.baseUrl}`;
+        return new URL(server).origin === location.origin;
+    } catch {
+        return false;
+    }
+}
+
 /** Sends the sound of this element through a gain node, if it can */
 export function route_audio(audio: HTMLAudioElement) {
-    if (in_tauri || typeof AudioContext === "undefined") return;
+    if (in_tauri || typeof AudioContext === "undefined" || gains.has(audio)) return;
     try {
-        if (new URL(audio.src, location.href).origin !== location.origin) return;
+        // Without a file yet it is one of the reused players for the server's files
+        const same_origin = audio.getAttribute("src")
+            ? new URL(audio.src, location.href).origin === location.origin
+            : assets_same_origin();
+        if (!same_origin) return;
         if (!context) {
             context = new AudioContext();
             // It starts halted without a tap, and iOS halts it in the background
@@ -88,6 +104,47 @@ export function set_audio_level(audio: HTMLAudioElement, value: number) {
     else audio.volume = value;
 }
 
+// iOS lets an audio element play only once a tap started it, and a new element for each
+// song or effect waited for the next tap every time. The players are reused, and the
+// first tap anywhere unlocks all of them.
+const SILENCE =
+    "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+const players = new Set<HTMLAudioElement>();
+const unlocked = new WeakSet<HTMLAudioElement>();
+let listening_for_tap = false;
+
+/** Lets the first tap unlock this element, also on iOS */
+export function keep_unlocked(audio: HTMLAudioElement) {
+    players.add(audio);
+    if (listening_for_tap || typeof document === "undefined") return;
+    listening_for_tap = true;
+    document.addEventListener("pointerdown", unlock, true);
+    document.addEventListener("keydown", unlock, true);
+}
+
+function unlock() {
+    wake_audio();
+    for (const audio of players) {
+        if (unlocked.has(audio)) continue;
+        unlocked.add(audio);
+        // A song waiting for this tap plays, the others play a moment of silence
+        if (audio === music) {
+            catch_up(audio);
+            audio.play().catch(() => {});
+            continue;
+        }
+        audio.src = SILENCE;
+        audio
+            .play()
+            .then(() => {
+                if (audio.src === SILENCE) audio.pause();
+            })
+            .catch(() => {});
+    }
+}
+
+const fades = new WeakMap<HTMLAudioElement, ReturnType<typeof setInterval>>();
+
 /** Fades the DM's music out while something else plays and back in afterwards */
 export function duck_music(on: boolean) {
     if (ducked === on) return;
@@ -97,7 +154,8 @@ export function duck_music(on: boolean) {
 
 /**
  * Timers instead of animation frames: those stop in a minimized window. The target is
- * read on every step, so a volume changed during the fade isn't undone.
+ * read on every step, so a volume changed during the fade isn't undone. A new fade of the
+ * same element replaces the one before.
  */
 function fade(
     audio: HTMLAudioElement,
@@ -105,6 +163,7 @@ function fade(
     done?: () => void,
     duration = 1200,
 ) {
+    clearInterval(fades.get(audio));
     const from = level(audio);
     const steps = Math.round(duration / 50);
     let step = 0;
@@ -116,9 +175,11 @@ function fade(
         );
         if (step >= steps) {
             clearInterval(interval);
+            fades.delete(audio);
             done?.();
         }
     }, 50);
+    fades.set(audio, interval);
 }
 
 /**
@@ -129,60 +190,110 @@ let song_clock = { elapsed: 0, received: 0 };
 
 /** Where everyone is in the song now, in seconds */
 function song_position(audio: HTMLAudioElement) {
-    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return null;
-    const elapsed = song_clock.elapsed + performance.now() - song_clock.received;
-    return (elapsed / 1000) % audio.duration;
+    const seconds =
+        (song_clock.elapsed + performance.now() - song_clock.received) / 1000;
+    // Before the file's length is known, iOS doesn't load it before a tap, it starts at
+    // this point and is corrected once the length is there
+    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return seconds;
+    return seconds % audio.duration;
 }
 
 /** How far the song is off, the end and the start of a loop lie next to each other */
 function drift(audio: HTMLAudioElement, position: number) {
     const apart = Math.abs(audio.currentTime - position);
+    if (!Number.isFinite(audio.duration)) return apart;
     return Math.min(apart, audio.duration - apart);
 }
 
 /** Everyone hears the same part of the song */
 function catch_up(audio: HTMLAudioElement) {
-    const position = song_position(audio);
-    if (position !== null) audio.currentTime = position;
+    try {
+        audio.currentTime = song_position(audio);
+    } catch {
+        // Not seekable yet, the next correction tries again
+    }
 }
 
 /**
- * Corrects the song once it really plays, as loading, buffering after the jump and the
- * tap iOS waits for take a while. Later it keeps it in step, e.g. after a stall.
+ * Corrects the song once its length is known and once it really plays, as loading,
+ * buffering after the jump and the tap iOS waits for take a while. Later it keeps it in
+ * step, e.g. after a stall.
  */
 function keep_in_step(audio: HTMLAudioElement) {
     let corrections = 0;
-    audio.addEventListener("play", () => (corrections = 0));
-    audio.addEventListener("playing", () => {
-        const position = song_position(audio);
-        // A jump buffers again, so only a few times in a row
-        if (position === null || corrections >= 3) return;
-        if (drift(audio, position) > 0.3) {
+    const correct = () => {
+        // A jump loads again, so only a few times in a row
+        if (audio !== music || corrections >= 3) return;
+        if (drift(audio, song_position(audio)) > 0.3) {
             corrections++;
-            audio.currentTime = position;
+            catch_up(audio);
         }
-    });
-    const timer = setInterval(() => {
-        if (audio !== music) {
-            clearInterval(timer);
+    };
+    audio.addEventListener("play", () => (corrections = 0));
+    for (const type of ["loadedmetadata", "durationchange", "canplay", "playing"]) {
+        audio.addEventListener(type, correct);
+    }
+    setInterval(() => {
+        if (audio !== music || audio.paused || !Number.isFinite(audio.duration)) {
             return;
         }
-        const position = song_position(audio);
-        if (!audio.paused && position !== null && drift(audio, position) > 1) {
-            audio.currentTime = position;
-        }
+        if (drift(audio, song_position(audio)) > 1) catch_up(audio);
     }, 15_000);
 }
 
-/** iOS plays sound only after a tap, then it starts with the next one */
+let music_player: HTMLAudioElement | null = null;
+
+function get_music_player() {
+    if (!music_player) {
+        music_player = new Audio();
+        music_player.loop = true;
+        route_audio(music_player);
+        keep_unlocked(music_player);
+        keep_in_step(music_player);
+    }
+    return music_player;
+}
+
+const effect_players: HTMLAudioElement[] = [];
+
+/** One that plays no effect right now, a new one if all do */
+function free_effect_player() {
+    const busy = new Set([...effects.values()].flatMap((playing) => [...playing]));
+    let audio = effect_players.find((player) => !busy.has(player));
+    if (!audio) {
+        audio = new Audio();
+        route_audio(audio);
+        keep_unlocked(audio);
+        effect_players.push(audio);
+    }
+    return audio;
+}
+
+// Ready before the first tap, so it unlocks them
+if (typeof document !== "undefined") {
+    get_music_player();
+    for (let i = 0; i < 3; i++) free_effect_player();
+}
+
+let told_to_tap = false;
+
+/** iOS plays sound only after a tap, then the next tap starts it */
 function play_or_wait(audio: HTMLAudioElement) {
     wake_audio();
     audio.play().catch((e) => {
         console.error("Playing music failed", e);
+        if (e?.name === "NotAllowedError" && !told_to_tap) {
+            told_to_tap = true;
+            notify(
+                "Tipp kurz irgendwo hin, dann hörst du die Musik",
+                MessageTypes.Info,
+                5000,
+            );
+        }
         document.addEventListener(
             "pointerdown",
             () => {
-                if (audio !== music) return;
+                if (audio !== music || !audio.paused) return;
                 catch_up(audio);
                 audio.play().catch(() => {});
             },
@@ -217,20 +328,15 @@ export function play_music(
         }
         return;
     }
-    stop_music();
-    const audio = new Audio(asset_url(file));
-    audio.loop = true;
-    route_audio(audio);
-    set_audio_level(audio, 0);
-    audio.addEventListener("loadedmetadata", () => catch_up(audio), {
-        once: true,
-    });
-    keep_in_step(audio);
-    play_or_wait(audio);
-    // Slowly, music coming in at once is a jump scare
-    fade(audio, playing_music_volume, undefined, 3000);
-    music = audio;
+    const player = get_music_player();
+    player.src = asset_url(file);
+    set_audio_level(player, 0);
+    music = player;
     audioState.music = { name, file, started_at };
+    catch_up(player);
+    play_or_wait(player);
+    // Slowly, music coming in at once is a jump scare
+    fade(player, playing_music_volume, undefined, 3000);
 }
 
 // Phones and tablets pause the music while the app is in the background, and play on
@@ -250,15 +356,19 @@ if (typeof document !== "undefined" && !in_tauri && navigator.maxTouchPoints > 0
 export function stop_music() {
     if (music) {
         const old = music;
-        fade(old, () => 0, () => old.pause());
         music = null;
+        // Unless the next song already plays on it
+        fade(old, () => 0, () => {
+            if (old !== music) old.pause();
+        });
     }
     audioState.music = null;
 }
 
 export function play_effect(name: string, file: string) {
-    const audio = new Audio(asset_url(file));
-    route_audio(audio);
+    const audio = free_effect_player();
+    clearInterval(fades.get(audio));
+    audio.src = asset_url(file);
     set_audio_level(audio, effect_volume());
     wake_audio();
     const playing = effects.get(name) ?? new Set();

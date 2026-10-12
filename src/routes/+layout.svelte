@@ -36,6 +36,7 @@
         music_volume,
         play_effect,
         play_music,
+        keep_unlocked,
         route_audio,
         set_audio_level,
         set_volume,
@@ -336,6 +337,8 @@
         audio = new Audio("speed.mp3");
         audio.loop = true;
         route_audio(audio);
+        // The DM starts it for everyone, iOS plays it only once a tap unlocked it
+        keep_unlocked(audio);
 
         sword_ping = new Audio("sword_sound.mp3");
 
