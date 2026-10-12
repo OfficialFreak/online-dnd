@@ -444,7 +444,13 @@
             </span>
         {/if}
         <!-- A hidden marker fades with a filter, as the invisible condition animates its
-             opacity, and the menu next to it stays opaque -->
+             opacity, and the menu next to it stays opaque. On a box around the masked
+             image: a blur on the masked one made the browser size the mask for the blurred
+             box, the hexagon came out too big or shifted and cut the image when zooming. -->
+        <div
+            class="flex pointer-events-none"
+            style={container_filter ? `filter: ${container_filter};` : ""}
+        >
         <div
             class={"condition-animated relative mask pointer-events-none !flex justify-center items-center aspect-square " +
                 (banner ? "mask-banner" : "mask-hexagon")}
@@ -456,9 +462,7 @@
                 ? 'transition: width 0.05s ease-out'
                 : 'transition: transform 0.4s ease-out'}; transform: {prone
                 ? 'rotate(90deg)'
-                : 'none'}; animation: {animation || 'none'}; {container_filter
-                ? `filter: ${container_filter};`
-                : ''} {health
+                : 'none'}; animation: {animation || 'none'}; {health
                 ? `background: conic-gradient(var(--background) ${health_degrees}deg, #ff002b73 ${health_degrees}deg) !important;`
                 : 'background: var(--background)'}"
         >
@@ -473,6 +477,7 @@
                 asset={marker.file}
                 style={image_filter ? `filter: ${image_filter};` : ""}
             />
+        </div>
         </div>
         {#if animated && interactive && effects.length > 0}
             <ConditionEffects
