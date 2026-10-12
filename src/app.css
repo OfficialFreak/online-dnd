@@ -46,15 +46,10 @@ html.controls-folded body {
     margin-top: var(--safe-top);
 }
 
-:root:has(
-    .modal-open,
-    .modal[open],
-    .modal:target,
-    .modal-toggle:checked,
-    .drawer:not(.drawer-open) > .drawer-toggle:checked
-)
-.titlebar
-> div {
+/* Behind an open dialog the title bar fades. Asked on the title bar, the dialogs come
+   after it: asked on the root, every class changing anywhere restyled the whole page,
+   on every step of a dragged figure. */
+.titlebar:has(~ .modal[open], ~ * .modal[open]) > div {
     opacity: 0;
 }
 
