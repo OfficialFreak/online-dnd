@@ -49,7 +49,8 @@ export enum MessageType {
     DOOR = "door",
     PONG = "pong",
     REACTION = "reaction",
-    REACTIONS = "reactions"
+    REACTIONS = "reactions",
+    HIDDEN_ROLL = "hidden_roll"
 }
 
 export enum EventType {
@@ -370,6 +371,11 @@ export interface Reactions extends BaseServerMessage {
     reactions: Record<string, string>;
 }
 
+/** The DM rolled behind the screen */
+export interface HiddenRoll extends BaseServerMessage {
+    type: MessageType.HIDDEN_ROLL;
+}
+
 /** The answer to a ping, the connection lives */
 export interface Pong extends BaseServerMessage {
     type: MessageType.PONG;
@@ -464,6 +470,7 @@ export type ServerMessage =
     | Pong
     | ReactionMessage
     | Reactions
+    | HiddenRoll
     | UserAdmin
     | TabletopAudio
     | SoundImportFailed
@@ -562,6 +569,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as ReactionMessage;
         case MessageType.REACTIONS:
             return data as Reactions;
+        case MessageType.HIDDEN_ROLL:
+            return data as HiddenRoll;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

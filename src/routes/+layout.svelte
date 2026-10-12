@@ -79,7 +79,11 @@
     import { load_dice_skin } from "$lib/dice-skins.svelte";
     import DiceSkinPicker from "$lib/components/DiceSkinPicker.svelte";
     import ReactionRecorder from "$lib/components/ReactionRecorder.svelte";
-    import { hear_reaction, reactionState } from "$lib/reactions.svelte";
+    import {
+        hear_hidden_roll,
+        hear_reaction,
+        reactionState,
+    } from "$lib/reactions.svelte";
     import { goto } from "$app/navigation";
     import { updated } from "$app/state";
     import { Character } from "$lib/types/character";
@@ -824,6 +828,9 @@
                     break;
                 case MessageType.REACTIONS:
                     reactionState.mine = message.reactions ?? {};
+                    break;
+                case MessageType.HIDDEN_ROLL:
+                    hear_hidden_roll();
                     break;
                 case MessageType.DOOR: {
                     const door = gameState.scene?.state.doors?.find(

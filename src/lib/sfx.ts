@@ -1,10 +1,12 @@
 /**
- * Short sounds made on the spot with Web Audio, no files needed: the reactions of players
- * who didn't record their own voice. And the recording of a player's voice for them.
+ * Short sounds made on the spot with Web Audio, no files needed: dice tumbling behind the
+ * DM's screen and the reactions of players who didn't record their own voice. And the
+ * recording of a player's voice for their reactions.
  */
 import { effect_volume } from "$lib/audio.svelte";
 
 let context: AudioContext | null = null;
+let noise: AudioBuffer | null = null;
 
 /** Started by the first tap or key, browsers keep sound off until then */
 function audio() {
@@ -26,6 +28,62 @@ function output(ctx: AudioContext, loudness = 1) {
     gain.gain.value = effect_volume() * loudness;
     gain.connect(ctx.destination);
     return gain;
+}
+
+function white_noise(ctx: AudioContext) {
+    if (noise) return noise;
+    noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const data = noise.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    return noise;
+}
+
+/** One die hitting the table: a short bright click, sometimes with a dull knock */
+function hit(ctx: AudioContext, out: AudioNode, at: number, strength: number) {
+    const click = ctx.createBufferSource();
+    click.buffer = white_noise(ctx);
+    const band = ctx.createBiquadFilter();
+    band.type = "bandpass";
+    band.frequency.value = 1800 + Math.random() * 2800;
+    band.Q.value = 5 + Math.random() * 4;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(strength, at + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.045 + Math.random() * 0.03);
+    click.connect(band).connect(gain).connect(out);
+    click.start(at, Math.random() * 0.8, 0.09);
+    if (Math.random() < 0.4) {
+        const knock = ctx.createBufferSource();
+        knock.buffer = white_noise(ctx);
+        const low = ctx.createBiquadFilter();
+        low.type = "lowpass";
+        low.frequency.value = 260;
+        const knock_gain = ctx.createGain();
+        knock_gain.gain.setValueAtTime(0.0001, at);
+        knock_gain.gain.exponentialRampToValueAtTime(strength * 1.6, at + 0.004);
+        knock_gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.09);
+        knock.connect(low).connect(knock_gain).connect(out);
+        knock.start(at, Math.random() * 0.8, 0.1);
+    }
+}
+
+/** Dice tumbling over a table, the hits come faster and softer as they settle */
+export function play_clatter() {
+    const ctx = audio();
+    if (!ctx || !effect_volume()) return;
+    const out = output(ctx, 0.9);
+    const dice = 1 + Math.floor(Math.random() * 2);
+    for (let die = 0; die < dice; die++) {
+        let at = ctx.currentTime + 0.02 + die * (0.03 + Math.random() * 0.05);
+        let gap = 0.12 + Math.random() * 0.04;
+        const hits = 8 + Math.floor(Math.random() * 5);
+        for (let i = 0; i < hits; i++) {
+            const strength = Math.max(0.12, 1 - i / hits) * (0.5 + Math.random() * 0.5);
+            hit(ctx, out, at, strength);
+            at += gap * (0.6 + Math.random() * 0.7);
+            gap *= 0.84;
+        }
+    }
 }
 
 /** Where the mouth shapes the sound, the first two formants of some vowels */

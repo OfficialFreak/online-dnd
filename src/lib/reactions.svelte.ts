@@ -4,7 +4,7 @@
  */
 import { appState } from "$lib/state.svelte";
 import { play_effect } from "$lib/audio.svelte";
-import { DEFAULT_VOICES } from "$lib/sfx";
+import { DEFAULT_VOICES, play_clatter } from "$lib/sfx";
 import { Reaction } from "$lib/types/messaging/client_messages";
 
 export const REACTIONS = [
@@ -62,4 +62,10 @@ export function hear_reaction(message: {
     const who = message.character || message.person;
     show_bubble(reaction.emoji, reaction.text, who);
     play_reaction(reaction.key, message.file, who);
+}
+
+/** The DM rolled behind the screen: everyone hears the dice, nobody sees them */
+export function hear_hidden_roll() {
+    play_clatter();
+    show_bubble("🎲", "Der DM würfelt verdeckt …");
 }
