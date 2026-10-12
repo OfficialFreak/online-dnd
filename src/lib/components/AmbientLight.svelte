@@ -148,8 +148,9 @@
         const w = (rect.width / innerWidth) * width;
         const h = (rect.height / innerHeight) * height;
 
-        // Far from the map its average colour, dark
-        const ctx = canvas.getContext("2d")!;
+        // Far from the map its average colour, dark. Without transparency the graphics
+        // card can leave out what lies under it.
+        const ctx = canvas.getContext("2d", { alpha: false })!;
         ctx.globalCompositeOperation = "copy";
         ctx.filter = "brightness(0.5)";
         ctx.drawImage(average, 0, 0, width, height);
@@ -187,6 +188,17 @@
         const lift = width * 0.006;
         ctx.fillRect(x - lift, y - lift, w + 2 * lift, h + 2 * lift);
         ctx.filter = "none";
+
+        // Darker towards the corners, the eye stays on the map. Drawn in here instead of
+        // as a layer of its own over the whole screen.
+        ctx.setTransform((width / 2) * Math.SQRT2, 0, 0, (height / 2) * Math.SQRT2, width / 2, height / 2);
+        const vignette = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        vignette.addColorStop(0.55, "rgba(0, 0, 0, 0)");
+        vignette.addColorStop(0.8, "rgba(0, 0, 0, 0.12)");
+        vignette.addColorStop(1, "rgba(0, 0, 0, 0.3)");
+        ctx.fillStyle = vignette;
+        ctx.fillRect(-1, -1, 2, 2);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
     /**
@@ -290,26 +302,25 @@
         {#each [0, 1] as index (index)}
             <canvas
                 bind:this={canvases[index]}
-                class="absolute inset-0 w-full h-full"
-                style:opacity={front === index ? 1 : 0}
+                class="absolute inset-0 w-full h-full {front === index ? '' : 'behind'}"
             ></canvas>
         {/each}
-        <!-- Darker towards the corners, the eye stays on the map -->
-        <div class="vignette absolute inset-0"></div>
     </div>
 {/if}
 
 <style>
     canvas {
-        transition: opacity 1.4s ease-in-out;
+        transition:
+            opacity 1.4s ease-in-out,
+            visibility 0s;
     }
 
-    .vignette {
-        background: radial-gradient(
-            ellipse at center,
-            transparent 55%,
-            rgba(0, 0, 0, 0.12) 80%,
-            rgba(0, 0, 0, 0.3) 100%
-        );
+    /* The last map's light fades out, then leaves the screen to the graphics card */
+    .behind {
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 1.4s ease-in-out,
+            visibility 0s 1.4s;
     }
 </style>
