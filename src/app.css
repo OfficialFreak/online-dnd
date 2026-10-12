@@ -73,6 +73,19 @@ html.controls-folded body {
     border: 1px solid rgba(28, 34, 41, 0.12);
 }
 
+/* Firefox blurs what lies behind frosted glass anew on every frame anything there moves,
+   rain made it stutter at half the rate. It gets nearly opaque surfaces instead. */
+@supports (-moz-appearance: none) {
+    .frosted,
+    .titlebar {
+        backdrop-filter: none !important;
+    }
+
+    .frosted {
+        background: color-mix(in srgb, var(--color-base-100), transparent 8%);
+    }
+}
+
 .kbd {
     color: var(--color-base-content) !important;
 }
