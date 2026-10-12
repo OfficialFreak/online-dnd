@@ -229,6 +229,21 @@ function catch_up(audio: HTMLAudioElement) {
     }
 }
 
+/** Where the music is and should be, in seconds, for the volume menu */
+export function music_progress() {
+    if (!music) return null;
+    const expected = song_position(music);
+    return {
+        position: music.currentTime,
+        length: song_length(music),
+        // The length only guessed from how far it can seek
+        guessed: !Number.isFinite(music.duration),
+        expected,
+        off: expected === null ? null : drift(music, expected),
+        paused: music.paused,
+    };
+}
+
 /**
  * Corrects the song once its length is known and once it really plays, as loading,
  * buffering after the jump and the tap iOS waits for take a while. Later it keeps it in

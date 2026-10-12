@@ -33,6 +33,7 @@
         effect_volume,
         guess_sound_kind,
         load_volume,
+        music_progress,
         music_volume,
         play_effect,
         play_music,
@@ -306,6 +307,22 @@
             appState.store.save();
         });
     });
+
+    // Where the song is, to see whether everyone hears the same part
+    let progress = $state<ReturnType<typeof music_progress>>(null);
+    $effect(() => {
+        if (!audioState.music) {
+            progress = null;
+            return;
+        }
+        const timer = setInterval(() => (progress = music_progress()), 1000);
+        return () => clearInterval(timer);
+    });
+
+    function clock(seconds: number) {
+        const whole = Math.floor(seconds);
+        return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+    }
 
     onMount(async () => {
         html = document.getElementsByTagName("html")[0];
@@ -1090,6 +1107,18 @@
                         <i class="fa-solid fa-music"></i>
                         {audioState.music.name}
                     </p>
+                    {#if progress}
+                        <p class="text-xs opacity-70 tabular-nums">
+                            {clock(progress.position)} /
+                            {progress.length === null
+                                ? "?"
+                                : (progress.guessed ? "~" : "") + clock(progress.length)}
+                            {#if progress.paused}· pausiert{/if}
+                            {#if progress.expected !== null && progress.off !== null && progress.off > 2}
+                                (soll {clock(progress.expected)})
+                            {/if}
+                        </p>
+                    {/if}
                 {/if}
                 <label class="text-xs">
                     Musik
