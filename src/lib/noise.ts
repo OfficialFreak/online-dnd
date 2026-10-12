@@ -1,5 +1,7 @@
 /** Smooth noise for smoke and fog, from a fixed shuffle: no texture to load */
 const PERM = new Uint8Array(512);
+/** The value at each lattice point, from 0 to 1 */
+const VALUES = new Float32Array(256);
 {
     let seed = 7;
     const order = Array.from({ length: 256 }, (_, i) => i);
@@ -9,32 +11,40 @@ const PERM = new Uint8Array(512);
         [order[i], order[j]] = [order[j], order[i]];
     }
     for (let i = 0; i < 512; i++) PERM[i] = order[i & 255];
+    for (let i = 0; i < 256; i++) VALUES[i] = order[i] / 255;
 }
 
-function noise(x: number, y: number) {
-    const xi = Math.floor(x);
-    const yi = Math.floor(y);
-    const xf = x - xi;
-    const yf = y - yi;
-    const u = xf * xf * (3 - 2 * xf);
-    const v = yf * yf * (3 - 2 * yf);
-    const at = (dx: number, dy: number) => PERM[(PERM[(xi + dx) & 255] + yi + dy) & 255] / 255;
-    const top = at(0, 0) + (at(1, 0) - at(0, 0)) * u;
-    const bottom = at(0, 1) + (at(1, 1) - at(0, 1)) * u;
-    return top + (bottom - top) * v;
-}
-
-/** Billowing noise from 0 to 1, coarse shapes with finer ones on them */
-export function billows(x: number, y: number) {
+/**
+ * Billowing noise from 0 to 1, coarse shapes with finer ones on them. Run for every
+ * pixel of smoke and fog each frame, so without any function or object inside.
+ */
+export function billows(x: number, y: number, octaves = 4) {
     let sum = 0;
     let amplitude = 0.5;
-    let frequency = 1;
-    for (let octave = 0; octave < 4; octave++) {
-        sum += amplitude * noise(x * frequency, y * frequency);
-        frequency *= 2;
+    let total = 0;
+    for (let octave = 0; octave < octaves; octave++) {
+        const xi = Math.floor(x);
+        const yi = Math.floor(y);
+        const xf = x - xi;
+        const yf = y - yi;
+        const u = xf * xf * (3 - 2 * xf);
+        const v = yf * yf * (3 - 2 * yf);
+        const x0 = PERM[xi & 255];
+        const x1 = PERM[(xi + 1) & 255];
+        const y0 = yi & 255;
+        const y1 = (yi + 1) & 255;
+        const a = VALUES[PERM[x0 + y0]];
+        const b = VALUES[PERM[x1 + y0]];
+        const c = VALUES[PERM[x0 + y1]];
+        const d = VALUES[PERM[x1 + y1]];
+        const top = a + (b - a) * u;
+        sum += amplitude * (top + (c + (d - c) * u - top) * v);
+        total += amplitude;
+        x *= 2;
+        y *= 2;
         amplitude *= 0.5;
     }
-    return sum / 0.9375;
+    return sum / total;
 }
 
 /** 0 below edge0, 1 above edge1, smooth in between */

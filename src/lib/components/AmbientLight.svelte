@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, untrack } from "svelte";
     import { appState, gameState } from "$lib/state.svelte";
+    import { asset_url } from "$lib/assets";
 
     /**
      * The map's colours around it, like the ambient mode of YouTube: its edges stretched
@@ -13,8 +14,12 @@
     const SAMPLE = 48;
     /** How far the edges reach out, in sizes of the map */
     const MARGIN = 1.5;
-    /** How often a video map is looked at again, in milliseconds */
-    const VIDEO_EVERY = 66;
+    /**
+     * How often a video map is looked at again, in milliseconds. Each look scales a frame
+     * of up to 4K down on the graphics card, at 15 a second that kept it busy a quarter
+     * of the time.
+     */
+    const VIDEO_EVERY = 500;
 
     /** Two take turns, so a new map's light fades in over the last one's */
     let canvases: HTMLCanvasElement[] = $state([]);
@@ -29,11 +34,12 @@
     const light = document.createElement("canvas");
     const falloff = document.createElement("canvas");
 
-    let shown_source = "";
+    let shown_file = "";
     let sampled = false;
-    let last_sample = 0;
     let last_look = "";
     let frame = 0;
+    /** The map on the page, watched for moving */
+    let watched: Element | null = null;
 
     /** Darker in a dark scene, a little darker always so the controls stay readable */
     let dimming = $derived.by(() => {
@@ -47,6 +53,30 @@
             ? { width: media.videoWidth, height: media.videoHeight }
             : { width: media.naturalWidth, height: media.naturalHeight };
     }
+
+    /** The map on the page, for its place on the screen and a video's frames */
+    function map_media() {
+        const media = document.querySelector('[data-map="main"]');
+        return media instanceof HTMLImageElement || media instanceof HTMLVideoElement
+            ? media
+            : null;
+    }
+
+    /**
+     * The light comes from the server's small picture of the map. Drawing the map itself,
+     * up to 8192 pixels a side, decoded it whole and held everything up for a third of a
+     * second on each new scene.
+     */
+    const thumbnail = new Image();
+    thumbnail.addEventListener("load", () => {
+        if (!thumbnail.naturalWidth) return;
+        // The new map's light fades in over the last one's
+        front = 1 - front;
+        sample(thumbnail, false);
+        sampled = true;
+        last_look = "";
+        request();
+    });
 
     /** The small copy of the map, a video's frames blending into each other */
     function sample(media: HTMLImageElement | HTMLVideoElement, blend: boolean) {
@@ -159,54 +189,94 @@
         ctx.filter = "none";
     }
 
-    function animate(now: number) {
-        frame = requestAnimationFrame(animate);
-        if (!appState.ambient || document.hidden) return;
-        const media = document.querySelector<HTMLImageElement | HTMLVideoElement>(
-            '[data-map="main"]',
-        );
-        if (!(media instanceof HTMLImageElement || media instanceof HTMLVideoElement)) {
-            return;
-        }
-        const video = media instanceof HTMLVideoElement;
-        const ready = video
-            ? media.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && media.videoWidth > 0
-            : media.complete && media.naturalWidth > 0;
-        if (!ready) return;
+    /** Looks where the map is on the next frame, drawing the light if it moved */
+    function request() {
+        if (!frame) frame = requestAnimationFrame(update);
+    }
 
-        let changed = false;
-        if (media.currentSrc !== shown_source) {
-            // Another map: its light fades in on the other canvas
-            shown_source = media.currentSrc;
-            front = 1 - front;
-            sampled = false;
-        }
-        if (!sampled || (video && !media.paused && now - last_sample > VIDEO_EVERY)) {
-            sample(media, video && sampled);
-            sampled = true;
-            last_sample = now;
-            changed = true;
-        }
+    function update() {
+        frame = 0;
+        if (!appState.ambient || !sampled || document.hidden) return;
+        const media = map_media();
+        if (!media) return;
+        watch(media);
         const rect = media.getBoundingClientRect();
         const look = `${rect.left}|${rect.top}|${rect.width}|${rect.height}|${innerWidth}|${innerHeight}`;
-        if (changed || look !== last_look) {
-            last_look = look;
-            draw(rect);
+        if (look === last_look) return;
+        last_look = look;
+        draw(rect);
+    }
+
+    // Only when something may have moved the map its place is looked up: on every frame
+    // that made the page lay itself out again, for each figure moving
+    const resized = new ResizeObserver(request);
+    const restyled = new MutationObserver(request);
+    function watch(media: Element) {
+        if (media === watched) return;
+        watched = media;
+        resized.disconnect();
+        restyled.disconnect();
+        resized.observe(media);
+        // Zooming and panning move the map by the style of the elements around it
+        for (let element = media.parentElement, i = 0; element && i < 3; element = element.parentElement, i++) {
+            restyled.observe(element, { attributes: true, attributeFilter: ["style"] });
         }
     }
+
+    $effect(() => {
+        const file = gameState.scene?.map;
+        if (!appState.ambient || !file || file === shown_file) return;
+        shown_file = file;
+        thumbnail.src = asset_url(`${file}_thumbnail.webp`);
+    });
+
+    $effect(() => {
+        appState.zoom;
+        appState.layout_zoom;
+        appState.ambient;
+        request();
+    });
 
     // A darker or brighter scene spreads the light again
     $effect(() => {
         dimming;
-        if (sampled) {
+        if (untrack(() => sampled)) {
             spread();
             last_look = "";
+            request();
         }
     });
 
     onMount(() => {
-        frame = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(frame);
+        const options = { passive: true, capture: true };
+        addEventListener("scroll", request, options);
+        addEventListener("resize", request, options);
+        // A video map's frames now and then, its light flickers along slowly
+        const video_timer = setInterval(() => {
+            const media = map_media();
+            if (
+                !appState.ambient ||
+                !sampled ||
+                document.hidden ||
+                !(media instanceof HTMLVideoElement) ||
+                media.paused ||
+                media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+                !media.videoWidth
+            ) {
+                return;
+            }
+            sample(media, true);
+            last_look = "";
+            request();
+        }, VIDEO_EVERY);
+        return () => {
+            removeEventListener("scroll", request, options);
+            removeEventListener("resize", request, options);
+            clearInterval(video_timer);
+            resized.disconnect();
+            restyled.disconnect();
+            cancelAnimationFrame(frame);
+        };
     });
 </script>
 

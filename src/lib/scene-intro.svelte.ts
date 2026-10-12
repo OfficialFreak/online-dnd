@@ -2,7 +2,6 @@
  * The intro between two scenes: smoke closes over the old scene, the new one is shown
  * underneath while its name unrolls on a scroll, then the smoke draws back from it.
  */
-import { asset_url } from "./assets";
 import { appState, gameState } from "./state.svelte";
 import type { SceneData } from "./types/messaging/server_messages";
 
@@ -48,9 +47,25 @@ export async function change_scene(
     }
 }
 
-/** Resolves once the map can be shown, a video shows its still frame first */
+/**
+ * Resolves once the map on the page has loaded, a video with its first frame. Asked of the
+ * map itself: decoding it apart, up to 8192 pixels a side, held everything up for a third
+ * of a second, the page only decodes it as large as it is shown.
+ */
 function loaded(file: string) {
-    const image = new Image();
-    image.src = asset_url(file.toLowerCase().endsWith(".mp4") ? `${file}_still.webp` : file);
-    return image.decode().catch(() => {});
+    return new Promise<void>((resolve) => {
+        const look = () => {
+            const media = document.querySelector('[data-map="main"]');
+            const shown =
+                !!media && (media.getAttribute("src") ?? "").includes(`/assets/${file}?`);
+            const ready =
+                media instanceof HTMLImageElement
+                    ? media.complete && media.naturalWidth > 0
+                    : media instanceof HTMLVideoElement &&
+                      media.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+            if (shown && ready) resolve();
+            else setTimeout(look, 100);
+        };
+        look();
+    });
 }

@@ -2023,12 +2023,14 @@
         ? `translate(${zoom_offset_x + shift_x}px, ${zoom_offset_y + shift_y}px) scale(${gesture_scale})`
         : 'none'}"
 >
-    <!-- The ambient light behind the map finds it by data-map -->
+    <!-- The ambient light behind the map finds it by data-map. Decoded aside: a map of
+         8192 pixels takes a few hundred milliseconds, which held up every animation -->
     <Display
         asset={file}
         thumbnail={!editable}
         alt="Map"
         data-map={editable ? "main" : undefined}
+        decoding="async"
         class="w-full"
         fetchpriority={editable ? "high" : "auto"}
         draggable="false"

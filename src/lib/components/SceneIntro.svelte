@@ -23,6 +23,8 @@
     /** A new scene during an intro ends the one before */
     let run = 0;
     let frame = 0;
+    /** Fully covered it was drawn once, it needn't be again until the smoke draws back */
+    let drawn_covered = false;
 
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -48,7 +50,7 @@
             for (let x = 0; x < width; x++) {
                 const u = (x / width - 0.5) * 2;
                 const middle = 1 - Math.min(1, Math.sqrt(u * u + v * v) / Math.SQRT2);
-                const swirl = billows(x * 0.045 + time * 0.12, y * 0.045 - time * 0.08);
+                const swirl = billows(x * 0.045 + time * 0.12, y * 0.045 - time * 0.08, 3);
                 const threshold = 0.6 * middle + 0.4 * swirl;
                 const alpha = smoothstep(threshold - 0.12, threshold + 0.12, level);
                 // A lighter rim where the smoke rolls on
@@ -64,9 +66,14 @@
     }
 
     function animate() {
-        draw();
+        const covered = smoke.current >= 1 && smoke.target >= 1;
+        if (!covered || !drawn_covered) draw();
+        drawn_covered = covered;
+        // Covered it rests until the smoke draws back, which starts it again
         frame =
-            smoke.current > 0 || smoke.target > 0 ? requestAnimationFrame(animate) : 0;
+            (smoke.current > 0 || smoke.target > 0) && !covered
+                ? requestAnimationFrame(animate)
+                : 0;
     }
 
     function start_smoke() {
