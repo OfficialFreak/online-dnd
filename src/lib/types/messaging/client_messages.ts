@@ -479,6 +479,13 @@ export class SetDoor {
     }
 }
 
+/** Asks the server whether the connection still lives, it answers with a pong */
+export class Ping {
+    static create(): string {
+        return JSON.stringify({ type: "ping" });
+    }
+}
+
 /** Cells the player's figures saw, they lose their fog for this player */
 export class RevealFog {
     static create(cells: number[]): string {

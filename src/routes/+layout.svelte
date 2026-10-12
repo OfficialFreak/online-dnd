@@ -54,8 +54,10 @@
         ImportCharacter,
         InitialMessage,
         PutMarker,
+        Ping,
         PutSound,
     } from "$lib/types/messaging/client_messages";
+    import type { GameSocket } from "$lib/connection.svelte";
     import {
         EventType,
         MessageType,
@@ -226,6 +228,23 @@
     }
 
     let hidden_since = 0;
+    /** Waiting for the server to answer a ping */
+    let pong_waiters: (() => void)[] = [];
+
+    /** Whether the connection still lives: the server answers a ping within 3 seconds */
+    function alive(ws: GameSocket) {
+        return new Promise<boolean>((resolve) => {
+            const timer = setTimeout(() => resolve(false), 3000);
+            pong_waiters.push(() => {
+                clearTimeout(timer);
+                resolve(true);
+            });
+            ws.send(Ping.create()).catch(() => {
+                clearTimeout(timer);
+                resolve(false);
+            });
+        });
+    }
 
     async function on_visibility_change() {
         if (document.hidden) {
@@ -241,12 +260,14 @@
             return;
         }
         // iOS ends the connections of a page in the background, often without telling
-        // it. After a while away the page connects anew instead of waiting for nothing.
+        // it. After a while away the page asks the server, and only connects anew if it
+        // doesn't answer: everyone else would see it leave and join again otherwise.
         if (
             !in_tauri &&
-            navigator.maxTouchPoints > 0 &&
-            Date.now() - hidden_since > 10_000
+            Date.now() - hidden_since > 10_000 &&
+            !(await alive(appState.ws))
         ) {
+            if (!appState.ws || document.hidden) return;
             // First, so its close doesn't count as a lost connection
             const old_ws = appState.ws;
             appState.ws = null;
@@ -792,6 +813,9 @@
                     break;
                 case MessageType.WEATHER:
                     if (gameState.scene) gameState.scene.weather = message.weather;
+                    break;
+                case MessageType.PONG:
+                    pong_waiters.splice(0).forEach((answered) => answered());
                     break;
                 case MessageType.DOOR: {
                     const door = gameState.scene?.state.doors?.find(

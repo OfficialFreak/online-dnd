@@ -46,7 +46,8 @@ export enum MessageType {
     MARKER_POSITION = "marker_position",
     WEATHER = "weather",
     EFFECTS_ENDED = "effects_ended",
-    DOOR = "door"
+    DOOR = "door",
+    PONG = "pong"
 }
 
 export enum EventType {
@@ -352,6 +353,11 @@ export interface WeatherChanged extends BaseServerMessage {
     weather: Weather;
 }
 
+/** The answer to a ping, the connection lives */
+export interface Pong extends BaseServerMessage {
+    type: MessageType.PONG;
+}
+
 export interface DoorChanged extends BaseServerMessage {
     type: MessageType.DOOR;
     id: string;
@@ -438,6 +444,7 @@ export type ServerMessage =
     | WeatherChanged
     | EffectsEnded
     | DoorChanged
+    | Pong
     | UserAdmin
     | TabletopAudio
     | SoundImportFailed
@@ -530,6 +537,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as EffectsEnded;
         case MessageType.DOOR:
             return data as DoorChanged;
+        case MessageType.PONG:
+            return data as Pong;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }
