@@ -692,6 +692,7 @@
     let dragOptions: DragOptions = $derived({
         onDragStart: ({ currentNode }) => {
             appState.dragging = true;
+            appState.open_marker_menu = null;
             record_undo();
             start_group(currentNode.id);
             if (!appState.ws) return;
@@ -990,6 +991,19 @@
         };
     });
 
+    // A tap next to the marker whose menu is open closes it
+    $effect(() => {
+        if (!editable) return;
+        const close_menu = (event: PointerEvent) => {
+            const open = appState.open_marker_menu;
+            if (!open) return;
+            if (document.getElementById(open)?.contains(event.target as Node)) return;
+            appState.open_marker_menu = null;
+        };
+        window.addEventListener("pointerdown", close_menu, true);
+        return () => window.removeEventListener("pointerdown", close_menu, true);
+    });
+
     // Dragging with the middle mouse button pans the map
     let pan_start: { x: number; y: number } | null = null;
 
@@ -1239,7 +1253,7 @@
         ></canvas>
         <!-- Non Player Markers under the fog, but their menu goes over it and the drawings -->
         <div
-            class="absolute top-0 left-0 w-full h-full z-0 has-[:hover]:z-20 pointer-events-none"
+            class="absolute top-0 left-0 w-full h-full z-0 has-[:hover]:z-20 has-[.menu-open]:z-30 pointer-events-none"
         >
             {#each non_player_markers as marker}
                 {@const hidden = !gameState.dm && in_fog(marker)}
@@ -1331,9 +1345,9 @@
             style="opacity: {gameState.dm ? '60' : '100'}%"
         >
         </canvas>
-        <!-- Player Markers above the Fog -->
+        <!-- Player Markers above the Fog, a marker with its menu open above everything -->
         <div
-            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+            class="absolute top-0 left-0 w-full h-full z-0 has-[.menu-open]:z-30 pointer-events-none"
         >
             {#each player_markers as marker}
                 <Marker

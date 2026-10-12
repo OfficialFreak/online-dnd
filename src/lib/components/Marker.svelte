@@ -62,6 +62,22 @@
     let position = $state({ x: 0, y: 0 });
     let selecting_tool = $derived(appState.selectedTool === Tools.Select);
 
+    // A click or tap opens the menu, dragging the marker doesn't. With hover it opened
+    // after every drag, and on a touch screen it stayed: a finger leaves its hover behind.
+    let on_map = $derived(mapUse && !banner);
+    let menu_open = $derived(on_map && appState.open_marker_menu === marker.name);
+    let press: { x: number; y: number } | null = null;
+
+    function tap(event: MouseEvent) {
+        const start = press;
+        press = null;
+        if (!on_map || !start) return;
+        if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8) return;
+        // Taps in the open menu are for its buttons and fields
+        if ((event.target as HTMLElement).closest(".dropdown-content")) return;
+        appState.open_marker_menu = menu_open ? null : marker.name;
+    }
+
     $effect(() => {
         if (!markerElement) return;
         markerElement.style.pointerEvents =
@@ -291,7 +307,9 @@
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
     banner
         ? '!pointer-events-none'
-        : ''} {mapUse ? 'hover:isolate hover:z-[9999]' : ''}"
+        : ''} {mapUse ? 'hover:isolate hover:z-[9999]' : ''} {menu_open
+        ? 'menu-open isolate !z-[10000]'
+        : ''}"
 >
     {#if !gameState.dm && !banner && !getCharacter(marker.name)}
         <span
@@ -311,11 +329,20 @@
     <button
         class={((gameState.dm && mapUse && !selecting_tool) ||
         (!gameState.dm && getCharacter(marker.name))
-            ? "dropdown dropdown-hover dropdown-right dropdown-center"
+            ? "dropdown dropdown-right dropdown-center" +
+              (on_map
+                  ? menu_open
+                      ? " dropdown-open"
+                      : " dropdown-close"
+                  : " dropdown-hover")
             : "") +
             " avatar flex " +
             (banner ? " aspect-[2/3] " : "") +
             (!gameState.dm && banner ? " pointer-events-none " : " ")}
+        onpointerdown={(event) => {
+            if (on_map) press = { x: event.clientX, y: event.clientY };
+        }}
+        onclick={tap}
     >
         {#if banner && !getCharacter(marker.name)}
             <span

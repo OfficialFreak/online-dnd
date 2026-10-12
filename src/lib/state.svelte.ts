@@ -62,6 +62,8 @@ export const appState = $state({
     mouseDown: false,
     /** The toolbar and the buttons of the title bar, folded away until opened */
     controls_open: false,
+    /** The marker whose menu a click or tap opened */
+    open_marker_menu: null as string | null,
     theme: null as string | null,
     map_confetti_function: (() => {}) as () => {} as
         | (() => void)
