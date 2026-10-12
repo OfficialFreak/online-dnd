@@ -486,18 +486,6 @@ export class Ping {
     }
 }
 
-/** Cells the player's figures saw, they lose their fog for this player */
-export class RevealFog {
-    /** The DM names the player they look at the map as, the others uncover their own */
-    static create(cells: number[], player?: string): string {
-        return JSON.stringify({
-            type: "reveal_fog",
-            cells: cells,
-            player: player
-        });
-    }
-}
-
 /** The weather over the map of the active scene, for everyone */
 export class SetWeather {
     static create(weather: Weather): string {

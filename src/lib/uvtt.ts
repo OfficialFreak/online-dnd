@@ -186,7 +186,7 @@ function unique_scene_name(name: string) {
 
 /**
  * Lets the DM pick an exported map and makes a scene of it: the image, its grid, walls,
- * doors and lights. Sight is on and everything still in fog for the players.
+ * doors and lights, with sight on.
  */
 export async function import_uvtt() {
     if (!appState.ws) return;
@@ -210,16 +210,10 @@ export async function import_uvtt() {
     const asset = await upload_bytes(bytes, `${name}.${extension}`);
     if (!asset || !appState.ws) return;
 
-    // The map shows one row more than it has, the fog covers it too
-    const words = Math.ceil((map.columns * (map.rows + 1)) / 32);
-    const fog_squares = Object.fromEntries(
-        gameState.users
-            .filter((user) => !user.dm)
-            .map((user) => [user.name, new Array<number>(words).fill(-1)]),
-    );
+    // Without fog, the DM lays it with the fog tool where wanted
     await appState.ws.send(
         PutScene.create(name, asset, null, 0, map.columns, map.rows, 0, 0, {
-            fog_squares,
+            fog_squares: {},
             markers: [],
             initiative: [],
             turn: null,

@@ -28,7 +28,6 @@
         MouseLarge,
         PutScene,
         PutWalls,
-        RevealFog,
         SetDoor,
     } from "$lib/types/messaging/client_messages";
     import {
@@ -1359,46 +1358,6 @@
         ].some((point) => seen(point as Point));
     }
 
-    // What the player's figures see loses its fog for them, also on the server. Each
-    // player's app does it for them, and the DM's app for the player it shows the map as:
-    // someone not online wouldn't uncover anything when the DM moves their figure.
-    const revealed = new globalThis.Map<string, number[]>();
-    const send_revealed = debounce(() => {
-        for (const [player, cells] of revealed) {
-            appState.ws?.send(
-                RevealFog.create(cells, gameState.dm ? player : undefined),
-            );
-        }
-        revealed.clear();
-    }, 300);
-    $effect(() => {
-        if (!viewer || !sight || !gameState.scene) return;
-        const fog = gameState.scene.state.fog_squares[viewer];
-        if (!fog) return;
-        const player = viewer;
-        const current = sight;
-        untrack(() => {
-            let changed = false;
-            for (let y = 0; y < rows; y++) {
-                for (let x = 0; x < columns; x++) {
-                    if (!isFogAt(fog, x, y)) continue;
-                    const center: Point = [
-                        x + 0.5 + x_offset / size,
-                        y + 0.5 + y_offset / size,
-                    ];
-                    if (seen_at(current, center) > SEEN) {
-                        setFogAt(fog, x, y, false);
-                        const cells = revealed.get(player) ?? [];
-                        cells.push(y * columns + x);
-                        revealed.set(player, cells);
-                        changed = true;
-                    }
-                }
-            }
-            if (changed) send_revealed();
-        });
-    });
-
     let door_size = $derived(Math.max(14, size * 0.45));
 
     function door_middle(door: Door): Point {
@@ -1936,7 +1895,7 @@
             {/each}
         </svg>
         {#if sight}
-            <!-- What the figures don't see is darker, under the fog of what they never saw -->
+            <!-- What the figures don't see is darker, under the fog the DM lays -->
             <VisionLayer
                 width={sight.width}
                 height={sight.height}
