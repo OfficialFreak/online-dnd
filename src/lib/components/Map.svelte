@@ -43,6 +43,7 @@
     import {
         compute_sight,
         compute_tint,
+        light_base,
         LIGHT_PRESETS,
         lit_at,
         preset_of,
@@ -1279,23 +1280,23 @@
                   })
             : [],
     );
+    /** The scene's light and its placed lights, only new when they or the walls change */
+    let base = $derived(
+        wall_index && map_rows
+            ? light_base(columns, map_rows, lighting, placed_lamps)
+            : null,
+    );
     /** How well the viewer sees every spot, with the lights and darkvision */
     let sight: Sight | null = $derived(
-        wall_index && viewer && map_rows
-            ? compute_sight(
-                  columns,
-                  map_rows,
-                  lighting,
-                  [...placed_lamps, ...carried_lamps],
-                  eyes,
-              )
+        base && viewer
+            ? compute_sight(base, columns, map_rows, carried_lamps, eyes)
             : null,
     );
 
     /** The DM sees everything, the coloured glow of the lights too */
     let dm_tint = $derived(
-        gameState.dm && !viewer && wall_index && map_rows
-            ? compute_tint(columns, map_rows, [...placed_lamps, ...carried_lamps])
+        gameState.dm && !viewer && base
+            ? compute_tint(base, columns, map_rows, carried_lamps)
             : null,
     );
 

@@ -142,22 +142,75 @@ function trace(ctx: CanvasRenderingContext2D, polygon: Point[], sx: number, sy: 
     ctx.closePath();
 }
 
-export function compute_sight(
+/** The size of the small pictures for a map */
+function picture_size(columns: number, rows: number) {
+    const width = Math.max(1, Math.min(1024, Math.round(columns * PIXELS_PER_CELL)));
+    const height = Math.max(1, Math.round((width * rows) / columns));
+    return { width, height, sx: width / columns, sy: height / rows };
+}
+
+/** Bright light in the middle, dim light around it, past the walls */
+function draw_light(ctx: CanvasRenderingContext2D, lamp: Lamp, sx: number, sy: number) {
+    if (lamp.polygon.length < 3 || lamp.dim <= 0) return;
+    const cx = lamp.point[0] * sx;
+    const cy = lamp.point[1] * sy;
+    const radius = lamp.dim * sx;
+    const edge = Math.min(0.96, lamp.bright / lamp.dim);
+    const soft = 0.03;
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    gradient.addColorStop(0, "rgb(255, 255, 0)");
+    gradient.addColorStop(Math.max(0, edge - soft), "rgb(255, 255, 0)");
+    gradient.addColorStop(Math.min(1, edge + soft), "rgb(128, 255, 0)");
+    gradient.addColorStop(Math.max(edge + soft, 1 - soft), "rgb(128, 255, 0)");
+    gradient.addColorStop(1, "rgba(128, 255, 0, 0)");
+    ctx.save();
+    trace(ctx, lamp.polygon, sx, sy);
+    ctx.clip();
+    ctx.fillStyle = gradient;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    ctx.restore();
+}
+
+/** A faint glow in the light's colour, overlapping lights don't add up to white */
+function draw_glow(ctx: CanvasRenderingContext2D, lamp: Lamp, sx: number, sy: number) {
+    if (!lamp.color || lamp.polygon.length < 3 || lamp.dim <= 0) return;
+    const cx = lamp.point[0] * sx;
+    const cy = lamp.point[1] * sy;
+    const radius = lamp.dim * sx;
+    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    gradient.addColorStop(0, colour_alpha(lamp.color, 0.32));
+    gradient.addColorStop(Math.min(0.95, lamp.bright / lamp.dim), colour_alpha(lamp.color, 0.18));
+    gradient.addColorStop(1, colour_alpha(lamp.color, 0));
+    ctx.save();
+    trace(ctx, lamp.polygon, sx, sy);
+    ctx.clip();
+    ctx.fillStyle = gradient;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    ctx.restore();
+}
+
+/**
+ * The scene's own light and its placed lights, drawn only when those or the walls change.
+ * A big map has a hundred and more, drawing them on every step of a figure was slow.
+ */
+export type LightBase = {
+    width: number;
+    height: number;
+    light: HTMLCanvasElement;
+    glow: HTMLCanvasElement | null;
+};
+
+export function light_base(
     columns: number,
     rows: number,
     lighting: Lighting,
     lamps: Lamp[],
-    eyes: Eye[],
-): Sight {
-    const width = Math.max(1, Math.min(1024, Math.round(columns * PIXELS_PER_CELL)));
-    const height = Math.max(1, Math.round((width * rows) / columns));
-    const sx = width / columns;
-    const sy = height / rows;
-    const [light, eye_ctx, seen_ctx, tint_ctx] = contexts(width, height);
-
-    // How bright the map is without the figures: the scene, then the lights past the walls
-    light.globalCompositeOperation = "source-over";
-    light.clearRect(0, 0, width, height);
+): LightBase {
+    const { width, height, sx, sy } = picture_size(columns, rows);
+    const light_canvas = document.createElement("canvas");
+    light_canvas.width = width;
+    light_canvas.height = height;
+    const light = light_canvas.getContext("2d")!;
     light.fillStyle =
         lighting === "bright"
             ? "rgb(255, 255, 0)"
@@ -166,26 +219,60 @@ export function compute_sight(
               : "rgb(0, 0, 0)";
     light.fillRect(0, 0, width, height);
     light.globalCompositeOperation = "lighten";
-    for (const lamp of lamps) {
-        if (lamp.polygon.length < 3 || lamp.dim <= 0) continue;
-        const cx = lamp.point[0] * sx;
-        const cy = lamp.point[1] * sy;
-        const radius = lamp.dim * sx;
-        const edge = Math.min(0.96, lamp.bright / lamp.dim);
-        const soft = 0.03;
-        const gradient = light.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        gradient.addColorStop(0, "rgb(255, 255, 0)");
-        gradient.addColorStop(Math.max(0, edge - soft), "rgb(255, 255, 0)");
-        gradient.addColorStop(Math.min(1, edge + soft), "rgb(128, 255, 0)");
-        gradient.addColorStop(Math.max(edge + soft, 1 - soft), "rgb(128, 255, 0)");
-        gradient.addColorStop(1, "rgba(128, 255, 0, 0)");
-        light.save();
-        trace(light, lamp.polygon, sx, sy);
-        light.clip();
-        light.fillStyle = gradient;
-        light.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-        light.restore();
+    for (const lamp of lamps) draw_light(light, lamp, sx, sy);
+
+    let glow_canvas: HTMLCanvasElement | null = null;
+    if (lamps.some((lamp) => lamp.color)) {
+        glow_canvas = document.createElement("canvas");
+        glow_canvas.width = width;
+        glow_canvas.height = height;
+        const glow = glow_canvas.getContext("2d")!;
+        glow.globalCompositeOperation = "lighter";
+        for (const lamp of lamps) draw_glow(glow, lamp, sx, sy);
     }
+    return { width, height, light: light_canvas, glow: glow_canvas };
+}
+
+/** The placed lights and those the figures carry, glowing where the mask lets them */
+function glow_of(
+    ctx: CanvasRenderingContext2D,
+    base: LightBase,
+    carried: Lamp[],
+    sx: number,
+    sy: number,
+    mask: HTMLCanvasElement | null,
+) {
+    if (!base.glow && !carried.some((lamp) => lamp.color)) return null;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.clearRect(0, 0, base.width, base.height);
+    if (base.glow) ctx.drawImage(base.glow, 0, 0);
+    ctx.globalCompositeOperation = "lighter";
+    for (const lamp of carried) draw_glow(ctx, lamp, sx, sy);
+    if (mask) {
+        ctx.globalCompositeOperation = "destination-in";
+        ctx.drawImage(mask, 0, 0);
+    }
+    ctx.globalCompositeOperation = "source-over";
+    return ctx.getImageData(0, 0, base.width, base.height);
+}
+
+export function compute_sight(
+    base: LightBase,
+    columns: number,
+    rows: number,
+    carried: Lamp[],
+    eyes: Eye[],
+): Sight {
+    const { width, height, sx, sy } = picture_size(columns, rows);
+    const [light, eye_ctx, seen_ctx, glow_ctx] = contexts(width, height);
+
+    // How bright the map is without the figures: the scene and its lights, then the
+    // lights the figures carry
+    light.globalCompositeOperation = "source-over";
+    light.clearRect(0, 0, width, height);
+    light.drawImage(base.light, 0, 0);
+    light.globalCompositeOperation = "lighten";
+    for (const lamp of carried) draw_light(light, lamp, sx, sy);
 
     // What each figure sees of it, the best of all figures counts
     seen_ctx.globalCompositeOperation = "source-over";
@@ -212,7 +299,7 @@ export function compute_sight(
     }
     const seen = seen_ctx.getImageData(0, 0, width, height).data;
     const lit = light.getImageData(0, 0, width, height).data;
-    const tint = draw_tint(tint_ctx, lamps, sx, sy, seen_ctx.canvas);
+    const tint = glow_of(glow_ctx, base, carried, sx, sy, seen_ctx.canvas);
 
     const shade = new ImageData(width, height);
     const grey = new ImageData(width, height);
@@ -244,57 +331,16 @@ export function compute_sight(
     };
 }
 
-/**
- * The coloured glow of the lights, only where the figures see when there is a mask. The
- * DM sees it everywhere.
- */
-function draw_tint(
-    ctx: CanvasRenderingContext2D,
-    lamps: Lamp[],
-    sx: number,
-    sy: number,
-    mask: HTMLCanvasElement | null,
-) {
-    const coloured = lamps.filter((lamp) => lamp.color && lamp.polygon.length >= 3);
-    if (!coloured.length) return null;
-    const { width, height } = ctx.canvas;
-    ctx.globalCompositeOperation = "source-over";
-    ctx.clearRect(0, 0, width, height);
-    ctx.globalCompositeOperation = "lighter";
-    for (const lamp of coloured) {
-        const cx = lamp.point[0] * sx;
-        const cy = lamp.point[1] * sy;
-        const radius = lamp.dim * sx;
-        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-        gradient.addColorStop(0, colour_alpha(lamp.color!, 0.45));
-        gradient.addColorStop(Math.min(0.95, lamp.bright / lamp.dim), colour_alpha(lamp.color!, 0.25));
-        gradient.addColorStop(1, colour_alpha(lamp.color!, 0));
-        ctx.save();
-        trace(ctx, lamp.polygon, sx, sy);
-        ctx.clip();
-        ctx.fillStyle = gradient;
-        ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-        ctx.restore();
-    }
-    if (mask) {
-        ctx.globalCompositeOperation = "destination-in";
-        ctx.drawImage(mask, 0, 0);
-    }
-    ctx.globalCompositeOperation = "source-over";
-    return ctx.getImageData(0, 0, width, height);
-}
-
 function colour_alpha(hex: string, alpha: number) {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 /** The glow of the lights for the DM, who sees everything */
-export function compute_tint(columns: number, rows: number, lamps: Lamp[]) {
-    const width = Math.max(1, Math.min(1024, Math.round(columns * PIXELS_PER_CELL)));
-    const height = Math.max(1, Math.round((width * rows) / columns));
-    const [, , , tint_ctx] = contexts(width, height);
-    const tint = draw_tint(tint_ctx, lamps, width / columns, height / rows, null);
+export function compute_tint(base: LightBase, columns: number, rows: number, carried: Lamp[]) {
+    const { width, height, sx, sy } = picture_size(columns, rows);
+    const [, , , glow_ctx] = contexts(width, height);
+    const tint = glow_of(glow_ctx, base, carried, sx, sy, null);
     return tint && { width, height, tint };
 }
 
