@@ -96,8 +96,11 @@ export function parse_uvtt(text: string): ImportedMap {
         }
     }
 
+    // Closed portals are the doors. The open ones are windows, archways and openings of
+    // up to 14 squares in Dungeon Alchemist's maps: gaps to see through, no doors.
     const doors: Door[] = [];
     for (const portal of list(field(data, "portals"))) {
+        if (field(portal, "closed") === false) continue;
         const bounds = list(field(portal, "bounds"));
         if (bounds.length < 2) continue;
         const a = point(bounds[0]);
@@ -107,7 +110,7 @@ export function parse_uvtt(text: string): ImportedMap {
             id: `d${doors.length.toString(36)}`,
             a,
             b,
-            open: field(portal, "closed") === false,
+            open: false,
             locked: false,
         });
     }
