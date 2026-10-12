@@ -23,6 +23,8 @@
     /** A new scene during an intro ends the one before */
     let run = 0;
     let frame = 0;
+    /** Ends the smoke closing in at once, when the window can't be seen */
+    let end_cover: (() => void) | null = null;
     /** Fully covered it was drawn once, it needn't be again until the smoke draws back */
     let drawn_covered = false;
 
@@ -80,18 +82,47 @@
         if (!frame) frame = requestAnimationFrame(animate);
     }
 
-    async function cover() {
+    function cover() {
         run++;
+        if (document.hidden) return Promise.resolve();
         start_smoke();
         if (scroll_shown) {
             // Rolled up at once, the next name follows
             unrolled.set(0, { duration: 200 }).then(() => (scroll_shown = false));
         }
-        // Evenly: the smoke itself rolls in from the edges and closes in the middle
-        await smoke.set(1, { duration: 1100, easing: linear });
+        // A tween stopped before its end never finishes, so it ends here too
+        return new Promise<void>((resolve) => {
+            end_cover = resolve;
+            // Evenly: the smoke itself rolls in from the edges and closes in the middle
+            smoke.set(1, { duration: 1100, easing: linear }).then(() => {
+                if (end_cover === resolve) end_cover = null;
+                resolve();
+            });
+        });
+    }
+
+    /**
+     * A window that can't be seen stops animating, the scene waited behind the smoke until
+     * it came back. Everything ends at once instead, the new scene is there.
+     */
+    function skip() {
+        run++;
+        smoke.set(0, { duration: 0 });
+        unrolled.set(0, { duration: 0 });
+        scroll_shown = false;
+        drawn_covered = false;
+        cancelAnimationFrame(frame);
+        frame = 0;
+        const resolve = end_cover;
+        end_cover = null;
+        resolve?.();
     }
 
     async function reveal(scene_name: string, ready: Promise<unknown>) {
+        if (document.hidden) {
+            skip();
+            return;
+        }
         const mine = run;
         name = scene_name;
         unrolled.set(0, { duration: 0 });
@@ -111,10 +142,18 @@
         scroll_shown = false;
     }
 
+    function on_visibility() {
+        if (document.hidden && (smoke.current > 0 || smoke.target > 0 || scroll_shown)) {
+            skip();
+        }
+    }
+
     onMount(() => {
         register_intro({ cover, reveal });
+        document.addEventListener("visibilitychange", on_visibility);
         return () => {
             register_intro(null);
+            document.removeEventListener("visibilitychange", on_visibility);
             cancelAnimationFrame(frame);
         };
     });
