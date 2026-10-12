@@ -47,7 +47,9 @@ export enum MessageType {
     WEATHER = "weather",
     EFFECTS_ENDED = "effects_ended",
     DOOR = "door",
-    PONG = "pong"
+    PONG = "pong",
+    REACTION = "reaction",
+    REACTIONS = "reactions"
 }
 
 export enum EventType {
@@ -353,6 +355,21 @@ export interface WeatherChanged extends BaseServerMessage {
     weather: Weather;
 }
 
+/** Someone called out a quick reaction, with their recording if they made one */
+export interface ReactionMessage extends BaseServerMessage {
+    type: MessageType.REACTION;
+    person: string;
+    character?: string | null;
+    reaction: string;
+    file?: string | null;
+}
+
+/** This player's recordings, by reaction */
+export interface Reactions extends BaseServerMessage {
+    type: MessageType.REACTIONS;
+    reactions: Record<string, string>;
+}
+
 /** The answer to a ping, the connection lives */
 export interface Pong extends BaseServerMessage {
     type: MessageType.PONG;
@@ -445,6 +462,8 @@ export type ServerMessage =
     | EffectsEnded
     | DoorChanged
     | Pong
+    | ReactionMessage
+    | Reactions
     | UserAdmin
     | TabletopAudio
     | SoundImportFailed
@@ -539,6 +558,10 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as DoorChanged;
         case MessageType.PONG:
             return data as Pong;
+        case MessageType.REACTION:
+            return data as ReactionMessage;
+        case MessageType.REACTIONS:
+            return data as Reactions;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

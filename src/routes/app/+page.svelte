@@ -30,6 +30,7 @@
     import StatusEffectBar from "$lib/components/StatusEffectBar.svelte";
     import DragGhost from "$lib/components/DragGhost.svelte";
     import WeatherLayer from "$lib/components/WeatherLayer.svelte";
+    import ReactionBar from "$lib/components/ReactionBar.svelte";
 
     let url: string | null = $derived(
         appState.token
@@ -212,6 +213,7 @@
     >
         <DiceChooser roll_callback={roll} />
     </div>
+    <ReactionBar />
 
     <!-- What can be done with the selected markers, without Delete key on a tablet -->
     {#if gameState.dm && selection.size > 0}

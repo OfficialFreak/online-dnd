@@ -78,6 +78,8 @@
     import { condition_label, normalize_condition } from "$lib/conditions";
     import { load_dice_skin } from "$lib/dice-skins.svelte";
     import DiceSkinPicker from "$lib/components/DiceSkinPicker.svelte";
+    import ReactionRecorder from "$lib/components/ReactionRecorder.svelte";
+    import { hear_reaction, reactionState } from "$lib/reactions.svelte";
     import { goto } from "$app/navigation";
     import { updated } from "$app/state";
     import { Character } from "$lib/types/character";
@@ -817,6 +819,12 @@
                 case MessageType.PONG:
                     pong_waiters.splice(0).forEach((answered) => answered());
                     break;
+                case MessageType.REACTION:
+                    hear_reaction(message);
+                    break;
+                case MessageType.REACTIONS:
+                    reactionState.mine = message.reactions ?? {};
+                    break;
                 case MessageType.DOOR: {
                     const door = gameState.scene?.state.doors?.find(
                         (door) => door.id === message.id,
@@ -1349,6 +1357,12 @@
             Alle sehen deine Würfel, wenn du würfelst.
         </p>
         <DiceSkinPicker />
+        <h3 class="text-lg font-bold mt-4">Reaktionen</h3>
+        <p class="text-sm text-base-content/60 mb-2">
+            Sprich sie mit deiner Stimme ein, bis zu 3 Sekunden. Alle hören sie, wenn
+            du sie neben den Würfeln drückst.
+        </p>
+        <ReactionRecorder />
         <h3 class="text-lg font-bold mt-4">Effekte</h3>
         <label class="flex items-center gap-2 text-sm mt-1">
             <input

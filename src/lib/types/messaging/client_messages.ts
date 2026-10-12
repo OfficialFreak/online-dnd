@@ -486,6 +486,26 @@ export class Ping {
     }
 }
 
+/** A quick reaction everyone hears */
+export class Reaction {
+    static create(reaction: string): string {
+        return JSON.stringify({ type: "reaction", reaction: reaction });
+    }
+}
+
+/** Keeps a recording of the player's voice for a reaction, or forgets it with null */
+export class SetReaction {
+    static create(reaction: string, file: string | null): string {
+        return JSON.stringify({ type: "set_reaction", reaction: reaction, file: file });
+    }
+}
+
+export class GetReactions {
+    static create(): string {
+        return JSON.stringify({ type: "get_reactions" });
+    }
+}
+
 /** The weather over the map of the active scene, for everyone */
 export class SetWeather {
     static create(weather: Weather): string {
