@@ -41,10 +41,9 @@ html, body {
     overscroll-behavior: none;
 }
 
-/* With the controls folded away the title bar is transparent, the page starts at the top,
-   on a phone under its status bar, which shows the map through it */
+/* With the controls folded away the title bar is transparent, the page starts at the top */
 html.controls-folded body {
-    margin-top: 0;
+    margin-top: var(--safe-top);
 }
 
 /* Behind an open dialog the title bar fades. Asked on the title bar, the dialogs come
