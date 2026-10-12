@@ -188,27 +188,42 @@ function fade(
  */
 let song_clock = { elapsed: 0, received: 0 };
 
-/** Where everyone is in the song now, in seconds */
+/**
+ * The length of the song in seconds, null while unknown. iOS loads a song only once it
+ * plays, and may call its length infinite, then how far it can seek tells.
+ */
+function song_length(audio: HTMLAudioElement) {
+    if (Number.isFinite(audio.duration) && audio.duration > 0) return audio.duration;
+    const ranges = audio.seekable;
+    const end = ranges.length > 0 ? ranges.end(ranges.length - 1) : 0;
+    return Number.isFinite(end) && end > 0 ? end : null;
+}
+
+/**
+ * Where everyone is in the song now, in seconds. Null while its length is unknown: a jump
+ * past its end would start it over.
+ */
 function song_position(audio: HTMLAudioElement) {
+    const length = song_length(audio);
+    if (length === null) return null;
     const seconds =
         (song_clock.elapsed + performance.now() - song_clock.received) / 1000;
-    // Before the file's length is known, iOS doesn't load it before a tap, it starts at
-    // this point and is corrected once the length is there
-    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return seconds;
-    return seconds % audio.duration;
+    return seconds % length;
 }
 
 /** How far the song is off, the end and the start of a loop lie next to each other */
 function drift(audio: HTMLAudioElement, position: number) {
     const apart = Math.abs(audio.currentTime - position);
-    if (!Number.isFinite(audio.duration)) return apart;
-    return Math.min(apart, audio.duration - apart);
+    const length = song_length(audio) ?? Infinity;
+    return Math.min(apart, length - apart);
 }
 
 /** Everyone hears the same part of the song */
 function catch_up(audio: HTMLAudioElement) {
+    const position = song_position(audio);
+    if (position === null) return;
     try {
-        audio.currentTime = song_position(audio);
+        audio.currentTime = position;
     } catch {
         // Not seekable yet, the next correction tries again
     }
@@ -224,20 +239,26 @@ function keep_in_step(audio: HTMLAudioElement) {
     const correct = () => {
         // A jump loads again, so only a few times in a row
         if (audio !== music || corrections >= 3) return;
-        if (drift(audio, song_position(audio)) > 0.3) {
+        const position = song_position(audio);
+        if (position !== null && drift(audio, position) > 0.3) {
             corrections++;
             catch_up(audio);
         }
     };
     audio.addEventListener("play", () => (corrections = 0));
-    for (const type of ["loadedmetadata", "durationchange", "canplay", "playing"]) {
+    for (const type of [
+        "loadedmetadata",
+        "durationchange",
+        "progress",
+        "canplay",
+        "playing",
+    ]) {
         audio.addEventListener(type, correct);
     }
     setInterval(() => {
-        if (audio !== music || audio.paused || !Number.isFinite(audio.duration)) {
-            return;
-        }
-        if (drift(audio, song_position(audio)) > 1) catch_up(audio);
+        if (audio !== music || audio.paused) return;
+        const position = song_position(audio);
+        if (position !== null && drift(audio, position) > 1) catch_up(audio);
     }, 15_000);
 }
 
