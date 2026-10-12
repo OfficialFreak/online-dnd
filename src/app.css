@@ -214,6 +214,13 @@ html.controls-folded body {
     }
 }
 
+/* Firefox drew the moving conditions anew at each step of a zoom gesture, with a few
+   burning markers zooming stuttered. They hold still until the map is laid out again. */
+.zooming .condition-animated,
+.zooming .condition-effects * {
+    animation-play-state: paused !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .condition-animated {
         animation: none !important;

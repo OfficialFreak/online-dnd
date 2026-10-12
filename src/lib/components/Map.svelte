@@ -2072,7 +2072,7 @@
         ? ''
         : 'overflow-hidden'} {appState.selectedTool === Tools.Select
         ? 'touch-none'
-        : ''}"
+        : ''} {gesture_scale !== 1 ? 'zooming' : ''}"
     bind:this={map_element}
     use:dropTarget={editable && gameState.dm
         ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
