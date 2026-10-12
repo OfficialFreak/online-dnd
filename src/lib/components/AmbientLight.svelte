@@ -33,6 +33,7 @@
     /** The glow fading with the distance from the map, and what fades it */
     const light = document.createElement("canvas");
     const falloff = document.createElement("canvas");
+    const falloff_small = document.createElement("canvas");
 
     let shown_file = "";
     let sampled = false;
@@ -95,6 +96,47 @@
         spread();
     }
 
+    /**
+     * Whether canvas filters draw. Safari has none: its light was the map's edges stretched
+     * sharp, too bright and not fading. The light softens without them now, only the
+     * extra colour needs them.
+     */
+    const filters_work = (() => {
+        try {
+            const test = document.createElement("canvas");
+            test.width = test.height = 1;
+            const ctx = test.getContext("2d", { willReadFrequently: true })!;
+            ctx.filter = "brightness(0)";
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, 1, 1);
+            return ctx.getImageData(0, 0, 1, 1).data[0] < 128;
+        } catch {
+            return false;
+        }
+    })();
+
+    /** Smaller and smaller copies, see soften */
+    const halves: HTMLCanvasElement[] = [];
+
+    /**
+     * Softens a picture by halving it a few times: drawn large again, the browser smooths
+     * it out. A blur that every browser draws.
+     */
+    function soften(source: HTMLCanvasElement, times: number) {
+        let current = source;
+        for (let i = 0; i < times; i++) {
+            const next = (halves[i] ??= document.createElement("canvas"));
+            next.width = Math.max(1, Math.round(current.width / 2));
+            next.height = Math.max(1, Math.round(current.height / 2));
+            const ctx = next.getContext("2d")!;
+            ctx.imageSmoothingQuality = "high";
+            ctx.clearRect(0, 0, next.width, next.height);
+            ctx.drawImage(current, 0, 0, next.width, next.height);
+            current = next;
+        }
+        return current;
+    }
+
     /** The edges stretched outwards, then blurred far and a little more colourful */
     function spread() {
         const bw = base.width;
@@ -114,11 +156,19 @@
         ctx.drawImage(base, 0, bh - 1, 1, 1, 0, mh + bh, mw, mh);
         ctx.drawImage(base, bw - 1, bh - 1, 1, 1, mw + bw, mh + bh, mw, mh);
 
+        // An eighth as large and drawn large again, it is blurred far
+        const soft = soften(extended, 3);
         const glow_ctx = glow.getContext("2d")!;
         glow_ctx.clearRect(0, 0, glow.width, glow.height);
-        glow_ctx.filter = `blur(${bw / 7}px) saturate(1.6) brightness(${dimming})`;
-        glow_ctx.drawImage(extended, 0, 0);
+        glow_ctx.imageSmoothingQuality = "high";
+        if (filters_work) glow_ctx.filter = "saturate(1.6)";
+        glow_ctx.drawImage(soft, 0, 0, glow.width, glow.height);
         glow_ctx.filter = "none";
+        // Darker in a dark scene
+        glow_ctx.globalCompositeOperation = "source-atop";
+        glow_ctx.fillStyle = `rgba(0, 0, 0, ${1 - dimming})`;
+        glow_ctx.fillRect(0, 0, glow.width, glow.height);
+        glow_ctx.globalCompositeOperation = "source-over";
 
         const average_ctx = average.getContext("2d")!;
         average_ctx.imageSmoothingQuality = "high";
@@ -152,9 +202,10 @@
         // card can leave out what lies under it.
         const ctx = canvas.getContext("2d", { alpha: false })!;
         ctx.globalCompositeOperation = "copy";
-        ctx.filter = "brightness(0.5)";
         ctx.drawImage(average, 0, 0, width, height);
-        ctx.filter = "none";
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(0, 0, width, height);
 
         // Closer its edges glow, fading with the distance
         const light_ctx = light.getContext("2d")!;
@@ -170,24 +221,37 @@
             glow.width * scale_x,
             glow.height * scale_y,
         );
+        // Where it reaches: the map's place drawn tiny, smoothed when drawn large
+        const shrink = 16;
+        falloff_small.width = Math.max(1, Math.ceil(width / shrink));
+        falloff_small.height = Math.max(1, Math.ceil(height / shrink));
+        const small_ctx = falloff_small.getContext("2d")!;
+        small_ctx.clearRect(0, 0, falloff_small.width, falloff_small.height);
+        small_ctx.fillStyle = "#fff";
+        const reach = width * 0.06;
+        small_ctx.fillRect(
+            (x - reach) / shrink,
+            (y - reach) / shrink,
+            (w + 2 * reach) / shrink,
+            (h + 2 * reach) / shrink,
+        );
         const falloff_ctx = falloff.getContext("2d")!;
         falloff_ctx.clearRect(0, 0, width, height);
-        falloff_ctx.filter = `blur(${width / 5}px)`;
-        falloff_ctx.fillStyle = "#fff";
-        const reach = width * 0.06;
-        falloff_ctx.fillRect(x - reach, y - reach, w + 2 * reach, h + 2 * reach);
-        falloff_ctx.filter = "none";
+        falloff_ctx.imageSmoothingQuality = "high";
+        falloff_ctx.drawImage(falloff_small, 0, 0, width, height);
         light_ctx.globalCompositeOperation = "destination-in";
         light_ctx.drawImage(falloff, 0, 0);
         ctx.globalCompositeOperation = "source-over";
         ctx.drawImage(light, 0, 0);
 
         // A soft shadow right around the map, it floats over its light
-        ctx.filter = `blur(${width / 70}px)`;
+        ctx.save();
+        ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+        ctx.shadowBlur = width / 35;
         ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
         const lift = width * 0.006;
         ctx.fillRect(x - lift, y - lift, w + 2 * lift, h + 2 * lift);
-        ctx.filter = "none";
+        ctx.restore();
 
         // Darker towards the corners, the eye stays on the map. Drawn in here instead of
         // as a layer of its own over the whole screen.
