@@ -18,8 +18,8 @@ export type Condition = {
     /** The marker lies on its side */
     prone?: boolean;
     particles?: { symbols: string[]; motion: ParticleMotion };
-    /** Image over the marker */
-    overlay?: string;
+    /** Flames licking up from below, with a flickering glow and embers */
+    fire?: boolean;
     /** Dark veil over the marker that comes and goes */
     veil?: boolean;
     /** Glow behind the marker */
@@ -125,8 +125,7 @@ export const CONDITIONS: Record<string, Condition> = {
         label: "Brennend",
         color: "#ff4300",
         filter: "brightness(1.5) sepia(1) hue-rotate(333deg) saturate(3)",
-        overlay: "burning.gif",
-        particles: { symbols: ["🔥", "🔥"], motion: "rise" },
+        fire: true,
         icon: "fa-fire",
     },
     bleeding: {

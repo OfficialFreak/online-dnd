@@ -473,17 +473,6 @@
                 asset={marker.file}
                 style={image_filter ? `filter: ${image_filter};` : ""}
             />
-            {#each conditions as condition}
-                <!-- Moving flames redraw all the time, only on the map -->
-                {#if condition.overlay && moving}
-                    <img
-                        alt="Effect Overlay"
-                        class={"absolute w-full mask " +
-                            (banner ? "h-full mask-banner" : "aspect-square mask-hexagon")}
-                        src={condition.overlay}
-                    />
-                {/if}
-            {/each}
         </div>
         {#if animated && interactive && effects.length > 0}
             <ConditionEffects

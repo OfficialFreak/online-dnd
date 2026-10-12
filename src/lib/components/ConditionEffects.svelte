@@ -28,6 +28,17 @@
         {#if condition?.veil}
             <div class="veil mask mask-hexagon"></div>
         {/if}
+        {#if condition?.fire}
+            <div class="fire-glow"></div>
+            <div class="fire">
+                {#each [0, 1, 2] as i (i)}
+                    <span class="flame" style="--i: {i}"></span>
+                {/each}
+                {#each [0, 1, 2, 3] as i (i)}
+                    <span class="ember" style="--i: {i}"></span>
+                {/each}
+            </div>
+        {/if}
         {#if condition?.particles}
             <div class="particles {condition.particles.motion}">
                 {#each condition.particles.symbols as symbol, i}
@@ -88,6 +99,62 @@
     .particles {
         position: absolute;
         inset: 0;
+    }
+
+    /* A warm light from below that flickers like a fire, behind the marker */
+    .fire-glow {
+        position: absolute;
+        inset: -16% -12% -8%;
+        z-index: -1;
+        border-radius: 50%;
+        background: radial-gradient(
+            ellipse at 50% 80%,
+            rgb(255 140 30 / 0.9) 0%,
+            rgb(255 70 0 / 0.55) 38%,
+            transparent 70%
+        );
+        transform-origin: 50% 90%;
+        animation: fire-glow 1.1s ease-in-out infinite;
+    }
+
+    .fire {
+        position: absolute;
+        inset: 0;
+    }
+
+    /* Soft tongues of flame along the bottom edge, the middle one the tallest */
+    .flame {
+        position: absolute;
+        bottom: -6%;
+        left: calc(14% + var(--i) * 24%);
+        width: 24cqw;
+        height: calc(34cqw + (1 - (var(--i) - 1) * (var(--i) - 1)) * 12cqw);
+        border-radius: 50% 50% 45% 45% / 65% 65% 35% 35%;
+        background: radial-gradient(
+            ellipse at 50% 85%,
+            #fff4b8 0%,
+            #ffbe3b 25%,
+            #ff6a00 55%,
+            rgb(255 50 0 / 0) 75%
+        );
+        opacity: 0.9;
+        transform-origin: 50% 100%;
+        animation: flame calc(0.7s + var(--i) * 0.13s) ease-in-out infinite alternate;
+        animation-delay: calc(var(--i) * -0.31s);
+    }
+
+    /* Sparks drifting up and going out */
+    .ember {
+        position: absolute;
+        bottom: 12%;
+        left: calc(26% + var(--i) * 15%);
+        width: 7cqw;
+        height: 7cqw;
+        border-radius: 50%;
+        background: radial-gradient(circle, #fff1a8 0%, #ff7a1a 45%, transparent 70%);
+        opacity: 0;
+        animation: ember 1.9s ease-out infinite;
+        animation-delay: calc(var(--i) * -0.47s);
     }
 
     .particles span {
@@ -218,6 +285,55 @@
         }
     }
 
+    @keyframes fire-glow {
+        0%,
+        100% {
+            opacity: 0.7;
+            scale: 1 0.96;
+        }
+        23% {
+            opacity: 1;
+            scale: 1.04 1.08;
+        }
+        41% {
+            opacity: 0.8;
+            scale: 0.98 1;
+        }
+        68% {
+            opacity: 0.95;
+            scale: 1.02 1.1;
+        }
+    }
+
+    @keyframes flame {
+        0% {
+            transform: scale(1, 0.9) skewX(-4deg);
+            opacity: 0.8;
+        }
+        50% {
+            transform: scale(0.88, 1.12) skewX(3deg);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(1.04, 0.95) skewX(-1deg);
+            opacity: 0.85;
+        }
+    }
+
+    @keyframes ember {
+        0% {
+            opacity: 0;
+            transform: translate(0, 0) scale(1);
+        }
+        15% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+            transform: translate(calc((var(--i) - 1.5) * 7cqw), -75cqh) scale(0.4);
+        }
+    }
+
     @keyframes veil {
         0%,
         100% {
@@ -344,7 +460,9 @@
     @media (prefers-reduced-motion: reduce) {
         .aura,
         .veil,
-        .particles {
+        .particles,
+        .fire-glow,
+        .fire {
             display: none;
         }
     }
