@@ -12,6 +12,7 @@
         ForgetSceneMusic,
         PreloadResource,
     } from "$lib/types/messaging/client_messages";
+    import { weather_icons } from "$lib/weather";
     import Map from "./Map.svelte";
 
     let search = $state("");
@@ -58,8 +59,8 @@
     <p class="text-sm text-base-content/60">
         Zieh eine Szene auf die Karte oder klick auf <i
             class="fa-solid fa-play text-xs"
-        ></i>, um sie zu aktivieren. Sie spielt dann die Musik, die zuletzt
-        darin lief.
+        ></i>, um sie zu aktivieren. Sie spielt dann ihre Musik und hat ihr
+        Wetter, wie du sie zuletzt darin eingestellt hast.
         {#if in_tauri}
             Bilder aus dem Explorer kannst du hier hineinziehen, um neue Szenen zu
             erstellen.
@@ -98,10 +99,13 @@
                     {#if active}
                         <span class="badge badge-info badge-xs">Aktiv</span>
                     {/if}
-                    {#if scene.music}
+                    {#if scene.music || weather_icons(scene.weather).length}
                         <span
                             class="flex items-center gap-1.5 text-xs text-base-content/60 min-w-0"
                         >
+                            {#each weather_icons(scene.weather) as icon (icon)}
+                                <i class="fa-solid {icon}"></i>
+                            {/each}
                             {#if scene.music}
                                 <span
                                     class="truncate"

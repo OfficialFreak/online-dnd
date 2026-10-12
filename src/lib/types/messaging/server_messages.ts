@@ -42,6 +42,7 @@ export enum MessageType {
     SOUND_IMPORT_FAILED = "sound_import_failed",
     MOUSE_POSITION = "mouse_position",
     MARKER_POSITION = "marker_position",
+    WEATHER = "weather",
     EFFECTS_ENDED = "effects_ended"
 }
 
@@ -143,6 +144,16 @@ export interface Marker {
     effect_rounds?: Record<string, number>;
 }
 
+/** Weather over the map, each from 0 for none to 1 for the most */
+export interface Weather {
+    rain: number;
+    snow: number;
+    fog: number;
+    /** From -1, blowing to the left, to 1, to the right */
+    wind: number;
+    lightning: boolean;
+}
+
 /** What plays when the DM switches to a scene, the music last played or stopped in it */
 export type SceneMusic = { kind: "song"; name: string } | { kind: "silence" };
 
@@ -174,6 +185,8 @@ export interface SceneData extends BaseServerMessage {
     rows: number;
     x_offset: number;
     y_offset: number;
+    /** Missing from older servers and in scenes without any */
+    weather?: Weather | null;
     state: SceneState;
 }
 
@@ -188,6 +201,7 @@ export interface Scene {
     x_offset: number;
     y_offset: number;
     music?: SceneMusic | null;
+    weather?: Weather | null;
 }
 
 export interface SceneList extends BaseServerMessage {
@@ -315,6 +329,11 @@ export interface StopSound extends BaseServerMessage {
     name: string;
 }
 
+export interface WeatherChanged extends BaseServerMessage {
+    type: MessageType.WEATHER;
+    weather: Weather;
+}
+
 /** Conditions whose rounds ran out at the end of the creature's turn */
 export interface EffectsEnded extends BaseServerMessage {
     type: MessageType.EFFECTS_ENDED;
@@ -391,6 +410,7 @@ export type ServerMessage =
     | PlaySound
     | StopMusic
     | StopSound
+    | WeatherChanged
     | EffectsEnded
     | UserAdmin
     | TabletopAudio
@@ -478,6 +498,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MousePosition;
         case MessageType.MARKER_POSITION:
             return data as MarkerPosition;
+        case MessageType.WEATHER:
+            return data as WeatherChanged;
         case MessageType.EFFECTS_ENDED:
             return data as EffectsEnded;
         default:

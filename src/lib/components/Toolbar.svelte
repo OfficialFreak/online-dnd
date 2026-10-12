@@ -708,7 +708,7 @@
             </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
-                    Musik <kbd class="kbd">B</kbd>
+                    Musik und Wetter <kbd class="kbd">B</kbd>
                 </div>
                 <button
                     tabindex="0"
@@ -716,7 +716,7 @@
                     'sounds'
                         ? 'btn-info'
                         : ''}"
-                    aria-label="Musik"
+                    aria-label="Musik und Wetter"
                     onclick={() => togglePanel("sounds")}
                 >
                     <i class="fa-solid fa-music"></i>

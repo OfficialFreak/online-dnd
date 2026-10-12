@@ -29,6 +29,7 @@
     import { fade } from "svelte/transition";
     import StatusEffectBar from "$lib/components/StatusEffectBar.svelte";
     import DragGhost from "$lib/components/DragGhost.svelte";
+    import WeatherLayer from "$lib/components/WeatherLayer.svelte";
 
     let url: string | null = $derived(
         appState.token
@@ -147,6 +148,7 @@
         markers={gameState.scene.state.markers}
         editable={true}
     />
+    <WeatherLayer weather={gameState.scene.weather} />
 {:else if appState.ws && gameState.users.length > 0}
     <!-- The server sends the users after the scene, so there is none -->
     <div

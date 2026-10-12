@@ -62,6 +62,8 @@ export const appState = $state({
     mouseDown: false,
     /** The toolbar and the buttons of the title bar, folded away until opened */
     controls_open: false,
+    /** Weather over the map, everyone can turn it off for themselves */
+    show_weather: true,
     /** The marker whose menu a click or tap opened */
     open_marker_menu: null as string | null,
     theme: null as string | null,
@@ -219,6 +221,13 @@ export async function set_controls_open(open: boolean) {
     }
     await ensureStore();
     await appState.store.set("controls_open", { value: open });
+    await appState.store.save();
+}
+
+export async function set_show_weather(show: boolean) {
+    appState.show_weather = show;
+    await ensureStore();
+    await appState.store.set("show_weather", { value: show });
     await appState.store.save();
 }
 

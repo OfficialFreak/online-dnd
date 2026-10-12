@@ -23,6 +23,7 @@
         resetGamestate,
         selection,
         set_controls_open,
+        set_show_weather,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
@@ -348,6 +349,12 @@
                     | { value: boolean }
                     | undefined
             )?.value ?? false;
+        appState.show_weather =
+            (
+                (await appState.store.get("show_weather")) as
+                    | { value: boolean }
+                    | undefined
+            )?.value ?? true;
 
         await load_volume();
         await load_dice_skin();
@@ -742,6 +749,9 @@
                     break;
                 case MessageType.STOP_SOUND:
                     stop_effect(message.name);
+                    break;
+                case MessageType.WEATHER:
+                    if (gameState.scene) gameState.scene.weather = message.weather;
                     break;
                 case MessageType.EFFECTS_ENDED: {
                     const labels = message.effects.map(condition_label);
@@ -1265,6 +1275,17 @@
             Alle sehen deine Würfel, wenn du würfelst.
         </p>
         <DiceSkinPicker />
+        <h3 class="text-lg font-bold mt-4">Wetter</h3>
+        <label class="flex items-center gap-2 text-sm mt-1">
+            <input
+                type="checkbox"
+                class="toggle toggle-sm"
+                checked={appState.show_weather}
+                onchange={(event) =>
+                    set_show_weather(event.currentTarget.checked)}
+            />
+            Regen, Schnee und Nebel auf der Karte zeigen
+        </label>
         <h3 class="text-lg font-bold mt-4">Aussehen anpassen</h3>
         <div class="flex flex-row flex-wrap gap-1">
             {#each ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter", "dim", "nord", "sunset", "caramellatte", "abyss", "silk"] as theme}

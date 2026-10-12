@@ -16,6 +16,7 @@
     import { file_stem_of, pick_file, upload_picked } from "$lib/upload.svelte";
     import { uploadState } from "$lib/upload.svelte";
     import SoundLibrary from "./SoundLibrary.svelte";
+    import WeatherControls from "./WeatherControls.svelte";
 
     /** The DM's own sounds or the libraries to find new ones in */
     let view: "own" | "library" = $state("own");
@@ -144,14 +145,16 @@
 {/snippet}
 
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
-    <h1 class="text-3xl font-bold">Musik</h1>
+    <h1 class="text-3xl font-bold">Stimmung</h1>
     <p class="text-sm text-base-content/60">
-        Musik läuft für alle in Schleife, Effekte spielen einmal. Die Musik merkt
-        sich die Szene, sie kommt wieder, wenn du zu ihr wechselst.
+        Musik läuft für alle in Schleife, Effekte spielen einmal. Musik und Wetter
+        merkt sich die Szene, sie kommen wieder, wenn du zu ihr wechselst.
         {#if in_tauri}
             Audiodateien aus dem Explorer kannst du hier hineinziehen.
         {/if}
     </p>
+    <WeatherControls />
+    <div class="divider my-0"></div>
     <div role="tablist" class="tabs tabs-box tabs-sm">
         <button
             role="tab"

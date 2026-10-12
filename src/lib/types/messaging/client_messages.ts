@@ -1,4 +1,4 @@
-import type { SceneData, SceneState } from "./server_messages";
+import type { SceneData, SceneState, Weather } from "./server_messages";
 import type { RollMode } from "$lib/rolls";
 import type { DiceReplay } from "$lib/dice-sync";
 
@@ -437,6 +437,16 @@ export class StopMusic {
     static create(): string {
         return JSON.stringify({
             type: "stop_music"
+        });
+    }
+}
+
+/** The weather over the map of the active scene, for everyone */
+export class SetWeather {
+    static create(weather: Weather): string {
+        return JSON.stringify({
+            type: "set_weather",
+            weather: weather
         });
     }
 }
