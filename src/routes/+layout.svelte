@@ -36,6 +36,8 @@
         music_volume,
         play_effect,
         play_music,
+        route_audio,
+        set_audio_level,
         set_volume,
         stop_all_sounds,
         stop_effect,
@@ -333,6 +335,7 @@
         await load_dice_skin();
         audio = new Audio("speed.mp3");
         audio.loop = true;
+        route_audio(audio);
 
         sword_ping = new Audio("sword_sound.mp3");
 
@@ -808,7 +811,7 @@
 
     // The pressure music follows the music volume and mute
     $effect(() => {
-        if (audio) audio.volume = music_volume();
+        if (audio) set_audio_level(audio, music_volume());
     });
 
     $effect(() => {

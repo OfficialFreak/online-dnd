@@ -45,6 +45,48 @@ function playing_music_volume() {
     return ducked ? 0 : music_volume();
 }
 
+// iOS ignores the volume of audio elements, only its buttons set it. In the browser the
+// sounds go through Web Audio, whose gain iOS follows. Not in the desktop app: its sounds
+// come from another origin, which Web Audio would play as silence.
+let context: AudioContext | null = null;
+const gains = new WeakMap<HTMLAudioElement, GainNode>();
+
+/** Sends the sound of this element through a gain node, if it can */
+export function route_audio(audio: HTMLAudioElement) {
+    if (in_tauri || typeof AudioContext === "undefined") return;
+    try {
+        if (new URL(audio.src, location.href).origin !== location.origin) return;
+        if (!context) {
+            context = new AudioContext();
+            // It starts halted without a tap, and iOS halts it in the background
+            document.addEventListener("pointerdown", wake_audio);
+            document.addEventListener("visibilitychange", wake_audio);
+        }
+        const gain = context.createGain();
+        context.createMediaElementSource(audio).connect(gain).connect(context.destination);
+        gains.set(audio, gain);
+    } catch (e) {
+        console.error("Routing a sound through Web Audio failed", e);
+    }
+}
+
+function wake_audio() {
+    if (context && context.state !== "running" && !document.hidden) {
+        context.resume().catch(() => {});
+    }
+}
+
+function level(audio: HTMLAudioElement) {
+    return gains.get(audio)?.gain.value ?? audio.volume;
+}
+
+/** The volume of a sound from 0 to 1, by its gain node or by itself */
+export function set_audio_level(audio: HTMLAudioElement, value: number) {
+    const gain = gains.get(audio);
+    if (gain) gain.gain.value = value;
+    else audio.volume = value;
+}
+
 /** Fades the DM's music out while something else plays and back in afterwards */
 export function duck_music(on: boolean) {
     if (ducked === on) return;
@@ -57,14 +99,14 @@ export function duck_music(on: boolean) {
  * read on every step, so a volume changed during the fade isn't undone.
  */
 function fade(audio: HTMLAudioElement, to: () => number, done?: () => void) {
-    const from = audio.volume;
+    const from = level(audio);
     const steps = 24;
     let step = 0;
     const interval = setInterval(() => {
         step++;
-        audio.volume = Math.min(
-            1,
-            Math.max(0, from + ((to() - from) * step) / steps),
+        set_audio_level(
+            audio,
+            Math.min(1, Math.max(0, from + ((to() - from) * step) / steps)),
         );
         if (step >= steps) {
             clearInterval(interval);
@@ -82,6 +124,7 @@ function catch_up(audio: HTMLAudioElement, started_at: number) {
 
 /** iOS plays sound only after a tap, then it starts with the next one */
 function play_or_wait(audio: HTMLAudioElement) {
+    wake_audio();
     audio.play().catch((e) => {
         console.error("Playing music failed", e);
         document.addEventListener(
@@ -111,7 +154,8 @@ export function play_music(name: string, file: string, started_at: number) {
     stop_music();
     const audio = new Audio(asset_url(file));
     audio.loop = true;
-    audio.volume = 0;
+    route_audio(audio);
+    set_audio_level(audio, 0);
     audio.addEventListener("loadedmetadata", () => catch_up(audio, started_at), {
         once: true,
     });
@@ -146,7 +190,9 @@ export function stop_music() {
 
 export function play_effect(name: string, file: string) {
     const audio = new Audio(asset_url(file));
-    audio.volume = effect_volume();
+    route_audio(audio);
+    set_audio_level(audio, effect_volume());
+    wake_audio();
     const playing = effects.get(name) ?? new Set();
     playing.add(audio);
     effects.set(name, playing);
@@ -208,9 +254,9 @@ export function set_volume(
     >,
 ) {
     Object.assign(audioState, change);
-    if (music) music.volume = playing_music_volume();
+    if (music) set_audio_level(music, playing_music_volume());
     for (const playing of effects.values()) {
-        for (const audio of playing) audio.volume = effect_volume();
+        for (const audio of playing) set_audio_level(audio, effect_volume());
     }
     // Sliders change a lot while dragging, the store only needs the end result
     clearTimeout(save_timeout);
