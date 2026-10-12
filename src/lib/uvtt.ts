@@ -2,6 +2,7 @@
  * Maps from Dungeon Alchemist, Dungeondraft and others in the Universal VTT format
  * (.dd2vtt, .uvtt, .df2vtt): JSON with the map as a base64 image, and walls, doors and
  * lights measured in grid squares. https://arkenforge.com/universal-vtt-files/
+ * An animated map comes as a video besides it, the format has no room for one.
  */
 import type { Door, Point, Wall } from "$lib/vision";
 import {
@@ -13,7 +14,7 @@ import {
 import { appState, gameState } from "$lib/state.svelte";
 import { PutScene, PutWalls } from "$lib/types/messaging/client_messages";
 import { MessageTypes, notify } from "$lib/notifications.svelte";
-import { file_stem_of, pick_text, upload_bytes } from "$lib/upload.svelte";
+import { choose_files, file_stem_of, upload_bytes } from "$lib/upload.svelte";
 
 export type ImportedMap = {
     image: Uint8Array;
@@ -184,17 +185,59 @@ function unique_scene_name(name: string) {
     return `${name} ${number}`;
 }
 
+const MAP_EXTENSIONS = ["dd2vtt", "uvtt", "df2vtt", "json"];
+const VIDEO_EXTENSIONS = ["mp4", "webm", "m4v", "mov", "mkv"];
+
+function extension_of(name: string) {
+    return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+/** Width by height of a video, null if the browser can't read it */
+function video_aspect(file: File) {
+    return new Promise<number | null>((resolve) => {
+        const video = document.createElement("video");
+        const url = URL.createObjectURL(file);
+        const done = (aspect: number | null) => {
+            URL.revokeObjectURL(url);
+            resolve(aspect);
+        };
+        video.preload = "metadata";
+        video.muted = true;
+        video.addEventListener("loadedmetadata", () =>
+            done(video.videoHeight ? video.videoWidth / video.videoHeight : null),
+        );
+        video.addEventListener("error", () => done(null));
+        video.src = url;
+    });
+}
+
 /**
  * Lets the DM pick an exported map and makes a scene of it: the image, its grid, walls,
- * doors and lights, with sight on.
+ * doors and lights, with sight on. With the video of an animated map picked as well, the
+ * video becomes the map.
  */
 export async function import_uvtt() {
     if (!appState.ws) return;
-    const picked = await pick_text("Universal VTT", ["dd2vtt", "uvtt", "df2vtt", "json"]);
-    if (!picked) return;
+    const files = await choose_files(
+        [...MAP_EXTENSIONS, ...VIDEO_EXTENSIONS].map((extension) => `.${extension}`).join(","),
+    );
+    if (!files.length) return;
+    const export_file = files.find((file) => MAP_EXTENSIONS.includes(extension_of(file.name)));
+    const video = files.find(
+        (file) =>
+            file.type.startsWith("video/") || VIDEO_EXTENSIONS.includes(extension_of(file.name)),
+    );
+    if (!export_file) {
+        notify(
+            "Wähle die .dd2vtt-Datei, bei animierten Karten zusammen mit dem Video.",
+            MessageTypes.Error,
+            8000,
+        );
+        return;
+    }
     let map: ImportedMap;
     try {
-        map = parse_uvtt(picked.text);
+        map = parse_uvtt(await export_file.text());
     } catch (e) {
         notify(
             `Import fehlgeschlagen: ${e instanceof Error ? e.message : e}`,
@@ -204,10 +247,25 @@ export async function import_uvtt() {
         return;
     }
 
-    const name = unique_scene_name(file_stem_of(picked.file_name) || "Importierte Karte");
-    notify("Die Karte wird hochgeladen…", MessageTypes.Info, 3000);
-    const { bytes, extension } = await smaller_image(map);
-    const asset = await upload_bytes(bytes, `${name}.${extension}`);
+    const name = unique_scene_name(file_stem_of(export_file.name) || "Importierte Karte");
+    let asset: string | null;
+    if (video) {
+        // Walls and lights are parts of the map, they only fit a video of the same shape
+        const aspect = await video_aspect(video);
+        if (aspect && Math.abs(aspect / (map.columns / map.rows) - 1) > 0.02) {
+            notify(
+                "Das Video ist anders geschnitten als die Karte, Wände und Lichter können daneben liegen.",
+                MessageTypes.Warning,
+                10000,
+            );
+        }
+        notify("Das Video der Karte wird hochgeladen…", MessageTypes.Info, 3000);
+        asset = await upload_bytes(video, `${name}.${extension_of(video.name)}`);
+    } else {
+        notify("Die Karte wird hochgeladen…", MessageTypes.Info, 3000);
+        const { bytes, extension } = await smaller_image(map);
+        asset = await upload_bytes(bytes, `${name}.${extension}`);
+    }
     if (!asset || !appState.ws) return;
 
     // Without fog, the DM lays it with the fog tool where wanted
@@ -227,7 +285,7 @@ export async function import_uvtt() {
         }),
     );
     notify(
-        `${name} importiert: ${map.walls.length} Wände, ${map.doors.length} Türen, ${map.lights.length} Lichter`,
+        `${name} importiert${video ? " mit Video" : ""}: ${map.walls.length} Wände, ${map.doors.length} Türen, ${map.lights.length} Lichter`,
         MessageTypes.Success,
         6000,
     );

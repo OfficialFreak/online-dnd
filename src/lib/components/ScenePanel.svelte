@@ -205,6 +205,7 @@
     <p class="text-xs text-base-content/60">
         In Dungeon Alchemist als „Universal VTT“ (.dd2vtt) exportieren: Bild, Raster,
         Wände, Türen und Lichter kommen mit, die Spieler sehen dann nur, was ihre
-        Figuren sehen.
+        Figuren sehen. Bei animierten Karten das Video zusammen mit der .dd2vtt
+        auswählen.
     </p>
 </div>
