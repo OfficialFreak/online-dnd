@@ -252,11 +252,18 @@ export class WeatherRenderer {
         const { width, height } = this;
         const wind = this.shown.wind;
 
-        // Rain falls fast and slanted by the wind, new drops start above the screen
-        const drops = this.count(MAX_DROPS, this.shown.rain);
+        // Rain falls fast and slanted by the wind, new drops start above the screen. As
+        // far upwind as the wind carries a drop down the whole screen: a fixed distance
+        // left the corners of a tall phone screen dry, one where none started, the other
+        // where none arrived.
+        const slant = (wind * 500) / 1400;
+        const drift = slant * (height + 92);
+        const band = width + 120 + Math.abs(drift);
+        const start_x = () => -60 - Math.max(0, drift) + Math.random() * band;
+        const drops = Math.round(this.count(MAX_DROPS, this.shown.rain) * Math.min(2.5, band / (width + 120)));
         while (this.drops.length < drops) {
             this.drops.push({
-                x: Math.random() * width,
+                x: start_x(),
                 y: -Math.random() * height,
                 z: 0.4 + Math.random() * 0.6,
             });
@@ -265,7 +272,9 @@ export class WeatherRenderer {
             const drop = this.drops[i];
             drop.y += (700 + 700 * drop.z) * dt;
             drop.x += wind * 500 * drop.z * dt;
-            if (drop.y - 32 > height || drop.x < -60 || drop.x > width + 60) {
+            // Out only on the side the wind blows to, upwind it is still coming in
+            const out = wind >= 0 ? drop.x > width + 60 : drop.x < -60;
+            if (drop.y - 32 > height || out) {
                 // Fewer wanted: it falls out instead of starting again
                 if (this.drops.length > drops) {
                     this.drops[i] = this.drops[this.drops.length - 1];
@@ -273,8 +282,7 @@ export class WeatherRenderer {
                     continue;
                 }
                 drop.y = -Math.random() * 60;
-                // Upwind, so it crosses the screen
-                drop.x = Math.random() * (width + 120) - 60 - wind * 300;
+                drop.x = start_x();
             }
         }
 
