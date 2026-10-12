@@ -169,36 +169,55 @@
         return (fog[Math.floor(index / 32)] & (1 << (31 - (index % 32)))) !== 0;
     }
 
-    /** The fog drawn last, of which scene and player, to see what was uncovered since */
+    /** The fog drawn last, of which scene and player, to see what changed since */
     let last_fog: { key: string; squares: number[] } | null = null;
     let fog_fades: HTMLDivElement | undefined = $state();
 
-    /**
-     * Fog the DM uncovers drifts apart and fades instead of vanishing at once: a copy of
-     * it over the spot, drawn like the fog, dissolves.
-     */
-    function dissolve_fog(before: number[], after: number[]) {
-        if (!fog_fades || !rows || !w || !h) return;
-        const cells: [number, number][] = [];
-        for (let y = 0; y < rows; y++) {
-            for (let x = 0; x < columns; x++) {
-                if (isFogAt(before, x, y) && !isFogAt(after, x, y)) cells.push([x, y]);
-            }
-        }
-        if (!cells.length) return;
+    /** Fog drifting in or apart over some cells, a copy of it torn by noise */
+    type FogFade = {
+        cells: number[];
+        adding: boolean;
+        /** The fog of the cells, drawn like the fog */
+        source: HTMLCanvasElement;
+        shown: HTMLCanvasElement;
+        mask: HTMLCanvasElement;
+        wisps: ImageData;
+        start: number;
+        duration: number;
+        /** Where in the noise, so fades next to each other don't look alike */
+        seed: number;
+    };
+    let fog_anims: FogFade[] = [];
+    let fog_frame = 0;
+    /** Cells whose fog is still drifting in: the fog canvas leaves them to their fade */
+    const arriving = new Set<number>();
+    /** Counts up when arriving fog has settled, to draw it on the fog canvas */
+    let fog_settled = $state(0);
 
-        // Only around the uncovered cells
+    function cell_of(index: number): [number, number] {
+        return [index % columns, Math.floor(index / columns)];
+    }
+
+    /**
+     * Fog drifts in or apart instead of appearing or vanishing at once: a copy of it over
+     * the cells, drawn like the fog, torn by drifting noise.
+     */
+    function fade_fog(cells: number[], adding: boolean, quick: boolean) {
+        if (!fog_fades || !rows || !w || !h || !cells.length) return;
+        // Only around the cells
         const pad = size / 2;
-        const left = Math.max(0, Math.min(...cells.map(([x]) => size * x + x_offset)) - pad);
-        const top = Math.max(0, Math.min(...cells.map(([, y]) => size * y + y_offset)) - pad);
-        const right = Math.min(w, Math.max(...cells.map(([x]) => size * (x + 1) + x_offset)) + pad);
-        const bottom = Math.min(h, Math.max(...cells.map(([, y]) => size * (y + 1) + y_offset)) + pad);
+        const xs = cells.map((index) => cell_of(index)[0]);
+        const ys = cells.map((index) => cell_of(index)[1]);
+        const left = Math.max(0, size * Math.min(...xs) + x_offset - pad);
+        const top = Math.max(0, size * Math.min(...ys) + y_offset - pad);
+        const right = Math.min(w, size * (Math.max(...xs) + 1) + x_offset + pad);
+        const bottom = Math.min(h, size * (Math.max(...ys) + 1) + y_offset + pad);
         if (right <= left || bottom <= top) return;
 
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round((right - left) * fog_resolution));
-        canvas.height = Math.max(1, Math.round((bottom - top) * fog_resolution));
-        const ctx = canvas.getContext("2d")!;
+        const source = document.createElement("canvas");
+        source.width = Math.max(1, Math.round((right - left) * fog_resolution));
+        source.height = Math.max(1, Math.round((bottom - top) * fog_resolution));
+        const ctx = source.getContext("2d")!;
         // In the map's coordinates like the fog, so its texture lines up
         ctx.setTransform(
             fog_resolution,
@@ -209,7 +228,8 @@
             -top * fog_resolution,
         );
         ctx.beginPath();
-        for (const [x, y] of cells) {
+        for (const index of cells) {
+            const [x, y] = cell_of(index);
             ctx.rect(size * x + x_offset, size * y + y_offset, size, size);
         }
         ctx.fillStyle = "#cccccc";
@@ -224,10 +244,9 @@
             ctx.filter = "none";
         }
 
-        // Shown is the fog torn into wisps by noise that drifts, more of it gone each frame
         const shown = document.createElement("canvas");
-        shown.width = canvas.width;
-        shown.height = canvas.height;
+        shown.width = source.width;
+        shown.height = source.height;
         Object.assign(shown.style, {
             position: "absolute",
             left: `${(left / w) * 100}%`,
@@ -236,51 +255,129 @@
             height: `${((bottom - top) / h) * 100}%`,
         });
         fog_fades.append(shown);
-        const shown_ctx = shown.getContext("2d")!;
-        if (!appState.motion || document.hidden) {
-            shown_ctx.drawImage(canvas, 0, 0);
-            shown
-                .animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500 })
-                .finished.finally(() => shown.remove());
-            return;
-        }
         // Up to ten noise pixels a cell, the browser smooths them out. A big area gets
-        // coarser wisps, not more work.
-        const per_cell = Math.min(10, (160 * size) / Math.max(right - left, bottom - top));
+        // coarser wisps, not more work. Without the moving effects it only fades.
+        const per_cell = appState.motion
+            ? Math.min(10, (160 * size) / Math.max(right - left, bottom - top))
+            : 0;
         const mask = document.createElement("canvas");
-        mask.width = Math.max(2, Math.round(((right - left) / size) * per_cell));
-        mask.height = Math.max(2, Math.round(((bottom - top) / size) * per_cell));
-        const mask_ctx = mask.getContext("2d")!;
-        const wisps = mask_ctx.createImageData(mask.width, mask.height);
-        const start = performance.now();
-        const duration = 2000;
-        const step = (now: number) => {
-            const progress = (now - start) / duration;
-            if (progress >= 1 || !shown.isConnected) {
-                shown.remove();
-                return;
+        mask.width = Math.max(1, Math.round(((right - left) / size) * per_cell));
+        mask.height = Math.max(1, Math.round(((bottom - top) / size) * per_cell));
+        if (adding) for (const index of cells) arriving.add(index);
+        fog_anims.push({
+            cells,
+            adding,
+            source,
+            shown,
+            mask,
+            wisps: new ImageData(mask.width, mask.height),
+            start: performance.now(),
+            // Quick while the DM paints, so the brush keeps up
+            duration: !appState.motion ? 500 : quick ? 1100 : adding ? 1500 : 2000,
+            seed: Math.random() * 100,
+        });
+        if (!fog_frame) fog_frame = requestAnimationFrame(animate_fog);
+    }
+
+    function end_fade(fade: FogFade) {
+        fade.shown.remove();
+        if (!fade.adding) return;
+        for (const index of fade.cells) arriving.delete(index);
+        fog_settled++;
+    }
+
+    function animate_fog(now: number) {
+        fog_anims = fog_anims.filter((fade) => {
+            const progress = Math.min(1, (now - fade.start) / fade.duration);
+            if (progress >= 1) {
+                end_fade(fade);
+                return false;
             }
-            const time = (now - start) / 1000;
-            const level = progress * 1.3 - 0.15;
-            for (let y = 0; y < mask.height; y++) {
-                for (let x = 0; x < mask.width; x++) {
-                    const gaps = billows(x * 0.09 + time * 0.35, y * 0.09 - time * 0.2);
-                    wisps.data[(y * mask.width + x) * 4 + 3] =
-                        255 * (1 - smoothstep(gaps - 0.15, gaps + 0.15, level));
+            const { mask, wisps, shown } = fade;
+            const time = (now - fade.start) / 1000;
+            if (mask.width > 1 || mask.height > 1) {
+                // Gaps open where the noise is low first, or the fog gathers there first
+                const level = progress * 1.3 - 0.15;
+                for (let y = 0; y < mask.height; y++) {
+                    for (let x = 0; x < mask.width; x++) {
+                        const gaps = billows(
+                            x * 0.09 + time * 0.35 + fade.seed,
+                            y * 0.09 - time * 0.2 + fade.seed,
+                        );
+                        const gone = smoothstep(gaps - 0.15, gaps + 0.15, level);
+                        wisps.data[(y * mask.width + x) * 4 + 3] =
+                            255 * (fade.adding ? gone : 1 - gone);
+                    }
                 }
+            } else {
+                wisps.data[3] = 255 * (fade.adding ? progress : 1 - progress);
             }
-            mask_ctx.putImageData(wisps, 0, 0);
-            shown_ctx.globalCompositeOperation = "copy";
-            shown_ctx.drawImage(canvas, 0, 0);
-            shown_ctx.globalCompositeOperation = "destination-in";
-            shown_ctx.drawImage(mask, 0, 0, shown.width, shown.height);
-            requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
+            mask.getContext("2d")!.putImageData(wisps, 0, 0);
+            const ctx = shown.getContext("2d")!;
+            ctx.globalCompositeOperation = "copy";
+            ctx.drawImage(fade.source, 0, 0);
+            ctx.globalCompositeOperation = "destination-in";
+            ctx.drawImage(mask, 0, 0, shown.width, shown.height);
+            return true;
+        });
+        fog_frame = fog_anims.length ? requestAnimationFrame(animate_fog) : 0;
+    }
+
+    /** What changed since the fog drawn last fades in or apart */
+    function fade_changes(before: number[], after: number[], quick: boolean) {
+        const added: number[] = [];
+        const removed: number[] = [];
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < columns; x++) {
+                const was = isFogAt(before, x, y);
+                const is = isFogAt(after, x, y);
+                if (was !== is) (is ? added : removed).push(y * columns + x);
+            }
+        }
+        // Fog taken away again while it drifted in stops drifting in
+        if (removed.some((index) => arriving.has(index))) {
+            fog_anims = fog_anims.filter((fade) => {
+                if (!fade.adding || !fade.cells.some((index) => removed.includes(index))) {
+                    return true;
+                }
+                end_fade(fade);
+                return false;
+            });
+        }
+        fade_fog(added, true, quick);
+        fade_fog(removed, false, quick);
+    }
+
+    // A scene or player switched to has its fog at once, with nothing drifting
+    function stop_fog_fades() {
+        for (const fade of fog_anims) fade.shown.remove();
+        fog_anims = [];
+        arriving.clear();
     }
 
     $effect(() => {
         if (!editable) return;
+        fog_settled;
+
+        // The blur is left out while painting. The tool goes first: reading
+        // mouseDown would redraw the fog on every click anywhere.
+        const painting =
+            (appState.selectedTool === Tools.AddFog ||
+                appState.selectedTool === Tools.RemoveFog) &&
+            appState.mouseDown;
+
+        // What changed since fades in or apart, before the fog canvas leaves out what
+        // drifts in
+        if (fog_squares && rows) {
+            const key = untrack(() => `${gameState.scene?.name}|${viewer}|${columns}`);
+            const before = last_fog;
+            last_fog = { key, squares: [...fog_squares] };
+            if (before?.key === key && !document.hidden) {
+                untrack(() => fade_changes(before.squares, fog_squares!, painting));
+            } else if (before?.key !== key) {
+                untrack(stop_fog_fades);
+            }
+        }
 
         if (fogCtx) {
             // Setting the canvas size resets the transform
@@ -296,7 +393,10 @@
             fogCtx.beginPath();
             for (let x = 0; x < columns; x++) {
                 for (let y = 0; y < rows; y++) {
-                    if (isFogAt(fog_squares, x, y)) {
+                    if (
+                        isFogAt(fog_squares, x, y) &&
+                        !arriving.has(y * columns + x)
+                    ) {
                         fogCtx.rect(
                             size * x + x_offset,
                             size * y + y_offset,
@@ -309,12 +409,6 @@
             fogCtx.fillStyle = "#cccccc";
             fogCtx.fill();
 
-            // The blur is left out while painting. The tool goes first: reading
-            // mouseDown would redraw the fog on every click anywhere.
-            const painting =
-                (appState.selectedTool === Tools.AddFog ||
-                    appState.selectedTool === Tools.RemoveFog) &&
-                appState.mouseDown;
             if (fogPattern && !painting) {
                 fogCtx.globalCompositeOperation = "source-in";
                 // The texture grows with the map, like at the zoom it was made for
@@ -324,14 +418,6 @@
                 fogCtx.filter = `blur(${5 * fog_resolution * layout_zoom}px)`;
                 fogCtx.fillRect(-5, -5, w + 10, h + 10);
                 fogCtx.filter = "none";
-            }
-
-            // What the DM uncovered since dissolves, not while the DM paints it away
-            const key = untrack(() => `${gameState.scene?.name}|${viewer}|${columns}`);
-            const before = last_fog;
-            last_fog = { key, squares: [...fog_squares] };
-            if (before?.key === key && !painting) {
-                untrack(() => dissolve_fog(before.squares, fog_squares!));
             }
         }
     });
