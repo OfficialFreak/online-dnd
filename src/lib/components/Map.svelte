@@ -2022,37 +2022,47 @@
                         stroke-dasharray="{8 / gesture_scale} {5 / gesture_scale}"
                     />
                 {/if}
-                {#each lights as light (light.id)}
-                    {@const cell = w / columns}
-                    <g opacity={light.on === false ? 0.4 : 1}>
+                <!-- What the lights reach as two areas, dim and bright: twenty candles
+                     on one spot don't stack into a bright yellow or a heap of rings -->
+                {#each ["dim", "bright"] as const as reach (reach)}
+                    <path
+                        d={lights
+                            .filter((light) => light.on !== false)
+                            .map((light) => {
+                                const r = (light[reach] / 5) * (w / columns);
+                                return `M${light.x * w - r} ${light.y * h}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
+                            })
+                            .join("")}
+                        fill="rgb(253 224 71 / {reach === 'dim' ? 0.08 : 0.12})"
+                    />
+                {/each}
+                {#if edited_light}
+                    <!-- The outline of the light being changed -->
+                    {#each [edited_light.dim, edited_light.bright] as radius, i (i)}
                         <circle
-                            cx={light.x * w}
-                            cy={light.y * h}
-                            r={(light.dim / 5) * cell}
-                            fill="rgb(253 224 71 / 0.08)"
-                            stroke="#fde047"
-                            stroke-width={1.5 / gesture_scale}
-                            stroke-dasharray="{6 / gesture_scale} {4 / gesture_scale}"
-                        />
-                        <circle
-                            cx={light.x * w}
-                            cy={light.y * h}
-                            r={(light.bright / 5) * cell}
+                            cx={edited_light.x * w}
+                            cy={edited_light.y * h}
+                            r={(radius / 5) * (w / columns)}
                             fill="none"
                             stroke="#fde047"
                             stroke-width={1.5 / gesture_scale}
+                            stroke-dasharray={i === 0
+                                ? `${6 / gesture_scale} ${4 / gesture_scale}`
+                                : undefined}
                         />
-                        <circle
-                            cx={light.x * w}
-                            cy={light.y * h}
-                            r={7 / gesture_scale}
-                            fill={light.on === false
-                                ? "#78716c"
-                                : (light.color ?? "#facc15")}
-                            stroke={light.id === editing_light ? "white" : "black"}
-                            stroke-width={1.5 / gesture_scale}
-                        />
-                    </g>
+                    {/each}
+                {/if}
+                {#each lights as light (light.id)}
+                    <circle
+                        cx={light.x * w}
+                        cy={light.y * h}
+                        r={7 / gesture_scale}
+                        fill={light.on === false
+                            ? "#78716c"
+                            : (light.color ?? "#facc15")}
+                        stroke={light.id === editing_light ? "white" : "black"}
+                        stroke-width={1.5 / gesture_scale}
+                    />
                 {/each}
                 {#if wall_cursor && wallState.mode !== "erase"}
                     <circle
