@@ -48,10 +48,20 @@ export function keep_in_view(
         // Next to what opened it, on the left if there's no room on the right, and
         // always inside the window, also beside a marker wider than the room next to it
         const max_right = window.innerWidth - MARGIN;
+        // Right of the toolbar and its panel, which lie above the map, if there is room
+        let min_left = MARGIN;
+        for (const clear of document.querySelectorAll("[data-keep-clear]")) {
+            if (clear === node || clear.contains(node)) continue;
+            const area = clear.getBoundingClientRect();
+            if (area.width > 0 && area.left < window.innerWidth / 2) {
+                min_left = Math.max(min_left, area.right + MARGIN);
+            }
+        }
+        if (min_left + rect.width > max_right) min_left = MARGIN;
         let shift_x = 0;
         if (rect.right > max_right) shift_x = anchor.left - rect.width - rect.left;
         shift_x = Math.min(shift_x, max_right - rect.right);
-        shift_x = Math.max(shift_x, MARGIN - rect.left);
+        shift_x = Math.max(shift_x, min_left - rect.left);
         const left = rect.left + shift_x;
         const right = rect.right + shift_x;
 

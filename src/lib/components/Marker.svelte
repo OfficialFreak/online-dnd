@@ -420,7 +420,7 @@
         {#if gameState.dm && mapUse && !selecting_tool}
             <!-- Not a div, the avatar gives those a square shape -->
             <section
-                class="dropdown-content bg-base-100 rounded-box z-1 w-84 p-3 shadow-sm flex flex-col gap-3 text-left cursor-default !transition-none"
+                class="dropdown-content bg-base-100 rounded-box z-1 w-84 max-w-[calc(100vw-4.5rem)] p-3 shadow-sm flex flex-col gap-3 text-left cursor-default !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(
                     1 / gesture_scale,
                     1,
@@ -686,7 +686,7 @@
             </section>
         {:else if !gameState.dm && getCharacter(marker.name) && !appState.dragging && mapUse}
             <ul
-                class="dropdown-content menu z-1 p-0 shadow-sm w-80 flex flex-row justify-start items-start text-left !transition-none"
+                class="dropdown-content menu z-1 p-0 shadow-sm w-80 max-w-[calc(100vw-4.5rem)] flex flex-row justify-start items-start text-left !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(
                     0.8 / gesture_scale,
                     1,

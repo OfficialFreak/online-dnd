@@ -362,6 +362,7 @@
 {#if appState.controls_open}
 <div
     class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row pointer-events-none"
+    data-keep-clear
 >
     {#if toolbarState.panel}
         <!-- Narrows as the panel opens and closes, so the tools beside it glide along
