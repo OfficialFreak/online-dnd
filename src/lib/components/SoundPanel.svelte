@@ -146,7 +146,8 @@
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
     <h1 class="text-3xl font-bold">Musik</h1>
     <p class="text-sm text-base-content/60">
-        Musik läuft für alle in Schleife, Effekte spielen einmal.
+        Musik läuft für alle in Schleife, Effekte spielen einmal. Die Musik merkt
+        sich die Szene, sie kommt wieder, wenn du zu ihr wechselst.
         {#if in_tauri}
             Audiodateien aus dem Explorer kannst du hier hineinziehen.
         {/if}

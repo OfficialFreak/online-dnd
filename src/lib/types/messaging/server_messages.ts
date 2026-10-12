@@ -143,7 +143,8 @@ export interface Marker {
     effect_rounds?: Record<string, number>;
 }
 
-
+/** What plays when the DM switches to a scene, the music last played or stopped in it */
+export type SceneMusic = { kind: "song"; name: string } | { kind: "silence" };
 
 export interface SceneState {
     fog_squares: Record<string, Array<number>>;
@@ -186,6 +187,7 @@ export interface Scene {
     columns: number;
     x_offset: number;
     y_offset: number;
+    music?: SceneMusic | null;
 }
 
 export interface SceneList extends BaseServerMessage {

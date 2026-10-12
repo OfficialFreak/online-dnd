@@ -441,6 +441,16 @@ export class StopMusic {
     }
 }
 
+/** The scene no longer starts the music last played in it */
+export class ForgetSceneMusic {
+    static create(scene: string): string {
+        return JSON.stringify({
+            type: "forget_scene_music",
+            name: scene
+        });
+    }
+}
+
 /** Cuts an effect short for everyone */
 export class StopSound {
     static create(name: string): string {

@@ -8,7 +8,10 @@
         dialogs,
         gameState,
     } from "$lib/state.svelte";
-    import { PreloadResource } from "$lib/types/messaging/client_messages";
+    import {
+        ForgetSceneMusic,
+        PreloadResource,
+    } from "$lib/types/messaging/client_messages";
     import Map from "./Map.svelte";
 
     let search = $state("");
@@ -55,7 +58,8 @@
     <p class="text-sm text-base-content/60">
         Zieh eine Szene auf die Karte oder klick auf <i
             class="fa-solid fa-play text-xs"
-        ></i>, um sie zu aktivieren.
+        ></i>, um sie zu aktivieren. Sie spielt dann die Musik, die zuletzt
+        darin lief.
         {#if in_tauri}
             Bilder aus dem Explorer kannst du hier hineinziehen, um neue Szenen zu
             erstellen.
@@ -93,6 +97,39 @@
                     >
                     {#if active}
                         <span class="badge badge-info badge-xs">Aktiv</span>
+                    {/if}
+                    {#if scene.music}
+                        <span
+                            class="flex items-center gap-1.5 text-xs text-base-content/60 min-w-0"
+                        >
+                            {#if scene.music}
+                                <span
+                                    class="truncate"
+                                    title="Spielt, wenn du zu der Szene wechselst"
+                                >
+                                    <i
+                                        class="fa-solid {scene.music.kind ===
+                                        'song'
+                                            ? 'fa-music'
+                                            : 'fa-volume-xmark'}"
+                                    ></i>
+                                    {scene.music.kind === "song"
+                                        ? scene.music.name
+                                        : "Stille"}
+                                </span>
+                                <button
+                                    class="btn btn-ghost btn-xs btn-square -my-1"
+                                    aria-label="Musik der Szene vergessen"
+                                    title="Nicht mehr mit der Szene starten"
+                                    onclick={() =>
+                                        appState.ws?.send(
+                                            ForgetSceneMusic.create(scene.name),
+                                        )}
+                                >
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            {/if}
+                        </span>
                     {/if}
                 </div>
                 <!-- Only while hovering, so the names get the space otherwise -->
