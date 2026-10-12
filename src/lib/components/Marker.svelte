@@ -102,6 +102,11 @@
     let gesture_scale = $derived(
         mapUse ? appState.zoom / appState.layout_zoom : 1,
     );
+    let hovered = $state(false);
+    // Only the hovered name tag and the open menu follow a gesture: every marker's tag
+    // set anew on each step of a pinch made zooming stutter with many markers
+    let tag_scale = $derived(hovered ? gesture_scale : 1);
+    let menu_scale = $derived(menu_open || !on_map ? gesture_scale : 1);
 
     /**
      * Sends the marker's settings but not its position, so moves of other markers that
@@ -368,6 +373,8 @@
         },
     }}
     id={(banner ? "banner-" : !mapUse ? "nomapuse-" : "") + marker.name}
+    onpointerenter={() => (hovered = true)}
+    onpointerleave={() => (hovered = false)}
     onclickcapture={(event) => {
         // Shift+click selects markers to move or remove them together, so does a tap
         // with the selection tool
@@ -394,13 +401,13 @@
     {#if name_tag}
         <span
             class="tooltip-content justify-center items-center flex !absolute"
-            style="border-radius: {1 / gesture_scale}rem; padding: 0 {1 /
-                gesture_scale}rem; transform: translate({20 /
-                gesture_scale}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
+            style="border-radius: {1 / tag_scale}rem; padding: 0 {1 /
+                tag_scale}rem; transform: translate({20 /
+                tag_scale}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
         >
             <span
-                style="font-size: {16 / gesture_scale}px; height: {40 /
-                    gesture_scale}px; line-height: {40 / gesture_scale}px;"
+                style="font-size: {16 / tag_scale}px; height: {40 /
+                    tag_scale}px; line-height: {40 / tag_scale}px;"
                 class="flex justify-center items-center whitespace-nowrap"
                 >{name_tag}</span
             >
@@ -506,7 +513,7 @@
             <section
                 class="dropdown-content bg-base-100 rounded-box z-1 w-84 max-w-[calc(100vw-4.5rem)] p-3 shadow-sm flex flex-col gap-3 text-left cursor-default !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(
-                    1 / gesture_scale,
+                    1 / menu_scale,
                     1,
                 )})"
                 use:keep_in_view={{ below: "initiative-bar" }}
@@ -885,7 +892,7 @@
             <ul
                 class="dropdown-content menu z-1 p-0 shadow-sm w-80 max-w-[calc(100vw-4.5rem)] flex flex-row justify-start items-start text-left !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(
-                    0.8 / gesture_scale,
+                    0.8 / menu_scale,
                     1,
                 )})"
                 use:keep_in_view={{ below: "initiative-bar" }}
