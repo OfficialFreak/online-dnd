@@ -67,6 +67,17 @@ function playing_music_volume() {
     return ducked ? 0 : music_volume();
 }
 
+// The app plays music, as a music app: iOS mutes Web Audio with the switch on its side,
+// which left the music silent while it played. Safari 17 and later.
+if (typeof navigator !== "undefined" && "audioSession" in navigator) {
+    try {
+        (navigator as Navigator & { audioSession: { type: string } }).audioSession.type =
+            "playback";
+    } catch (e) {
+        console.warn("The audio session can't be set", e);
+    }
+}
+
 // iOS ignores the volume of audio elements, only its buttons set it. In the browser the
 // sounds go through Web Audio, whose gain iOS follows. Not in the desktop app: its sounds
 // come from another origin, which Web Audio would play as silence.
@@ -95,8 +106,10 @@ export function route_audio(audio: HTMLAudioElement) {
         if (!context) {
             context = new AudioContext();
             // It starts halted without a tap, and iOS halts it in the background
-            document.addEventListener("pointerdown", wake_audio);
-            document.addEventListener("visibilitychange", wake_audio);
+            // iOS lets a touch start sound only once it lifts
+            for (const type of ["pointerdown", "touchend", "click", "visibilitychange"]) {
+                document.addEventListener(type, wake_audio);
+            }
         }
         const gain = context.createGain();
         context.createMediaElementSource(audio).connect(gain).connect(context.destination);
@@ -137,8 +150,9 @@ export function keep_unlocked(audio: HTMLAudioElement) {
     players.add(audio);
     if (listening_for_tap || typeof document === "undefined") return;
     listening_for_tap = true;
-    document.addEventListener("pointerdown", unlock, true);
-    document.addEventListener("keydown", unlock, true);
+    for (const type of ["pointerdown", "touchend", "click", "keydown"]) {
+        document.addEventListener(type, unlock, true);
+    }
 }
 
 function unlock() {
@@ -146,9 +160,11 @@ function unlock() {
     for (const audio of players) {
         if (unlocked.has(audio)) continue;
         unlocked.add(audio);
+        // Refused, e.g. as the finger only came down, it tries again when it lifts
+        const retry = () => unlocked.delete(audio);
         // A song waiting for this tap plays, the others play a moment of silence
         if (audio === music) {
-            audio.play().catch(() => {});
+            audio.play().catch(retry);
             continue;
         }
         audio.src = SILENCE;
@@ -157,7 +173,7 @@ function unlock() {
             .then(() => {
                 if (audio.src === SILENCE) audio.pause();
             })
-            .catch(() => {});
+            .catch(retry);
     }
 }
 
