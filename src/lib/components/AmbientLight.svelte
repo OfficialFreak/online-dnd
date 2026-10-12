@@ -263,7 +263,51 @@
         ctx.fillStyle = vignette;
         ctx.fillRect(-1, -1, 2, 2);
         ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        clearTimeout(tint_timer);
+        tint_timer = setTimeout(() => tint_status_bar(ctx, width), 300);
     }
+
+    /**
+     * The status bar of the home screen app takes the colour of the light at the top of the
+     * screen. It can't be see-through: iOS 26 makes the app shorter under one.
+     */
+    const theme_colour = document.querySelector('meta[name="theme-color"]');
+    const plain_theme = theme_colour?.getAttribute("content") ?? "#1d232a";
+    const home_screen_app =
+        matchMedia("(display-mode: standalone)").matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    let tint_timer: ReturnType<typeof setTimeout> | undefined;
+
+    function tint_status_bar(ctx: CanvasRenderingContext2D, width: number) {
+        if (!home_screen_app || !theme_colour || !appState.ambient) return;
+        try {
+            const row = ctx.getImageData(0, 0, width, 1).data;
+            let red = 0;
+            let green = 0;
+            let blue = 0;
+            for (let i = 0; i < row.length; i += 4) {
+                red += row[i];
+                green += row[i + 1];
+                blue += row[i + 2];
+            }
+            const pixels = row.length / 4;
+            theme_colour.setAttribute(
+                "content",
+                `rgb(${Math.round(red / pixels)}, ${Math.round(green / pixels)}, ${Math.round(blue / pixels)})`,
+            );
+        } catch {
+            // A map from another server can't be read, the bar keeps its colour
+        }
+    }
+
+    // Without the light the bar has its own colour again
+    $effect(() => {
+        if (!appState.ambient || !gameState.scene) {
+            clearTimeout(tint_timer);
+            theme_colour?.setAttribute("content", plain_theme);
+        }
+    });
 
     /**
      * Looks where the map is once the next frame is drawn, drawing the light if it moved.
