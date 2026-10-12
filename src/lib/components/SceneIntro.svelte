@@ -1,6 +1,6 @@
 <script lang="ts">
     import "@fontsource/cinzel-decorative/700.css";
-    import { onMount } from "svelte";
+    import { onMount, tick } from "svelte";
     import { Tween } from "svelte/motion";
     import { cubicIn, cubicOut, linear } from "svelte/easing";
     import { register_intro } from "$lib/scene-intro.svelte";
@@ -18,11 +18,16 @@
 
     /** How far the smoke covers the screen, from 0 to 1 */
     const smoke = new Tween(0);
-    /** How far the scroll is unrolled, from 0 to 1 */
-    const unrolled = new Tween(0);
+    /** The parts of the scroll that move as it unrolls */
+    let scroll: HTMLDivElement | undefined = $state();
+    let clip: HTMLDivElement | undefined = $state();
+    let paper: HTMLDivElement | undefined = $state();
+    let left_roller: HTMLDivElement | undefined = $state();
+    let right_roller: HTMLDivElement | undefined = $state();
+    /** How far it is unrolled now, from 0 to 1 */
+    let unrolled = 0;
     let name = $state("");
     let scroll_shown = $state(false);
-    let paper_width = $state(0);
     let canvas: HTMLCanvasElement | undefined = $state();
     /** A new scene during an intro ends the one before */
     let run = 0;
@@ -97,7 +102,10 @@
         start_smoke();
         if (scroll_shown) {
             // Rolled up at once, the next name follows
-            unrolled.set(0, { duration: 200 }).then(() => (scroll_shown = false));
+            const mine = run;
+            roll(0, 200, cubicIn).then(() => {
+                if (mine === run) scroll_shown = false;
+            });
         }
         // A tween stopped before its end never finishes, so it ends here too
         return new Promise<void>((resolve) => {
@@ -117,7 +125,7 @@
     function skip() {
         run++;
         smoke.set(0, { duration: 0 });
-        unrolled.set(0, { duration: 0 });
+        unrolled = 0;
         scroll_shown = false;
         drawn_covered = false;
         cancelAnimationFrame(frame);
@@ -134,9 +142,10 @@
         }
         const mine = run;
         name = scene_name;
-        unrolled.set(0, { duration: 0 });
+        unrolled = 0;
         scroll_shown = true;
-        await unrolled.set(1, { duration: 900, easing: cubicOut });
+        await tick();
+        await roll(1, 900, cubicOut);
         if (mine !== run) return;
         // Long enough to read, longer while the map loads, but not forever
         await Promise.all([
@@ -146,9 +155,62 @@
         if (mine !== run) return;
         start_smoke();
         smoke.set(0, { duration: 1700, easing: linear });
-        await unrolled.set(0, { duration: 650, easing: cubicIn });
+        await roll(0, 650, cubicIn);
         if (mine !== run) return;
         scroll_shown = false;
+    }
+
+    /**
+     * Unrolls or rolls up the scroll on the graphics card alone. The frame narrows and the
+     * paper inside widens as much, so the writing keeps its shape while the frame's edge
+     * cuts it off. Cutting the paper itself drew it anew every frame, at half the rate.
+     */
+    async function roll(to: number, duration: number, easing: (t: number) => number) {
+        if (!scroll || !clip || !paper || !left_roller || !right_roller) return;
+        const from = unrolled;
+        unrolled = to;
+        const width = paper.offsetWidth;
+        const steps = 24;
+        // The frame starts a quarter wide while the scroll fades in: the graphics card
+        // draws an animated layer as large as it gets, a paper widened fiftyfold was huge
+        const frames = Array.from({ length: steps + 1 }, (_, i) => {
+            const shown = from + (to - from) * easing(i / steps);
+            return { shown, open: Math.max(0.25, shown), offset: i / steps };
+        });
+        const timing = { duration, fill: "forwards" as const, easing: "linear" };
+        const animations = [
+            scroll.animate(
+                frames.map(({ shown, offset }) => ({
+                    offset,
+                    opacity: Math.min(1, shown * 4),
+                    transform: `scale(${0.92 + 0.08 * shown})`,
+                })),
+                timing,
+            ),
+            clip.animate(
+                frames.map(({ open, offset }) => ({ offset, transform: `scaleX(${open})` })),
+                timing,
+            ),
+            paper.animate(
+                frames.map(({ open, offset }) => ({ offset, transform: `scaleX(${1 / open})` })),
+                timing,
+            ),
+            left_roller.animate(
+                frames.map(({ open, offset }) => ({
+                    offset,
+                    transform: `translateX(${(-open * width) / 2}px)`,
+                })),
+                timing,
+            ),
+            right_roller.animate(
+                frames.map(({ open, offset }) => ({
+                    offset,
+                    transform: `translateX(${(open * width) / 2}px)`,
+                })),
+                timing,
+            ),
+        ];
+        await Promise.all(animations.map((animation) => animation.finished)).catch(() => {});
     }
 
     async function rasterize(uri: string) {
@@ -197,32 +259,21 @@
         class="fixed inset-0 z-[999] flex items-center justify-center pointer-events-none px-8"
         role="status"
     >
-        <div
-            class="scroll"
-            style:opacity={Math.min(1, unrolled.current * 4)}
-            style:transform="scale({0.92 + 0.08 * unrolled.current})"
-        >
-            <div
-                class="paper"
-                style:--stains={textures.stains}
-                style:--fibers={textures.fibers}
-                bind:clientWidth={paper_width}
-                style:clip-path="inset(-2px {(1 - unrolled.current) * 50}% -2px {(1 -
-                    unrolled.current) *
-                    50}%)"
-            >
-                <div class="flourish" aria-hidden="true"><span>✦</span></div>
-                <h2>{name}</h2>
-                <div class="flourish" aria-hidden="true"><span>✦</span></div>
+        <div class="scroll" bind:this={scroll} style:opacity="0">
+            <div class="clip" bind:this={clip}>
+                <div
+                    class="paper"
+                    bind:this={paper}
+                    style:--stains={textures.stains}
+                    style:--fibers={textures.fibers}
+                >
+                    <div class="flourish" aria-hidden="true"><span>✦</span></div>
+                    <h2>{name}</h2>
+                    <div class="flourish" aria-hidden="true"><span>✦</span></div>
+                </div>
             </div>
-            <div
-                class="roller"
-                style:transform="translateX({(-unrolled.current * paper_width) / 2}px)"
-            ></div>
-            <div
-                class="roller"
-                style:transform="translateX({(unrolled.current * paper_width) / 2}px)"
-            ></div>
+            <div class="roller" bind:this={left_roller}></div>
+            <div class="roller" bind:this={right_roller}></div>
         </div>
     </div>
 {/if}
@@ -231,7 +282,17 @@
     .scroll {
         position: relative;
         max-width: min(46rem, 100%);
-        filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65));
+    }
+
+    /* Cuts the paper off where it is rolled up, its shadow narrows along */
+    .clip {
+        overflow: hidden;
+        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.65);
+        transform: scaleX(0.25);
+    }
+
+    .paper {
+        transform: scaleX(4);
     }
 
     .paper {

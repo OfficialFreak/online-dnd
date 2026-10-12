@@ -2,6 +2,7 @@
  * The intro between two scenes: smoke closes over the old scene, the new one is shown
  * underneath while its name unrolls on a scroll, then the smoke draws back from it.
  */
+import { tick } from "svelte";
 import { appState, gameState } from "./state.svelte";
 import type { SceneData } from "./types/messaging/server_messages";
 
@@ -43,8 +44,37 @@ export async function change_scene(
         const latest = waiting;
         waiting = null;
         show(latest);
+        // The new scene works itself out and is drawn once behind the still smoke before
+        // the scroll moves: its walls and lights take a while on a big map, and the
+        // scroll stuttered while they did
+        await tick();
+        await drawn();
         intro?.reveal(latest.name, loaded(latest.map));
     }
+}
+
+/**
+ * Once the page draws calmly again: two frames in a row without a hold-up, at most after
+ * a little more than a second, or soon in a window that draws none
+ */
+function drawn() {
+    return new Promise<void>((resolve) => {
+        const start = performance.now();
+        let last = start;
+        let calm = 0;
+        const timeout = setTimeout(resolve, 1200);
+        const frame = (now: number) => {
+            calm = now - last < 30 ? calm + 1 : 0;
+            last = now;
+            if (calm >= 2 || now - start > 1200) {
+                clearTimeout(timeout);
+                resolve();
+            } else {
+                requestAnimationFrame(frame);
+            }
+        };
+        requestAnimationFrame(frame);
+    });
 }
 
 /**
