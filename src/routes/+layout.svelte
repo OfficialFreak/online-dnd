@@ -1114,6 +1114,7 @@
                                 ? "?"
                                 : (progress.guessed ? "~" : "") + clock(progress.length)}
                             {#if progress.paused}· pausiert{/if}
+                            {#if progress.seeking}· springt{/if}
                             {#if progress.expected !== null && progress.off !== null && progress.off > 2}
                                 (soll {clock(progress.expected)})
                             {/if}

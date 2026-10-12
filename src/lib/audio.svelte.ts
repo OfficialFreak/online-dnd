@@ -251,6 +251,7 @@ export function music_progress() {
         expected,
         off: expected === null ? null : drift(music, expected),
         paused: music.paused,
+        seeking: music.seeking,
     };
 }
 
