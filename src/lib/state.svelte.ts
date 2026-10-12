@@ -74,6 +74,8 @@ export const appState = $state({
     show_weather: true,
     /** Glowing, sparks and flames of conditions, off on devices they slow down */
     motion: true,
+    /** Smoke and the scene's name on a scroll when the DM changes the scene */
+    scene_intro: true,
     /** The marker whose menu a click or tap opened */
     open_marker_menu: null as string | null,
     theme: null as string | null,
@@ -238,6 +240,13 @@ export async function set_motion(motion: boolean) {
     appState.motion = motion;
     await ensureStore();
     await appState.store.set("motion", { value: motion });
+    await appState.store.save();
+}
+
+export async function set_scene_intro(shown: boolean) {
+    appState.scene_intro = shown;
+    await ensureStore();
+    await appState.store.set("scene_intro", { value: shown });
     await appState.store.save();
 }
 

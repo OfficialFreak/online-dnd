@@ -31,6 +31,7 @@
     import DragGhost from "$lib/components/DragGhost.svelte";
     import WeatherLayer from "$lib/components/WeatherLayer.svelte";
     import ReactionBar from "$lib/components/ReactionBar.svelte";
+    import SceneIntro from "$lib/components/SceneIntro.svelte";
 
     let url: string | null = $derived(
         appState.token
@@ -178,6 +179,8 @@
         </div>
     </div>
 {/if}
+<!-- Over the map, under the controls -->
+<SceneIntro />
 <!-- Hidden instead of unmounted while dragging a marker, so tools keep their state -->
 <div
     class="contents"

@@ -24,6 +24,7 @@
         selection,
         set_controls_open,
         set_show_weather,
+        set_scene_intro,
         set_motion,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
@@ -63,7 +64,9 @@
         MessageType,
         parseServerMessage,
         type AnyRoll,
+        type SceneData,
     } from "$lib/types/messaging/server_messages";
+    import { change_scene } from "$lib/scene-intro.svelte";
     import { emoji_cannon } from "$lib/emoji-burst";
     import { Tween } from "svelte/motion";
     import { circOut } from "svelte/easing";
@@ -422,6 +425,12 @@
                     | { value: boolean }
                     | undefined
             )?.value ?? true;
+        appState.scene_intro =
+            (
+                (await appState.store.get("scene_intro")) as
+                    | { value: boolean }
+                    | undefined
+            )?.value ?? true;
 
         await load_volume();
         await load_dice_skin();
@@ -631,28 +640,7 @@
                     );
                     break;
                 case MessageType.SCENE:
-                    let new_markers = message.state.markers.map((marker) => {
-                        return {
-                            ...marker,
-                            status_effects: (marker.status_effects ?? []).map(
-                                normalize_condition,
-                            ),
-                            x: new Tween(marker.x, {
-                                duration: 50,
-                                easing: circOut,
-                            }),
-                            y: new Tween(marker.y, {
-                                duration: 50,
-                                easing: circOut,
-                            }),
-                        };
-                    });
-                    // Markers selected in another scene may share names with these
-                    if (gameState.scene?.name !== message.name) {
-                        selection.clear();
-                    }
-                    gameState.scene = message;
-                    gameState.scene.state.markers = new_markers;
+                    change_scene(message, show_scene);
                     break;
                 case MessageType.SCENE_INITIATIVE:
                     if (!gameState.scene) {
@@ -1035,6 +1023,32 @@
         ch;
         scrollbar_visible = html.scrollHeight > html.clientHeight;
     });
+    /** Shows a scene the server sent, with tweened marker positions */
+    function show_scene(message: SceneData) {
+        let new_markers = message.state.markers.map((marker) => {
+            return {
+                ...marker,
+                status_effects: (marker.status_effects ?? []).map(
+                    normalize_condition,
+                ),
+                x: new Tween(marker.x, {
+                    duration: 50,
+                    easing: circOut,
+                }),
+                y: new Tween(marker.y, {
+                    duration: 50,
+                    easing: circOut,
+                }),
+            };
+        });
+        // Markers selected in another scene may share names with these
+        if (gameState.scene?.name !== message.name) {
+            selection.clear();
+        }
+        gameState.scene = message;
+        gameState.scene.state.markers = new_markers;
+    }
+
     let scrollbar_visible = $state(false);
     // Picked in the import dialog; gameState.name isn't known yet when this runs
     let selected_player = $state("");
@@ -1389,6 +1403,15 @@
                 onchange={(event) => set_motion(event.currentTarget.checked)}
             />
             Bewegte Zustände: Glühen, Funken, Flammen
+        </label>
+        <label class="flex items-center gap-2 text-sm mt-1">
+            <input
+                type="checkbox"
+                class="toggle toggle-sm"
+                checked={appState.scene_intro}
+                onchange={(event) => set_scene_intro(event.currentTarget.checked)}
+            />
+            Szenenwechsel mit Rauch und dem Namen auf einer Schriftrolle
         </label>
         <p class="text-xs text-base-content/60 mt-1">
             Ruckelt die App, schalte das aus, es lässt die Grafik ständig arbeiten.
