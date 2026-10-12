@@ -1251,9 +1251,10 @@
             height={Math.round(base_h)}
             class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
         ></canvas>
-        <!-- Non Player Markers under the fog, but their menu goes over it and the drawings -->
+        <!-- Non Player Markers under the fog. No stacking of their own: the marker with its
+             menu open rises above the fog and everything else, the others stay below. -->
         <div
-            class="absolute top-0 left-0 w-full h-full z-0 has-[:hover]:z-20 has-[.menu-open]:z-30 pointer-events-none"
+            class="absolute top-0 left-0 w-full h-full pointer-events-none"
         >
             {#each non_player_markers as marker}
                 {@const hidden = !gameState.dm && in_fog(marker)}

@@ -307,7 +307,9 @@
         : ''} {mapUse ? '!absolute top-0 left-0' : 'relative'} {!gameState.dm &&
     banner
         ? '!pointer-events-none'
-        : ''} {mapUse ? 'hover:isolate hover:z-[9999]' : ''} {menu_open
+        : ''} {mapUse && !gameState.dm
+        ? 'hover:isolate hover:z-[9999]'
+        : ''} {menu_open
         ? 'menu-open isolate !z-[10000]'
         : ''}"
 >
