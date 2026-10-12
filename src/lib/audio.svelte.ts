@@ -40,6 +40,25 @@ export function music_volume() {
     return audioState.muted ? 0 : audioState.music_volume;
 }
 
+/**
+ * The loudest the music gets. Songs are mastered loud and the voices in the call should
+ * stay above them, the slider used to be useful only in its lowest fifth.
+ */
+export const MAX_MUSIC_VOLUME = 0.3;
+
+/**
+ * Where the music slider stands for a volume, from 0 to 1. Squared, as the ear hears
+ * loudness: the lower half of the slider covers the quiet levels finely.
+ */
+export function music_slider(volume: number) {
+    return Math.sqrt(Math.min(1, Math.max(0, volume) / MAX_MUSIC_VOLUME));
+}
+
+/** The volume of the music slider standing there */
+export function music_volume_at(slider: number) {
+    return MAX_MUSIC_VOLUME * slider * slider;
+}
+
 export function effect_volume() {
     return audioState.muted ? 0 : audioState.effect_volume;
 }
@@ -499,4 +518,6 @@ export async function load_volume() {
     await ensureStore();
     const saved = await appState.store.get("audio");
     if (saved) Object.assign(audioState, saved);
+    // Saved before the music got quieter at most
+    audioState.music_volume = Math.min(MAX_MUSIC_VOLUME, audioState.music_volume);
 }

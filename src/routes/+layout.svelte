@@ -38,6 +38,8 @@
         load_volume,
         music_progress,
         music_volume,
+        music_slider,
+        music_volume_at,
         play_effect,
         play_music,
         keep_unlocked,
@@ -1249,13 +1251,13 @@
                         type="range"
                         min="0"
                         max="1"
-                        step="0.05"
+                        step="0.01"
                         class="range range-xs"
-                        value={audioState.music_volume}
+                        value={music_slider(audioState.music_volume)}
                         oninput={(event) =>
                             set_volume({
-                                music_volume: Number(
-                                    event.currentTarget.value,
+                                music_volume: music_volume_at(
+                                    Number(event.currentTarget.value),
                                 ),
                             })}
                     />
