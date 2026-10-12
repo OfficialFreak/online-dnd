@@ -22,6 +22,7 @@
         selection,
         remove_markers,
         drawState,
+        wallState,
     } from "../state.svelte";
     import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
     import { keep_in_view } from "$lib/keep-in-view";
@@ -37,6 +38,7 @@
         CombatState,
         ImportCharacter,
         PutScene,
+        SetVision,
         TogglePressure,
     } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "../notifications.svelte";
@@ -53,14 +55,14 @@
     // next to them. Hover doesn't exist there, and Safari keeps the focus that would
     // otherwise close them.
     let touch = $state(false);
-    let open_menu: "fog" | "measure" | null = $state(null);
+    let open_menu: "fog" | "measure" | "walls" | null = $state(null);
 
-    function menu_state(menu: "fog" | "measure") {
+    function menu_state(menu: "fog" | "measure" | "walls") {
         if (!touch) return "";
         return open_menu === menu ? "dropdown-open" : "dropdown-close";
     }
 
-    function tap_menu(menu: "fog" | "measure") {
+    function tap_menu(menu: "fog" | "measure" | "walls") {
         if (touch) open_menu = open_menu === menu ? null : menu;
     }
 
@@ -282,6 +284,29 @@
             PutScene.update_fog(gameState.scene.state.fog_squares),
         );
         notify("Nebel aktualisiert", MessageTypes.Success, 1000);
+    }
+
+    const WALL_MODES = [
+        { mode: "wall", label: "Wand", icon: "fa-pen" },
+        { mode: "door", label: "Tür", icon: "fa-door-closed" },
+        { mode: "erase", label: "Löschen", icon: "fa-eraser" },
+    ] as const;
+
+    /** A mode of the wall tool, picking the active one again puts the tool away */
+    function pick_wall_mode(mode: (typeof WALL_MODES)[number]["mode"]) {
+        if (appState.selectedTool === Tools.Walls && wallState.mode === mode && !touch) {
+            appState.selectedTool = Tools.None;
+            return;
+        }
+        wallState.mode = mode;
+        if (touch) pick_tool(Tools.Walls);
+        else appState.selectedTool = Tools.Walls;
+    }
+
+    function set_vision(enabled: boolean) {
+        if (!gameState.scene) return;
+        gameState.scene.state.vision = enabled;
+        appState.ws?.send(SetVision.create(enabled));
     }
 
     function fillAll() {
@@ -686,6 +711,81 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+            <div
+                class="dropdown dropdown-right dropdown-hover {menu_state('walls')}"
+                data-menu="walls"
+            >
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
+                    Tools.Walls
+                        ? 'btn-info'
+                        : ''}"
+                    aria-label="Wände und Sicht"
+                    onclick={() => tap_menu("walls")}
+                    ><i class="fa-solid fa-dungeon"></i></button
+                >
+                <div
+                    class="dropdown-content bg-base-100 rounded-box z-1 w-64 p-3 shadow-sm flex flex-col gap-3"
+                    style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
+                    use:keep_in_view
+                >
+                    <h3 class="font-bold">Wände und Sicht</h3>
+                    <label class="flex items-start gap-2 text-sm">
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-sm mt-0.5"
+                            checked={!!gameState.scene?.state.vision}
+                            disabled={!gameState.scene}
+                            onchange={(event) =>
+                                set_vision(event.currentTarget.checked)}
+                        />
+                        Spieler sehen nur, was ihre Figuren sehen
+                    </label>
+                    <div class="grid grid-cols-3 gap-1">
+                        {#each WALL_MODES as { mode, label, icon } (mode)}
+                            <button
+                                class="btn btn-sm px-1 {appState.selectedTool ===
+                                    Tools.Walls && wallState.mode === mode
+                                    ? 'btn-info'
+                                    : ''}"
+                                onclick={() => pick_wall_mode(mode)}
+                            >
+                                <i class="fa-solid {icon}"></i>
+                                {label}
+                            </button>
+                        {/each}
+                    </div>
+                    <fieldset class="fieldset p-0">
+                        <legend class="fieldset-legend pt-0">Sicht ansehen von</legend>
+                        <select
+                            class="select select-sm w-full"
+                            value={wallState.preview ?? ""}
+                            onchange={(event) =>
+                                (wallState.preview =
+                                    event.currentTarget.value || null)}
+                        >
+                            <option value="">Niemand, du siehst alles</option>
+                            {#each gameState.users.filter((user) => !user.dm) as player (player.name)}
+                                <option value={player.name}>{player.name}</option>
+                            {/each}
+                        </select>
+                    </fieldset>
+                    <p class="text-xs text-base-content/60">
+                        Klick setzt Punkte, Doppelklick, Rechtsklick oder Enter beendet
+                        die Wand, Esc bricht ab. Am Handy beendet doppeltes Tippen.
+                        Enden rasten an anderen Wänden ein, mit Strg auch am Raster.
+                        Türen ziehst du auf. Alle öffnen sie mit einem Klick, ein
+                        Rechtsklick schließt sie ab.
+                    </p>
+                    {#if gameState.scene?.state.walls?.length || gameState.scene?.state.doors?.length}
+                        <p class="text-xs text-base-content/60">
+                            {gameState.scene?.state.walls?.length ?? 0} Wände, {gameState
+                                .scene?.state.doors?.length ?? 0} Türen
+                        </p>
+                    {/if}
                 </div>
             </div>
             <div class="tooltip tooltip-right">

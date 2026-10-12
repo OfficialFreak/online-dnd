@@ -753,6 +753,16 @@
                 case MessageType.WEATHER:
                     if (gameState.scene) gameState.scene.weather = message.weather;
                     break;
+                case MessageType.DOOR: {
+                    const door = gameState.scene?.state.doors?.find(
+                        (door) => door.id === message.id,
+                    );
+                    if (door) {
+                        door.open = message.open;
+                        door.locked = message.locked;
+                    }
+                    break;
+                }
                 case MessageType.EFFECTS_ENDED: {
                     const labels = message.effects.map(condition_label);
                     notify(

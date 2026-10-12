@@ -1,4 +1,5 @@
-import type { SceneData, SceneState, Weather } from "./server_messages";
+import type { SceneData, SceneLight, SceneState, Weather } from "./server_messages";
+import type { Door, Wall } from "$lib/vision";
 import type { RollMode } from "$lib/rolls";
 import type { DiceReplay } from "$lib/dice-sync";
 
@@ -437,6 +438,50 @@ export class StopMusic {
     static create(): string {
         return JSON.stringify({
             type: "stop_music"
+        });
+    }
+}
+
+/** All walls and doors of a scene, the lights and whether sight is on only if given */
+export class PutWalls {
+    static create(scene: string, walls: Wall[], doors: Door[], extra: { lights?: SceneLight[]; vision?: boolean } = {}): string {
+        return JSON.stringify({
+            type: "put_walls",
+            scene: scene,
+            walls: walls,
+            doors: doors,
+            ...extra
+        });
+    }
+}
+
+/** Whether players only see what their figures see, in the active scene */
+export class SetVision {
+    static create(enabled: boolean): string {
+        return JSON.stringify({
+            type: "set_vision",
+            enabled: enabled
+        });
+    }
+}
+
+/** Opens or closes a door, the DM also locks it */
+export class SetDoor {
+    static create(id: string, change: { open?: boolean; locked?: boolean }): string {
+        return JSON.stringify({
+            type: "set_door",
+            id: id,
+            ...change
+        });
+    }
+}
+
+/** Cells the player's figures saw, they lose their fog for this player */
+export class RevealFog {
+    static create(cells: number[]): string {
+        return JSON.stringify({
+            type: "reveal_fog",
+            cells: cells
         });
     }
 }

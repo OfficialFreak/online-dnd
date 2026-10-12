@@ -37,6 +37,8 @@ export enum Tools {
     Draw,
     /** Selects markers like Shift does, for phones and tablets */
     Select,
+    /** Draws and removes the walls and doors that block the players' sight */
+    Walls,
 }
 
 export const appState = $state({
@@ -237,6 +239,12 @@ export const drawState = $state({
     color: DRAWING_COLORS[0],
     /** Snaps to the grid like Ctrl, which phones and tablets don't have */
     snap: false,
+});
+
+export const wallState = $state({
+    mode: "wall" as "wall" | "door" | "erase",
+    /** The player whose sight the DM looks through, null for seeing everything */
+    preview: null as string | null,
 });
 
 export const fogState = $state({

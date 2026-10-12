@@ -2,6 +2,7 @@ import type { RollMode } from "$lib/rolls";
 import type { DiceReplay } from "$lib/dice-sync";
 import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
+import type { Door, Wall } from "$lib/vision";
 import type { AssetInfo } from "$lib/assets";
 import type { Sound } from "$lib/audio.svelte";
 import type { TabletopTrack } from "$lib/sound-library";
@@ -43,7 +44,8 @@ export enum MessageType {
     MOUSE_POSITION = "mouse_position",
     MARKER_POSITION = "marker_position",
     WEATHER = "weather",
-    EFFECTS_ENDED = "effects_ended"
+    EFFECTS_ENDED = "effects_ended",
+    DOOR = "door"
 }
 
 export enum EventType {
@@ -165,6 +167,22 @@ export interface SceneState {
     /** Combat round, missing in scenes from before it existed */
     round?: number | null;
     drawings?: Drawing[];
+    /** Walls and doors that block sight, in fractions of the map */
+    walls?: Wall[];
+    doors?: Door[];
+    /** Lights of an imported map, kept for lighting the scene */
+    lights?: SceneLight[];
+    /** Players only see what their figures see past the walls */
+    vision?: boolean;
+}
+
+/** A light of an imported map, in fractions of the map and feet */
+export interface SceneLight {
+    x: number;
+    y: number;
+    range: number;
+    intensity: number;
+    color: string;
 }
 
 export interface InitiativeSceneData extends BaseServerMessage {
@@ -334,6 +352,13 @@ export interface WeatherChanged extends BaseServerMessage {
     weather: Weather;
 }
 
+export interface DoorChanged extends BaseServerMessage {
+    type: MessageType.DOOR;
+    id: string;
+    open: boolean;
+    locked: boolean;
+}
+
 /** Conditions whose rounds ran out at the end of the creature's turn */
 export interface EffectsEnded extends BaseServerMessage {
     type: MessageType.EFFECTS_ENDED;
@@ -412,6 +437,7 @@ export type ServerMessage =
     | StopSound
     | WeatherChanged
     | EffectsEnded
+    | DoorChanged
     | UserAdmin
     | TabletopAudio
     | SoundImportFailed
@@ -502,6 +528,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as WeatherChanged;
         case MessageType.EFFECTS_ENDED:
             return data as EffectsEnded;
+        case MessageType.DOOR:
+            return data as DoorChanged;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

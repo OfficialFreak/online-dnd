@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, tick } from "svelte";
+    import { onMount, tick, untrack } from "svelte";
     import {
         activate_scene,
         add_marker,
@@ -12,6 +12,7 @@
         pointers,
         type Pointer,
         Tools,
+        wallState,
     } from "../state.svelte";
     import { dropTarget, type DragPayload } from "$lib/drag.svelte";
     // @ts-ignore
@@ -26,7 +27,19 @@
         MarkerLocked,
         MouseLarge,
         PutScene,
+        PutWalls,
+        RevealFog,
+        SetDoor,
     } from "$lib/types/messaging/client_messages";
+    import {
+        visibility_polygon,
+        wall_segments,
+        WallIndex,
+        type Door,
+        type Point,
+        type Wall,
+    } from "$lib/vision";
+    import VisionLayer from "./VisionLayer.svelte";
     import {
         drawing_shape,
         shape_contains,
@@ -501,6 +514,8 @@
         fog_rect = null;
         brush_cell = null;
         waiting_fog = null;
+        wall_tap = null;
+        door_start = null;
         clearTimeout(long_press);
         if (appState.selectedTool === Tools.Ruler) {
             ruler_origin = { x: null, y: null };
@@ -541,6 +556,14 @@
                     if (delete_drawing_at(point.x, point.y)) drawing = null;
                 }, 600);
             }
+            if (tool === Tools.Walls && wallState.mode !== "door") {
+                wall_tap = event;
+                return;
+            }
+        }
+        if (appState.selectedTool === Tools.Walls) {
+            wall_down(event);
+            return;
         }
         if (appState.selectedTool === Tools.Draw) start_drawing(event);
         clickHandler(event, true);
@@ -555,13 +578,20 @@
                     event.clientX - press_start.x,
                     event.clientY - press_start.y,
                 ) > HOLD_STILL;
-            if (moved) clearTimeout(long_press);
+            if (moved) {
+                clearTimeout(long_press);
+                wall_tap = null;
+            }
             if (waiting_fog) {
                 if (!moved) return;
                 const start = waiting_fog;
                 waiting_fog = null;
                 clickHandler(start, true);
             }
+        }
+        if (appState.selectedTool === Tools.Walls) {
+            wall_move(event);
+            return;
         }
         if (appState.selectedTool === Tools.Draw) continue_drawing(event);
         clickHandler(event, false);
@@ -570,6 +600,8 @@
     function tool_up(event: PointerEvent) {
         clearTimeout(long_press);
         fingers.delete(event.pointerId);
+        if (wall_tap && event.type === "pointerup") wall_down(wall_tap);
+        wall_tap = null;
         // A tap paints a single spot
         if (waiting_fog && event.type === "pointerup") {
             const start = waiting_fog;
@@ -1131,6 +1163,333 @@
         );
     }
 
+    // Sight: walls and closed doors block what the players' figures see. It is worked
+    // out in cells, the walls are stored as fractions of the map.
+    let vision_on = $derived(editable && !!gameState.scene?.state.vision);
+    /** The map's height in cells */
+    let map_rows = $derived(
+        w && h ? Math.round(((columns * h) / w) * 1000) / 1000 : 0,
+    );
+    let walls: Wall[] = $derived(
+        editable ? (gameState.scene?.state.walls ?? []) : [],
+    );
+    let doors: Door[] = $derived(
+        editable ? (gameState.scene?.state.doors ?? []) : [],
+    );
+    let wall_index = $derived(
+        vision_on && map_rows
+            ? new WallIndex(
+                  wall_segments(walls, doors, columns, map_rows),
+                  columns,
+                  map_rows,
+              )
+            : null,
+    );
+    /** Whose sight the map shows: the player's own, or the one the DM looks through */
+    let viewer = $derived(gameState.dm ? wallState.preview : gameState.name);
+    /** Where the viewer's figures look from, their middle in cells */
+    let eyes: Point[] = $derived.by(() => {
+        if (!wall_index || !viewer) return [];
+        const character = gameState.characters.find(
+            (char) => char.player_name === viewer,
+        )?.name;
+        return markers
+            .filter((marker: any) => marker.name === character)
+            .map(
+                (marker: any) =>
+                    [
+                        marker.x.target * columns + marker.size / 2,
+                        marker.y.target * map_rows + marker.size / 2,
+                    ] as Point,
+            );
+    });
+    let sight = $derived(
+        wall_index ? eyes.map((eye) => visibility_polygon(wall_index!, eye)) : [],
+    );
+
+    function seen(point: Point) {
+        return !!wall_index && eyes.some((eye) => wall_index!.sees(eye, point));
+    }
+
+    /** Monsters and others out of the viewer's sight are hidden, the party always shows */
+    function out_of_sight(marker: any) {
+        if (!wall_index || !viewer) return false;
+        const x = marker.x.current * columns;
+        const y = marker.y.current * map_rows;
+        const s = marker.size;
+        // The middle or near a corner, a big monster shows once a part of it does
+        const inset = Math.min(0.25, s / 4);
+        return ![
+            [x + s / 2, y + s / 2],
+            [x + inset, y + inset],
+            [x + s - inset, y + inset],
+            [x + inset, y + s - inset],
+            [x + s - inset, y + s - inset],
+        ].some((point) => seen(point as Point));
+    }
+
+    // What the player's figures see loses its fog for them, also on the server
+    let revealed: number[] = [];
+    const send_revealed = debounce(() => {
+        if (!revealed.length) return;
+        appState.ws?.send(RevealFog.create(revealed));
+        revealed = [];
+    }, 300);
+    $effect(() => {
+        if (gameState.dm || !wall_index || !eyes.length || !gameState.scene) return;
+        const fog = gameState.scene.state.fog_squares[gameState.name];
+        if (!fog) return;
+        const index = wall_index;
+        const looking = eyes;
+        untrack(() => {
+            let changed = false;
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < columns; x++) {
+                    if (!isFogAt(fog, x, y)) continue;
+                    const center: Point = [
+                        x + 0.5 + x_offset / size,
+                        y + 0.5 + y_offset / size,
+                    ];
+                    if (looking.some((eye) => index.sees(eye, center))) {
+                        setFogAt(fog, x, y, false);
+                        revealed.push(y * columns + x);
+                        changed = true;
+                    }
+                }
+            }
+            if (changed) send_revealed();
+        });
+    });
+
+    let door_size = $derived(Math.max(14, size * 0.45));
+
+    function door_middle(door: Door): Point {
+        return [(door.a[0] + door.b[0]) / 2, (door.a[1] + door.b[1]) / 2];
+    }
+
+    /** Players see the doors of what they explored, the DM all */
+    function door_shown(door: Door) {
+        if (gameState.dm) return true;
+        const [x, y] = door_middle(door);
+        return !isFogAt(
+            fog_squares,
+            Math.floor((x * w - x_offset) / size),
+            Math.floor((y * h - y_offset) / size),
+        );
+    }
+
+    function use_door(door: Door) {
+        if (
+            gameState.dm &&
+            appState.selectedTool === Tools.Walls &&
+            wallState.mode === "erase"
+        ) {
+            remove_door(door);
+            return;
+        }
+        if (door.locked && !gameState.dm) {
+            notify("Die Tür ist abgeschlossen", MessageTypes.Info, 2000);
+            return;
+        }
+        door.open = !door.open;
+        appState.ws?.send(SetDoor.create(door.id, { open: door.open }));
+    }
+
+    function lock_door(door: Door) {
+        if (!gameState.dm) return;
+        door.locked = !door.locked;
+        appState.ws?.send(SetDoor.create(door.id, { locked: door.locked }));
+    }
+
+    // The DM's wall tool: points of the wall being drawn and of a door being dragged
+    let wall_draft: Point[] = $state([]);
+    let wall_cursor: Point | null = $state(null);
+    let door_start: Point | null = $state(null);
+    /** A finger adds a point when it lets go without moving, two fingers pinch */
+    let wall_tap: PointerEvent | null = null;
+
+    $effect(() => {
+        if (appState.selectedTool !== Tools.Walls) {
+            wall_draft = [];
+            wall_cursor = null;
+            door_start = null;
+        }
+    });
+
+    function short_id() {
+        return Math.random().toString(36).slice(2, 10);
+    }
+
+    const save_walls = debounce(() => {
+        if (!gameState.scene) return;
+        appState.ws?.send(
+            PutWalls.create(
+                gameState.scene.name,
+                $state.snapshot(walls),
+                $state.snapshot(doors),
+            ),
+        );
+    }, 300);
+
+    /**
+     * Where a click puts a point: on the end of another wall nearby, so no light slips
+     * through a gap, with snapping on a corner of the grid. In fractions of the map.
+     */
+    function wall_snap(px: number, py: number): Point {
+        let best: Point | null = null;
+        let best_distance = 12 / gesture_scale;
+        const consider = (point: Point) => {
+            const distance = Math.hypot(point[0] * w - px, point[1] * h - py);
+            if (distance < best_distance) {
+                best_distance = distance;
+                best = point;
+            }
+        };
+        for (const wall of walls) wall.points.forEach(consider);
+        for (const door of doors) {
+            consider(door.a);
+            consider(door.b);
+        }
+        wall_draft.forEach(consider);
+        if (best) return [best[0], best[1]];
+        if (snapping) {
+            return [
+                (Math.round((px - x_offset) / size) * size + x_offset) / w,
+                (Math.round((py - y_offset) / size) * size + y_offset) / h,
+            ];
+        }
+        return [px / w, py / h];
+    }
+
+    function finish_wall() {
+        if (wall_draft.length >= 2 && gameState.scene) {
+            gameState.scene.state.walls = [
+                ...walls,
+                { id: short_id(), points: $state.snapshot(wall_draft) },
+            ];
+            save_walls();
+        }
+        wall_draft = [];
+    }
+
+    function finish_door() {
+        if (door_start && wall_cursor && gameState.scene) {
+            const length = Math.hypot(
+                (wall_cursor[0] - door_start[0]) * w,
+                (wall_cursor[1] - door_start[1]) * h,
+            );
+            if (length >= size * 0.3) {
+                gameState.scene.state.doors = [
+                    ...doors,
+                    {
+                        id: short_id(),
+                        a: $state.snapshot(door_start),
+                        b: $state.snapshot(wall_cursor),
+                        open: false,
+                        locked: false,
+                    },
+                ];
+                save_walls();
+            }
+        }
+        door_start = null;
+    }
+
+    function wall_down(event: PointerEvent) {
+        if (event.button !== 0 || !gameState.scene) return;
+        const { x: px, y: py } = local(event);
+        if (wallState.mode === "erase") {
+            erase_wall_at(px, py);
+            return;
+        }
+        const point = wall_snap(px, py);
+        if (wallState.mode === "door") {
+            door_start = point;
+            wall_cursor = point;
+            on_release(finish_door);
+            return;
+        }
+        // The same point again, e.g. a double click, ends the wall. Its first one closes it.
+        const last = wall_draft[wall_draft.length - 1];
+        if (last && last[0] === point[0] && last[1] === point[1]) {
+            finish_wall();
+            return;
+        }
+        wall_draft = [...wall_draft, point];
+        const first = wall_draft[0];
+        if (wall_draft.length > 2 && first[0] === point[0] && first[1] === point[1]) {
+            finish_wall();
+        }
+    }
+
+    function wall_move(event: PointerEvent) {
+        const { x: px, y: py } = local(event);
+        wall_cursor = wallState.mode === "erase" ? null : wall_snap(px, py);
+    }
+
+    /** How far a point is from a line, in pixels of the map */
+    function distance_to_line(px: number, py: number, a: Point, b: Point) {
+        const ax = a[0] * w;
+        const ay = a[1] * h;
+        const dx = b[0] * w - ax;
+        const dy = b[1] * h - ay;
+        const length = dx * dx + dy * dy;
+        const t =
+            length === 0
+                ? 0
+                : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / length));
+        return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+    }
+
+    function remove_door(door: Door) {
+        if (!gameState.scene) return;
+        gameState.scene.state.doors = doors.filter((other) => other.id !== door.id);
+        save_walls();
+    }
+
+    /** Removes the door or the piece of wall at this point, a wall splits in two there */
+    function erase_wall_at(px: number, py: number) {
+        if (!gameState.scene) return;
+        const reach = 10 / gesture_scale;
+        const door = doors.find(
+            (door) => distance_to_line(px, py, door.a, door.b) <= reach,
+        );
+        if (door) {
+            remove_door(door);
+            return;
+        }
+        for (const wall of walls) {
+            for (let i = 1; i < wall.points.length; i++) {
+                if (
+                    distance_to_line(px, py, wall.points[i - 1], wall.points[i]) >
+                    reach
+                ) {
+                    continue;
+                }
+                const parts = [wall.points.slice(0, i), wall.points.slice(i)]
+                    .filter((points) => points.length >= 2)
+                    .map((points, part) => ({
+                        id: part === 0 ? wall.id : short_id(),
+                        points: $state.snapshot(points),
+                    }));
+                gameState.scene.state.walls = walls.flatMap((other) =>
+                    other === wall ? parts : [other],
+                );
+                save_walls();
+                return;
+            }
+        }
+    }
+
+    function wall_keys(event: KeyboardEvent) {
+        if (appState.selectedTool !== Tools.Walls) return;
+        if (event.key === "Enter") finish_wall();
+        if (event.key === "Escape") {
+            wall_draft = [];
+            door_start = null;
+        }
+    }
+
     function on_drop(
         payload: DragPayload,
         event: PointerEvent,
@@ -1186,7 +1545,11 @@
     }
 </script>
 
-<svelte:window bind:innerWidth={window_w} bind:innerHeight={window_h} />
+<svelte:window
+    bind:innerWidth={window_w}
+    bind:innerHeight={window_h}
+    onkeydown={wall_keys}
+/>
 
 {#if keep_page}
     <div
@@ -1258,6 +1621,7 @@
         >
             {#each non_player_markers as marker}
                 {@const hidden = !gameState.dm && in_fog(marker)}
+                {#if !out_of_sight(marker)}
                 <Marker
                     {marker}
                     dragOptions={{
@@ -1272,6 +1636,7 @@
                     columnCount={columns}
                     interactive={!hidden}
                 />
+                {/if}
             {/each}
         </div>
         <!-- Drawings and spell areas, under the fog like everything else -->
@@ -1337,6 +1702,10 @@
                 {/if}
             {/each}
         </svg>
+        {#if wall_index && viewer}
+            <!-- What the figures don't see is darker, under the fog of what they never saw -->
+            <VisionLayer polygons={sight} {columns} rows={map_rows} />
+        {/if}
         <!-- Fog -->
         <canvas
             bind:this={fogCanvas}
@@ -1365,6 +1734,115 @@
                 />
             {/each}
         </div>
+        {#if gameState.dm && appState.selectedTool === Tools.Walls}
+            <!-- The walls only show while the DM edits them, as wide on the screen at any zoom -->
+            <svg
+                class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+                viewBox="0 0 {w || 1} {h || 1}"
+                aria-hidden="true"
+            >
+                {#each walls as wall (wall.id)}
+                    <polyline
+                        points={wall.points
+                            .map(([x, y]) => `${x * w},${y * h}`)
+                            .join(" ")}
+                        fill="none"
+                        stroke="#22d3ee"
+                        stroke-width={3 / gesture_scale}
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                {/each}
+                {#each doors as door (door.id)}
+                    <line
+                        x1={door.a[0] * w}
+                        y1={door.a[1] * h}
+                        x2={door.b[0] * w}
+                        y2={door.b[1] * h}
+                        stroke={door.locked ? "#ef4444" : "#f59e0b"}
+                        stroke-width={5 / gesture_scale}
+                        stroke-linecap="round"
+                        stroke-dasharray={door.open
+                            ? `${6 / gesture_scale} ${6 / gesture_scale}`
+                            : undefined}
+                    />
+                {/each}
+                {#if wall_draft.length}
+                    <polyline
+                        points={[
+                            ...wall_draft,
+                            ...(wall_cursor ? [wall_cursor] : []),
+                        ]
+                            .map(([x, y]) => `${x * w},${y * h}`)
+                            .join(" ")}
+                        fill="none"
+                        stroke="white"
+                        stroke-width={3 / gesture_scale}
+                        stroke-dasharray="{8 / gesture_scale} {5 / gesture_scale}"
+                    />
+                {/if}
+                {#if door_start && wall_cursor}
+                    <line
+                        x1={door_start[0] * w}
+                        y1={door_start[1] * h}
+                        x2={wall_cursor[0] * w}
+                        y2={wall_cursor[1] * h}
+                        stroke="#f59e0b"
+                        stroke-width={5 / gesture_scale}
+                        stroke-dasharray="{8 / gesture_scale} {5 / gesture_scale}"
+                    />
+                {/if}
+                {#if wall_cursor && wallState.mode !== "erase"}
+                    <circle
+                        cx={wall_cursor[0] * w}
+                        cy={wall_cursor[1] * h}
+                        r={5 / gesture_scale}
+                        fill="white"
+                    />
+                {/if}
+            </svg>
+        {/if}
+        {#if vision_on || (gameState.dm && appState.selectedTool === Tools.Walls)}
+            <!-- Everyone opens and closes the doors, the DM locks them with a right click -->
+            {#each doors as door (door.id)}
+                {#if door_shown(door)}
+                    {@const [mx, my] = door_middle(door)}
+                    <button
+                        class="door absolute rounded-full shadow flex items-center justify-center {door.locked
+                            ? 'bg-error text-error-content'
+                            : door.open
+                              ? 'bg-base-100/70 text-base-content'
+                              : 'bg-warning text-warning-content'}"
+                        style="left: {mx * w}px; top: {my * h}px; width: {door_size}px; height: {door_size}px; font-size: {door_size *
+                            0.5}px; translate: -50% -50%"
+                        title={door.locked
+                            ? "Abgeschlossen"
+                            : door.open
+                              ? "Tür schließen"
+                              : "Tür öffnen"}
+                        aria-label={door.locked
+                            ? "Abgeschlossene Tür"
+                            : door.open
+                              ? "Tür schließen"
+                              : "Tür öffnen"}
+                        onpointerdown={(event) => event.stopPropagation()}
+                        onclick={() => use_door(door)}
+                        oncontextmenu={(event) => {
+                            event.preventDefault();
+                            lock_door(door);
+                        }}
+                    >
+                        <i
+                            class="fa-solid {door.locked
+                                ? 'fa-lock'
+                                : door.open
+                                  ? 'fa-door-open'
+                                  : 'fa-door-closed'}"
+                        ></i>
+                    </button>
+                {/if}
+            {/each}
+        {/if}
         {#if fog_rect}
             <!-- Borders as wide on the screen at any zoom -->
             <div
@@ -1450,12 +1928,12 @@
             </div>
         {/if}
     {/if}
-    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler || appState.selectedTool === Tools.Draw}
+    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler || appState.selectedTool === Tools.Draw || appState.selectedTool === Tools.Walls}
         <!-- A finger uses the tool instead of panning, two fingers still pinch and pan -->
         <button
             aria-label="Click Capture Layer"
             class="absolute inset-0 touch-none {appState.selectedTool ===
-            Tools.Draw
+                Tools.Draw || appState.selectedTool === Tools.Walls
                 ? 'cursor-crosshair'
                 : ''}"
             style="-webkit-touch-callout: none"
@@ -1471,6 +1949,11 @@
                     evt.preventDefault();
                     const point = local(evt);
                     delete_drawing_at(point.x, point.y);
+                }
+                // A right click ends the wall being drawn
+                if (editable && appState.selectedTool === Tools.Walls) {
+                    evt.preventDefault();
+                    finish_wall();
                 }
             }}
             onclick={(evt) => {
