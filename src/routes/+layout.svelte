@@ -25,6 +25,7 @@
         set_controls_open,
         set_show_weather,
         set_scene_intro,
+        set_ambient,
         set_motion,
     } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
@@ -430,6 +431,12 @@
         appState.scene_intro =
             (
                 (await appState.store.get("scene_intro")) as
+                    | { value: boolean }
+                    | undefined
+            )?.value ?? true;
+        appState.ambient =
+            (
+                (await appState.store.get("ambient")) as
                     | { value: boolean }
                     | undefined
             )?.value ?? true;
@@ -1414,6 +1421,15 @@
                 onchange={(event) => set_scene_intro(event.currentTarget.checked)}
             />
             Szenenwechsel mit Rauch und dem Namen auf einer Schriftrolle
+        </label>
+        <label class="flex items-center gap-2 text-sm mt-1">
+            <input
+                type="checkbox"
+                class="toggle toggle-sm"
+                checked={appState.ambient}
+                onchange={(event) => set_ambient(event.currentTarget.checked)}
+            />
+            Farben der Karte im Hintergrund leuchten lassen
         </label>
         <p class="text-xs text-base-content/60 mt-1">
             Ruckelt die App, schalte das aus, es lässt die Grafik ständig arbeiten.

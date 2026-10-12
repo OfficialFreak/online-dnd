@@ -2023,10 +2023,12 @@
         ? `translate(${zoom_offset_x + shift_x}px, ${zoom_offset_y + shift_y}px) scale(${gesture_scale})`
         : 'none'}"
 >
+    <!-- The ambient light behind the map finds it by data-map -->
     <Display
         asset={file}
         thumbnail={!editable}
         alt="Map"
+        data-map={editable ? "main" : undefined}
         class="w-full"
         fetchpriority={editable ? "high" : "auto"}
         draggable="false"

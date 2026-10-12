@@ -76,6 +76,8 @@ export const appState = $state({
     motion: true,
     /** Smoke and the scene's name on a scroll when the DM changes the scene */
     scene_intro: true,
+    /** The map's colours glowing in the background around it */
+    ambient: true,
     /** The marker whose menu a click or tap opened */
     open_marker_menu: null as string | null,
     theme: null as string | null,
@@ -240,6 +242,13 @@ export async function set_motion(motion: boolean) {
     appState.motion = motion;
     await ensureStore();
     await appState.store.set("motion", { value: motion });
+    await appState.store.save();
+}
+
+export async function set_ambient(shown: boolean) {
+    appState.ambient = shown;
+    await ensureStore();
+    await appState.store.set("ambient", { value: shown });
     await appState.store.save();
 }
 

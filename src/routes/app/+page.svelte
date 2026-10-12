@@ -32,6 +32,7 @@
     import WeatherLayer from "$lib/components/WeatherLayer.svelte";
     import ReactionBar from "$lib/components/ReactionBar.svelte";
     import SceneIntro from "$lib/components/SceneIntro.svelte";
+    import AmbientLight from "$lib/components/AmbientLight.svelte";
 
     let url: string | null = $derived(
         appState.token
@@ -128,6 +129,8 @@
     }
 </script>
 
+<!-- Behind everything, also behind the background image -->
+<AmbientLight />
 {#if gameState.scene}
     {#if gameState.scene.background}
         <BlurredBackground
