@@ -209,11 +209,11 @@
     <Toolbar />
     <!-- Above the conditions on the right, the dice reach there on phones -->
     <div
-        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000]"
+        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000] flex flex-wrap-reverse items-end gap-1 max-w-[calc(100vw-1rem-var(--safe-left))]"
     >
         <DiceChooser roll_callback={roll} />
+        <ReactionBar />
     </div>
-    <ReactionBar />
 
     <!-- What can be done with the selected markers, without Delete key on a tablet -->
     {#if gameState.dm && selection.size > 0}

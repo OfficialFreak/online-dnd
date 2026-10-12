@@ -2,7 +2,10 @@
     import { fly } from "svelte/transition";
     import { REACTIONS, reactionState, send_reaction } from "$lib/reactions.svelte";
 
-    /** The button for quick reactions next to the dice, and what was just called out */
+    /**
+     * The button for quick reactions, in the row of the dice so it moves aside when they
+     * grow. And what was just called out.
+     */
     let open = $state(false);
     let bar: HTMLElement | undefined = $state();
 
@@ -13,12 +16,9 @@
 
 <svelte:window onpointerdowncapture={on_pointer_down} />
 
-<div
-    class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(4.25rem+var(--safe-left))] z-[1000] flex items-end gap-1"
-    bind:this={bar}
->
+<div class="flex items-end gap-1" bind:this={bar}>
     <button
-        class="btn btn-circle btn-lg shadow {open ? 'btn-info' : ''}"
+        class="btn btn-circle w-12 h-12 shadow {open ? 'btn-info' : ''}"
         aria-label="Reaktionen"
         aria-expanded={open}
         title="Reaktionen"
@@ -28,7 +28,7 @@
     </button>
     {#if open}
         <div
-            class="flex flex-wrap gap-1 bg-base-100 rounded-box p-1 shadow max-w-[calc(100vw-6rem)]"
+            class="flex flex-wrap gap-1 bg-base-100 rounded-box p-1 shadow max-w-[calc(100vw-7.5rem)]"
             transition:fly={{ x: -12, duration: 150 }}
         >
             {#each REACTIONS as reaction (reaction.key)}
