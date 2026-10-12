@@ -325,6 +325,39 @@
         return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
     }
 
+    // The desktop app lets WebView2 pass touchpad pinches on, which needs its zoom on. The
+    // whole window must not zoom though, only the map does with Ctrl and the wheel or keys.
+    if (in_tauri && typeof window !== "undefined") {
+        window.addEventListener(
+            "wheel",
+            (event) => {
+                if (event.ctrlKey) event.preventDefault();
+            },
+            { passive: false },
+        );
+        window.addEventListener(
+            "keydown",
+            (event) => {
+                if (
+                    (event.ctrlKey || event.metaKey) &&
+                    [
+                        "Equal",
+                        "Minus",
+                        "BracketRight",
+                        "Slash",
+                        "Digit0",
+                        "NumpadAdd",
+                        "NumpadSubtract",
+                        "Numpad0",
+                    ].includes(event.code)
+                ) {
+                    event.preventDefault();
+                }
+            },
+            true,
+        );
+    }
+
     onMount(async () => {
         html = document.getElementsByTagName("html")[0];
         await ensureStore();

@@ -18,7 +18,8 @@
                 "decorations": false,
                 "minWidth": 500,
                 "minHeight": 418,
-                "visible": false
+                "visible": false,
+                "zoomHotkeysEnabled": true
             },
             {
                 "title": "How to play DND Online fast",
