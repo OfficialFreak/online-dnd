@@ -36,6 +36,7 @@
         WallIndex,
         type Door,
         type Point,
+        type Segment,
         type Wall,
     } from "$lib/vision";
     import VisionLayer from "./VisionLayer.svelte";
@@ -1191,14 +1192,55 @@
     let doors: Door[] = $derived(
         editable ? (gameState.scene?.state.doors ?? []) : [],
     );
+    let segments = $derived(
+        vision_on && map_rows ? wall_segments(walls, doors, columns, map_rows) : [],
+    );
     let wall_index = $derived(
-        vision_on && map_rows
-            ? new WallIndex(
-                  wall_segments(walls, doors, columns, map_rows),
-                  columns,
-                  map_rows,
-              )
-            : null,
+        vision_on && map_rows ? new WallIndex(segments, columns, map_rows) : null,
+    );
+
+    /**
+     * The outline of the viewer's fog, in cells: the DM's fog blocks their sight like a
+     * wall, a fogged corridor hides the room behind it. Lights shine through, the fog only
+     * hides things from the player.
+     */
+    let fog_edges: Segment[] = $derived.by(() => {
+        if (!wall_index || !fog_squares || !size) return [];
+        const fogged = (x: number, y: number) =>
+            x >= 0 && y >= 0 && x < columns && y < rows && isFogAt(fog_squares, x, y);
+        const ox = x_offset / size;
+        const oy = y_offset / size;
+        const edges: Segment[] = [];
+        // Where a fogged cell meets a clear one, joined into runs along the grid
+        for (let y = 0; y <= rows; y++) {
+            let start = -1;
+            for (let x = 0; x <= columns; x++) {
+                const edge = x < columns && fogged(x, y) !== fogged(x, y - 1);
+                if (edge && start < 0) start = x;
+                if (!edge && start >= 0) {
+                    edges.push([start + ox, y + oy, x + ox, y + oy]);
+                    start = -1;
+                }
+            }
+        }
+        for (let x = 0; x <= columns; x++) {
+            let start = -1;
+            for (let y = 0; y <= rows; y++) {
+                const edge = y < rows && fogged(x, y) !== fogged(x - 1, y);
+                if (edge && start < 0) start = y;
+                if (!edge && start >= 0) {
+                    edges.push([x + ox, start + oy, x + ox, y + oy]);
+                    start = -1;
+                }
+            }
+        }
+        return edges;
+    });
+    /** The walls and the viewer's fog, for what the viewer's figures see */
+    let sight_index = $derived(
+        wall_index && fog_edges.length
+            ? new WallIndex([...segments, ...fog_edges], columns, map_rows)
+            : wall_index,
     );
     /** Whose sight the map shows: the player's own, or the one the DM looks through */
     let viewer = $derived(
@@ -1222,7 +1264,7 @@
     }
 
     /** Where the viewer's figures look from, what they see and how far in the dark */
-    let eyes: Eye[] = $derived.by(() => {
+    let eyes: (Eye & { index: WallIndex })[] = $derived.by(() => {
         if (!wall_index || !viewer) return [];
         const character = gameState.characters.find(
             (char) => char.player_name === viewer,
@@ -1236,10 +1278,18 @@
                     (character?.specialSenses as { darkvision?: number })
                         ?.darkvision ??
                     0;
+                // A figure standing in fog itself would see nothing at all
+                const in_fog = isFogAt(
+                    fog_squares,
+                    Math.floor(point[0] - x_offset / size),
+                    Math.floor(point[1] - y_offset / size),
+                );
+                const index = in_fog ? wall_index! : sight_index!;
                 return {
                     point,
-                    polygon: visibility_polygon(wall_index!, point),
+                    polygon: visibility_polygon(index, point),
                     darkvision: feet / 5,
+                    index,
                 };
             });
     });
@@ -1331,7 +1381,7 @@
             inside = Math.max(inside, lamp.dim - distance);
         }
         for (const eye of eyes) {
-            if (eye.darkvision <= 0 || !wall_index.sees(eye.point, center)) continue;
+            if (eye.darkvision <= 0 || !eye.index.sees(eye.point, center)) continue;
             const distance = Math.hypot(
                 center[0] - eye.point[0],
                 center[1] - eye.point[1],
