@@ -1359,17 +1359,23 @@
         ].some((point) => seen(point as Point));
     }
 
-    // What the player's figures see loses its fog for them, also on the server
-    let revealed: number[] = [];
+    // What the player's figures see loses its fog for them, also on the server. Each
+    // player's app does it for them, and the DM's app for the player it shows the map as:
+    // someone not online wouldn't uncover anything when the DM moves their figure.
+    const revealed = new globalThis.Map<string, number[]>();
     const send_revealed = debounce(() => {
-        if (!revealed.length) return;
-        appState.ws?.send(RevealFog.create(revealed));
-        revealed = [];
+        for (const [player, cells] of revealed) {
+            appState.ws?.send(
+                RevealFog.create(cells, gameState.dm ? player : undefined),
+            );
+        }
+        revealed.clear();
     }, 300);
     $effect(() => {
-        if (gameState.dm || !sight || !gameState.scene) return;
-        const fog = gameState.scene.state.fog_squares[gameState.name];
+        if (!viewer || !sight || !gameState.scene) return;
+        const fog = gameState.scene.state.fog_squares[viewer];
         if (!fog) return;
+        const player = viewer;
         const current = sight;
         untrack(() => {
             let changed = false;
@@ -1382,7 +1388,9 @@
                     ];
                     if (seen_at(current, center) > SEEN) {
                         setFogAt(fog, x, y, false);
-                        revealed.push(y * columns + x);
+                        const cells = revealed.get(player) ?? [];
+                        cells.push(y * columns + x);
+                        revealed.set(player, cells);
                         changed = true;
                     }
                 }

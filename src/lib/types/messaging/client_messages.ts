@@ -488,10 +488,12 @@ export class Ping {
 
 /** Cells the player's figures saw, they lose their fog for this player */
 export class RevealFog {
-    static create(cells: number[]): string {
+    /** The DM names the player they look at the map as, the others uncover their own */
+    static create(cells: number[], player?: string): string {
         return JSON.stringify({
             type: "reveal_fog",
-            cells: cells
+            cells: cells,
+            player: player
         });
     }
 }
