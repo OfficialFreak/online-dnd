@@ -411,7 +411,6 @@
 {#if appState.controls_open}
 <div
     class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row pointer-events-none"
-    data-keep-clear
 >
     <!-- Once opened a panel stays on the page and only slides out of sight. Built anew each
          time it took a frame of 50 ms, and sliding moves it on the graphics card alone. -->
@@ -429,6 +428,7 @@
                 ? ''
                 : 'moving'}"
             inert={!toolbarState.panel}
+            data-keep-clear={toolbarState.panel ? "" : undefined}
             bind:this={scroll_container}
             data-file-drop={toolbarState.panel}
         >
@@ -528,8 +528,10 @@
     {/if}
 
     <!-- Two columns where one doesn't fit, like on a phone held sideways. Beside a panel
-         slid out of sight it moves into its place. -->
+         slid out of sight it moves into its place. Menus open beside it and the open
+         panel, not beside the room the closed panel keeps. -->
     <div
+        data-keep-clear
         class="tools flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto [@media(max-height:600px)]:grid [@media(max-height:600px)]:grid-cols-2 {shown_panel &&
         !toolbarState.panel
             ? 'tools-tucked'
