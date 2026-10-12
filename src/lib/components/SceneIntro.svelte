@@ -6,6 +6,10 @@
     import { register_intro } from "$lib/scene-intro.svelte";
     import { billows, smoothstep } from "$lib/noise";
 
+    /** Stains and fibres of the parchment, noise drawn by SVG filters */
+    const STAINS = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='240'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.03' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.27 0 0 0 0 0.1 0 0 0 -1.6 1.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E";
+    const FIBERS = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.22 0 0 0 0 0.08 0 0 0 0.32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E";
+
     /**
      * Between two scenes smoke closes in from the edges, the scene's name unrolls on a
      * scroll in the middle, and the smoke draws back from the new map. Above the map and
@@ -25,6 +29,11 @@
     let frame = 0;
     /** Ends the smoke closing in at once, when the window can't be seen */
     let end_cover: (() => void) | null = null;
+    /**
+     * The parchment's textures as pictures: SVG noise filters are slow to draw the first
+     * time, which made the scroll stutter as it came. Made once when the page is there.
+     */
+    let textures = $state({ stains: `url("${STAINS}")`, fibers: `url("${FIBERS}")` });
     /** Fully covered it was drawn once, it needn't be again until the smoke draws back */
     let drawn_covered = false;
 
@@ -142,6 +151,18 @@
         scroll_shown = false;
     }
 
+    async function rasterize(uri: string) {
+        const image = new Image();
+        image.src = uri;
+        await image.decode();
+        const canvas = document.createElement("canvas");
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        canvas.getContext("2d")!.drawImage(image, 0, 0);
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve));
+        return blob ? `url("${URL.createObjectURL(blob)}")` : `url("${uri}")`;
+    }
+
     function on_visibility() {
         if (document.hidden && (smoke.current > 0 || smoke.target > 0 || scroll_shown)) {
             skip();
@@ -151,6 +172,11 @@
     onMount(() => {
         register_intro({ cover, reveal });
         document.addEventListener("visibilitychange", on_visibility);
+        // Ready before the first scene changes: the font and the parchment
+        document.fonts?.load('700 2rem "Cinzel Decorative"').catch(() => {});
+        Promise.all([rasterize(STAINS), rasterize(FIBERS)])
+            .then(([stains, fibers]) => (textures = { stains, fibers }))
+            .catch(() => {});
         return () => {
             register_intro(null);
             document.removeEventListener("visibilitychange", on_visibility);
@@ -178,6 +204,8 @@
         >
             <div
                 class="paper"
+                style:--stains={textures.stains}
+                style:--fibers={textures.fibers}
                 bind:clientWidth={paper_width}
                 style:clip-path="inset(-2px {(1 - unrolled.current) * 50}% -2px {(1 -
                     unrolled.current) *
@@ -217,7 +245,7 @@
             radial-gradient(ellipse at 78% 85%, rgba(140, 90, 35, 0.22), transparent 55%),
             radial-gradient(circle at 12% 78%, rgba(120, 75, 30, 0.18), transparent 18%),
             radial-gradient(circle at 88% 22%, rgba(120, 75, 30, 0.14), transparent 14%),
-            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='240'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.03' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.27 0 0 0 0 0.1 0 0 0 -1.6 1.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E"),
+            var(--stains),
             linear-gradient(
                 90deg,
                 rgba(85, 50, 18, 0.45),
@@ -225,7 +253,7 @@
                 transparent 91%,
                 rgba(85, 50, 18, 0.45)
             ),
-            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.22 0 0 0 0 0.08 0 0 0 0.32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+            var(--fibers),
             #e8d09b;
         box-shadow:
             inset 0 0 28px rgba(120, 72, 22, 0.5),
