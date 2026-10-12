@@ -1766,8 +1766,14 @@
 {/if}
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- Marker menus may reach past the edges of the map, they only keep on the screen: a
-     narrow map leaves room beside it, on a tablet the window is taller than the map. With
-     the selection tool a finger draws a box instead of panning. -->
+     narrow map leaves room beside it, on a tablet the window is taller than the map. What
+     sticks out sideways past the screen or a wider map, like the stars of a marker at the
+     edge, is cut off there, it would make the page scroll sideways. -->
+<div
+    class={editable ? "overflow-x-clip" : ""}
+    style="width: {Math.max(1, layout_zoom) * 100}%"
+>
+<!-- With the selection tool a finger draws a box instead of panning. -->
 <div
     class="relative select-none {editable
         ? ''
@@ -1783,7 +1789,8 @@
     onpointermove={pan}
     onpointerup={end_pan}
     onpointercancel={end_pan}
-    style="width: {layout_zoom * 100}%; transform-origin: 0 0; transform: {editable
+    style="width: {(layout_zoom / Math.max(1, layout_zoom)) *
+        100}%; transform-origin: 0 0; transform: {editable
         ? `translate(${zoom_offset_x + shift_x}px, ${zoom_offset_y + shift_y}px) scale(${gesture_scale})`
         : 'none'}"
 >
@@ -2324,4 +2331,5 @@
             }}
         ></button>
     {/if}
+</div>
 </div>
