@@ -55,11 +55,15 @@
         {#if video}
             {#if !hoverVideoOnly || hovering}
                 <!-- onloadeddata doesn't fire on mobile with data-saver enabled (code is removed on mobile) -->
+                <!-- Inline and muted: without them an iPhone opens the video full screen
+                     when a tap on a marker plays it, and plays nothing on its own -->
                 <video
                     onloadeddata={setVideoTimeout}
                     bind:this={video_element}
                     autoplay
                     loop
+                    muted
+                    playsinline
                     src={toUrl(asset)}
                     poster={toUrl(still)}
                     {...props}
