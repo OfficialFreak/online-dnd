@@ -45,7 +45,11 @@
             return;
         }
         saving = key;
-        const asset = await upload_bytes(wav, `reaction-${key}.wav`);
+        // A new name each time, so nobody hears the old recording from their cache
+        const asset = await upload_bytes(
+            wav,
+            `reaction-${key}-${Date.now().toString(36)}.wav`,
+        );
         saving = null;
         if (!asset) return;
         appState.ws?.send(SetReaction.create(key, asset));
