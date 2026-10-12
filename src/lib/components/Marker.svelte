@@ -309,6 +309,7 @@
 
     /** Empty uses the character's from D&D Beyond */
     function set_darkvision(value: string) {
+        record_undo();
         const feet = Math.round(Number(value));
         scene_marker.darkvision =
             value.trim() && Number.isFinite(feet) && feet >= 0
@@ -319,6 +320,7 @@
 
     /** Empty lasts until the DM removes it */
     function set_rounds(effect: string, value: string) {
+        record_undo();
         const rounds = Math.round(Number(value));
         const { [effect]: _, ...others } = scene_marker.effect_rounds ?? {};
         scene_marker.effect_rounds =

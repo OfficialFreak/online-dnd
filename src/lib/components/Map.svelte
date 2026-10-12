@@ -1551,6 +1551,7 @@
 
     function finish_wall() {
         if (wall_draft.length >= 2 && gameState.scene) {
+            record_undo();
             gameState.scene.state.walls = [
                 ...walls,
                 { id: short_id(), points: $state.snapshot(wall_draft) },
@@ -1567,6 +1568,7 @@
                 (wall_cursor[1] - door_start[1]) * h,
             );
             if (length >= size * 0.3) {
+                record_undo();
                 gameState.scene.state.doors = [
                     ...doors,
                     {
@@ -1638,6 +1640,7 @@
 
     function remove_door(door: Door) {
         if (!gameState.scene) return;
+        record_undo();
         gameState.scene.state.doors = doors.filter((other) => other.id !== door.id);
         save_walls();
     }
@@ -1648,6 +1651,7 @@
         const reach = 10 / gesture_scale;
         const light = light_at(px, py);
         if (light) {
+            record_undo();
             gameState.scene.state.lights = lights.filter((other) => other !== light);
             save_walls();
             return;
@@ -1667,6 +1671,7 @@
                 ) {
                     continue;
                 }
+                record_undo();
                 const parts = [wall.points.slice(0, i), wall.points.slice(i)]
                     .filter((points) => points.length >= 2)
                     .map((points, part) => ({

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { appState, gameState } from "$lib/state.svelte";
+    import { appState, gameState, record_undo } from "$lib/state.svelte";
     import { audioState } from "$lib/audio.svelte";
     import { SetWeather } from "$lib/types/messaging/client_messages";
     import type { Weather } from "$lib/types/messaging/server_messages";
@@ -21,8 +21,10 @@
             .toSorted((a, b) => a.name.localeCompare(b.name)),
     );
 
-    function change(update: Partial<Weather>) {
+    /** A slider records the undo step when it is grabbed, not on every step */
+    function change(update: Partial<Weather>, record = true) {
         if (!gameState.scene) return;
+        if (record) record_undo();
         const next = { ...weather, ...update };
         // Lightning turned on brings a thunder from the library, if one is called like it
         if (next.lightning && !weather.lightning && !next.thunder) {
@@ -77,8 +79,13 @@
                     step="0.05"
                     class="range range-xs flex-1"
                     value={weather[slider.key]}
+                    onpointerdown={record_undo}
+                    onkeydown={record_undo}
                     oninput={(event) =>
-                        change({ [slider.key]: Number(event.currentTarget.value) })}
+                        change(
+                            { [slider.key]: Number(event.currentTarget.value) },
+                            false,
+                        )}
                 />
             </label>
         {/each}
@@ -92,8 +99,10 @@
                 step="0.05"
                 class="range range-xs flex-1"
                 value={weather.wind}
+                onpointerdown={record_undo}
+                onkeydown={record_undo}
                 oninput={(event) =>
-                    change({ wind: Number(event.currentTarget.value) })}
+                    change({ wind: Number(event.currentTarget.value) }, false)}
             />
             <i class="fa-solid fa-arrow-right text-xs opacity-50"></i>
         </label>

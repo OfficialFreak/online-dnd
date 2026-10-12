@@ -296,6 +296,7 @@
 
     function set_lighting(lighting: Lighting) {
         if (!gameState.scene) return;
+        record_undo();
         gameState.scene.state.lighting = lighting;
         appState.ws?.send(SetVision.create({ lighting }));
     }
@@ -313,6 +314,7 @@
 
     function set_vision(enabled: boolean) {
         if (!gameState.scene) return;
+        record_undo();
         gameState.scene.state.vision = enabled;
         appState.ws?.send(SetVision.create({ enabled }));
     }

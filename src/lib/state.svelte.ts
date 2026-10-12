@@ -5,6 +5,7 @@ import type {
     Scene,
     User,
     MarkerTemplate,
+    Weather,
 } from "$lib/types/messaging/server_messages";
 import { load_store, type KeyValueStore } from "./platform";
 import type { GameSocket } from "./connection.svelte";
@@ -20,8 +21,12 @@ import {
     DeleteScene,
     InitiativeEntries,
     PutScene,
+    PutWalls,
     SetTurn,
+    SetVision,
+    SetWeather,
 } from "./types/messaging/client_messages";
+import { CLEAR } from "./weather";
 import { MessageTypes, notify } from "./notifications.svelte";
 import type { RollEntry, RollMode } from "./rolls";
 import { roll_initiative } from "./monsters";
@@ -521,6 +526,7 @@ export async function remove_markers(names: string[]) {
 type SceneSnapshot = {
     scene: string;
     state: Omit<SceneState, "markers"> & { markers: Marker[] };
+    weather: Weather | null;
 };
 
 const MAX_UNDO = 50;
@@ -539,6 +545,11 @@ function snapshot(): SceneSnapshot | null {
                 initiative: scene.state.initiative,
                 turn: scene.state.turn,
                 round: scene.state.round,
+                walls: scene.state.walls ?? [],
+                doors: scene.state.doors ?? [],
+                lights: scene.state.lights ?? [],
+                vision: scene.state.vision ?? false,
+                lighting: scene.state.lighting ?? "bright",
             }),
             // The positions are tweens, only where they are going counts
             markers: scene.state.markers.map(({ x, y, ...marker }) => ({
@@ -547,6 +558,7 @@ function snapshot(): SceneSnapshot | null {
                 y: y.target,
             })),
         },
+        weather: $state.snapshot(scene.weather ?? null),
     };
 }
 
@@ -577,8 +589,12 @@ function take(stack: SceneSnapshot[]) {
 }
 
 async function restore(saved: SceneSnapshot) {
-    if (!gameState.scene) return;
-    gameState.scene.state = {
+    const scene = gameState.scene;
+    if (!scene || !appState.ws) return;
+    const before = snapshot();
+    scene.state = {
+        // Drawings change through their own messages and stay
+        ...scene.state,
         ...saved.state,
         markers: saved.state.markers.map((marker) => ({
             ...marker,
@@ -586,8 +602,30 @@ async function restore(saved: SceneSnapshot) {
             y: new Tween(marker.y, { duration: 50, easing: circOut }),
         })),
     };
+    scene.weather = saved.weather;
     // Saving the whole scene sends it to everyone again
     await save_scene();
+    // Walls, sight and weather the server keeps apart, it only takes them on their own
+    const changed = (pick: (state: SceneSnapshot) => unknown) =>
+        JSON.stringify(pick(saved)) !== JSON.stringify(before && pick(before));
+    if (changed((s) => [s.state.walls, s.state.doors, s.state.lights])) {
+        await appState.ws.send(
+            PutWalls.create(scene.name, saved.state.walls ?? [], saved.state.doors ?? [], {
+                lights: saved.state.lights ?? [],
+            }),
+        );
+    }
+    if (changed((s) => [s.state.vision, s.state.lighting])) {
+        await appState.ws.send(
+            SetVision.create({
+                enabled: saved.state.vision ?? false,
+                lighting: saved.state.lighting ?? "bright",
+            }),
+        );
+    }
+    if (changed((s) => s.weather)) {
+        await appState.ws.send(SetWeather.create(saved.weather ?? CLEAR));
+    }
 }
 
 export async function undo() {
