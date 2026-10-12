@@ -177,9 +177,14 @@ function draw_glow(ctx: CanvasRenderingContext2D, lamp: Lamp, sx: number, sy: nu
     const cx = lamp.point[0] * sx;
     const cy = lamp.point[1] * sy;
     const radius = lamp.dim * sx;
+    // Nearly white light hardly colours anything, many of them would only wash it out
+    const strength = Math.min(1, Math.max(0.15, saturation(lamp.color) * 1.5));
     const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-    gradient.addColorStop(0, colour_alpha(lamp.color, 0.32));
-    gradient.addColorStop(Math.min(0.95, lamp.bright / lamp.dim), colour_alpha(lamp.color, 0.18));
+    gradient.addColorStop(0, colour_alpha(lamp.color, 0.32 * strength));
+    gradient.addColorStop(
+        Math.min(0.95, lamp.bright / lamp.dim),
+        colour_alpha(lamp.color, 0.18 * strength),
+    );
     gradient.addColorStop(1, colour_alpha(lamp.color, 0));
     ctx.save();
     trace(ctx, lamp.polygon, sx, sy);
@@ -227,7 +232,7 @@ export function light_base(
         glow_canvas.width = width;
         glow_canvas.height = height;
         const glow = glow_canvas.getContext("2d")!;
-        glow.globalCompositeOperation = "lighter";
+        glow.globalCompositeOperation = "lighten";
         for (const lamp of lamps) draw_glow(glow, lamp, sx, sy);
     }
     return { width, height, light: light_canvas, glow: glow_canvas };
@@ -246,7 +251,7 @@ function glow_of(
     ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, base.width, base.height);
     if (base.glow) ctx.drawImage(base.glow, 0, 0);
-    ctx.globalCompositeOperation = "lighter";
+    ctx.globalCompositeOperation = "lighten";
     for (const lamp of carried) draw_glow(ctx, lamp, sx, sy);
     if (mask) {
         ctx.globalCompositeOperation = "destination-in";
@@ -329,6 +334,13 @@ export function compute_sight(
         tint,
         lit,
     };
+}
+
+/** 0 for grey and white, 1 for a pure colour */
+function saturation(hex: string) {
+    const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const max = Math.max(...channels);
+    return max === 0 ? 0 : (max - Math.min(...channels)) / max;
 }
 
 function colour_alpha(hex: string, alpha: number) {
