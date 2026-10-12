@@ -13,6 +13,8 @@
         PreloadResource,
     } from "$lib/types/messaging/client_messages";
     import { weather_icons } from "$lib/weather";
+    import { import_uvtt } from "$lib/uvtt";
+    import { uploadState } from "$lib/upload.svelte";
     import Map from "./Map.svelte";
 
     let search = $state("");
@@ -184,4 +186,21 @@
             dialogs.scene?.open();
         }}>Szene erstellen</button
     >
+    <button
+        class="btn btn-soft"
+        disabled={uploadState.uploading}
+        onclick={import_uvtt}
+    >
+        {#if uploadState.uploading}
+            <span class="loading loading-spinner"></span>
+            Wird hochgeladen…
+        {:else}
+            <i class="fa-solid fa-dungeon"></i> Karte mit Wänden importieren
+        {/if}
+    </button>
+    <p class="text-xs text-base-content/60">
+        In Dungeon Alchemist als „Universal VTT“ (.dd2vtt) exportieren: Bild, Raster,
+        Wände, Türen und Lichter kommen mit, die Spieler sehen dann nur, was ihre
+        Figuren sehen.
+    </p>
 </div>

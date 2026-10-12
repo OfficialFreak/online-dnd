@@ -216,6 +216,31 @@ export async function pick_file(
     });
 }
 
+/** Lets the user pick a text file, e.g. an exported map, and reads it. Null if canceled. */
+export async function pick_text(
+    kind: string,
+    extensions: string[],
+): Promise<{ text: string; file_name: string } | null> {
+    if (!in_tauri) {
+        const file = await choose_file(extensions.map((extension) => `.${extension}`).join(","));
+        return file ? { text: await file.text(), file_name: file.name } : null;
+    }
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const path = await open({
+        multiple: false,
+        filters: [
+            { name: kind, extensions },
+            { name: "Alle Dateien", extensions: ["*"] },
+        ],
+    });
+    if (!path) return null;
+    const { readFile } = await import("@tauri-apps/plugin-fs");
+    return {
+        text: new TextDecoder().decode(await readFile(path)),
+        file_name: file_name_of(path),
+    };
+}
+
 /** Uploads a picked file, its path in the desktop app or the File in a browser */
 export async function upload_picked(picked: string | File): Promise<string | null> {
     if (typeof picked === "string") return await upload_path(picked);
