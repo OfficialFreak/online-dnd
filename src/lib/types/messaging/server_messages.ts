@@ -292,6 +292,8 @@ export interface PlaySound extends BaseServerMessage {
     kind: Sound["kind"];
     /** When the DM started it, in milliseconds since 1970 */
     started_at: number;
+    /** When the server sent this, by its clock, newer servers only */
+    sent_at?: number;
 }
 
 export interface StopMusic extends BaseServerMessage {

@@ -707,7 +707,12 @@
                     break;
                 case MessageType.PLAY_SOUND:
                     if (message.kind === "music") {
-                        play_music(message.name, message.file, message.started_at);
+                        play_music(
+                            message.name,
+                            message.file,
+                            message.started_at,
+                            message.sent_at,
+                        );
                     } else {
                         play_effect(message.name, message.file);
                     }

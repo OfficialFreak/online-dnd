@@ -121,11 +121,57 @@ function fade(
     }, 50);
 }
 
+/**
+ * How far the song was when the server sent it, by the server's clock, and when that
+ * arrived here. The clocks of phones and computers may be off by seconds.
+ */
+let song_clock = { elapsed: 0, received: 0 };
+
+/** Where everyone is in the song now, in seconds */
+function song_position(audio: HTMLAudioElement) {
+    if (!Number.isFinite(audio.duration) || audio.duration <= 0) return null;
+    const elapsed = song_clock.elapsed + performance.now() - song_clock.received;
+    return (elapsed / 1000) % audio.duration;
+}
+
+/** How far the song is off, the end and the start of a loop lie next to each other */
+function drift(audio: HTMLAudioElement, position: number) {
+    const apart = Math.abs(audio.currentTime - position);
+    return Math.min(apart, audio.duration - apart);
+}
+
 /** Everyone hears the same part of the song */
-function catch_up(audio: HTMLAudioElement, started_at: number) {
-    if (Number.isFinite(audio.duration) && audio.duration > 0) {
-        audio.currentTime = ((Date.now() - started_at) / 1000) % audio.duration;
-    }
+function catch_up(audio: HTMLAudioElement) {
+    const position = song_position(audio);
+    if (position !== null) audio.currentTime = position;
+}
+
+/**
+ * Corrects the song once it really plays, as loading, buffering after the jump and the
+ * tap iOS waits for take a while. Later it keeps it in step, e.g. after a stall.
+ */
+function keep_in_step(audio: HTMLAudioElement) {
+    let corrections = 0;
+    audio.addEventListener("play", () => (corrections = 0));
+    audio.addEventListener("playing", () => {
+        const position = song_position(audio);
+        // A jump buffers again, so only a few times in a row
+        if (position === null || corrections >= 3) return;
+        if (drift(audio, position) > 0.3) {
+            corrections++;
+            audio.currentTime = position;
+        }
+    });
+    const timer = setInterval(() => {
+        if (audio !== music) {
+            clearInterval(timer);
+            return;
+        }
+        const position = song_position(audio);
+        if (!audio.paused && position !== null && drift(audio, position) > 1) {
+            audio.currentTime = position;
+        }
+    }, 15_000);
 }
 
 /** iOS plays sound only after a tap, then it starts with the next one */
@@ -136,15 +182,29 @@ function play_or_wait(audio: HTMLAudioElement) {
         document.addEventListener(
             "pointerdown",
             () => {
-                if (audio === music) audio.play().catch(() => {});
+                if (audio !== music) return;
+                catch_up(audio);
+                audio.play().catch(() => {});
             },
             { once: true },
         );
     });
 }
 
-/** started_at is when the DM started it, in milliseconds since 1970 */
-export function play_music(name: string, file: string, started_at: number) {
+/**
+ * started_at is when the DM started it and sent_at when the server sent it, both by the
+ * server's clock in milliseconds since 1970. Older servers send no sent_at.
+ */
+export function play_music(
+    name: string,
+    file: string,
+    started_at: number,
+    sent_at?: number,
+) {
+    song_clock = {
+        elapsed: (sent_at ?? Date.now()) - started_at,
+        received: performance.now(),
+    };
     // The same song again, after connecting anew, plays on instead of starting over
     if (
         music &&
@@ -152,7 +212,7 @@ export function play_music(name: string, file: string, started_at: number) {
         audioState.music.started_at === started_at
     ) {
         if (music.paused && !document.hidden) {
-            catch_up(music, started_at);
+            catch_up(music);
             play_or_wait(music);
         }
         return;
@@ -162,9 +222,10 @@ export function play_music(name: string, file: string, started_at: number) {
     audio.loop = true;
     route_audio(audio);
     set_audio_level(audio, 0);
-    audio.addEventListener("loadedmetadata", () => catch_up(audio, started_at), {
+    audio.addEventListener("loadedmetadata", () => catch_up(audio), {
         once: true,
     });
+    keep_in_step(audio);
     play_or_wait(audio);
     // Slowly, music coming in at once is a jump scare
     fade(audio, playing_music_volume, undefined, 3000);
@@ -180,7 +241,7 @@ if (typeof document !== "undefined" && !in_tauri && navigator.maxTouchPoints > 0
         if (document.hidden) {
             music.pause();
         } else {
-            catch_up(music, audioState.music.started_at);
+            catch_up(music);
             play_or_wait(music);
         }
     });
