@@ -19,7 +19,8 @@
                 "minWidth": 500,
                 "minHeight": 418,
                 "visible": false,
-                "zoomHotkeysEnabled": true
+                "zoomHotkeysEnabled": true,
+                "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,HardwareMediaKeyHandling --autoplay-policy=no-user-gesture-required"
             },
             {
                 "title": "How to play DND Online fast",
@@ -28,7 +29,8 @@
                 "decorations": false,
                 "url": "splashscreen.html",
                 "label": "splashscreen",
-                "resizable": false
+                "resizable": false,
+                "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,HardwareMediaKeyHandling --autoplay-policy=no-user-gesture-required"
             }
         ],
         "security": {
