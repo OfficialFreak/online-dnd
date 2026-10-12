@@ -25,6 +25,7 @@
         wallState,
     } from "../state.svelte";
     import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
+    import { LIGHT_PRESETS, LIGHTING_LABELS, type Lighting } from "$lib/lighting";
     import { keep_in_view } from "$lib/keep-in-view";
     import { dragState, fileDropState } from "../drag.svelte";
     import CharacterPreview from "./CharacterPreview.svelte";
@@ -289,8 +290,15 @@
     const WALL_MODES = [
         { mode: "wall", label: "Wand", icon: "fa-pen" },
         { mode: "door", label: "Tür", icon: "fa-door-closed" },
+        { mode: "light", label: "Licht", icon: "fa-lightbulb" },
         { mode: "erase", label: "Löschen", icon: "fa-eraser" },
     ] as const;
+
+    function set_lighting(lighting: Lighting) {
+        if (!gameState.scene) return;
+        gameState.scene.state.lighting = lighting;
+        appState.ws?.send(SetVision.create({ lighting }));
+    }
 
     /** A mode of the wall tool, picking the active one again puts the tool away */
     function pick_wall_mode(mode: (typeof WALL_MODES)[number]["mode"]) {
@@ -306,7 +314,7 @@
     function set_vision(enabled: boolean) {
         if (!gameState.scene) return;
         gameState.scene.state.vision = enabled;
-        appState.ws?.send(SetVision.create(enabled));
+        appState.ws?.send(SetVision.create({ enabled }));
     }
 
     function fillAll() {
@@ -744,7 +752,23 @@
                         />
                         Spieler sehen nur, was ihre Figuren sehen
                     </label>
-                    <div class="grid grid-cols-3 gap-1">
+                    <fieldset class="fieldset p-0">
+                        <legend class="fieldset-legend pt-0">Helligkeit ohne Lichter</legend>
+                        <div class="join w-full">
+                            {#each Object.entries(LIGHTING_LABELS) as [lighting, label] (lighting)}
+                                <button
+                                    class="btn btn-sm join-item flex-1 {(gameState.scene?.state
+                                        .lighting ?? 'bright') === lighting
+                                        ? 'btn-info'
+                                        : ''}"
+                                    disabled={!gameState.scene}
+                                    onclick={() => set_lighting(lighting as Lighting)}
+                                    >{label}</button
+                                >
+                            {/each}
+                        </div>
+                    </fieldset>
+                    <div class="grid grid-cols-2 gap-1">
                         {#each WALL_MODES as { mode, label, icon } (mode)}
                             <button
                                 class="btn btn-sm px-1 {appState.selectedTool ===
@@ -758,6 +782,19 @@
                             </button>
                         {/each}
                     </div>
+                    {#if wallState.mode === "light"}
+                        <select
+                            class="select select-sm w-full"
+                            aria-label="Neues Licht"
+                            bind:value={wallState.light}
+                        >
+                            {#each LIGHT_PRESETS as preset (preset.key)}
+                                <option value={preset.key}
+                                    >{preset.label} ({preset.bright}/{preset.dim} ft)</option
+                                >
+                            {/each}
+                        </select>
+                    {/if}
                     <fieldset class="fieldset p-0">
                         <legend class="fieldset-legend pt-0">Sicht ansehen von</legend>
                         <select
@@ -778,7 +815,9 @@
                         die Wand, Esc bricht ab. Am Handy beendet doppeltes Tippen.
                         Enden rasten an anderen Wänden ein, mit Strg auch am Raster.
                         Türen ziehst du auf. Alle öffnen sie mit einem Klick, ein
-                        Rechtsklick schließt sie ab.
+                        Rechtsklick schließt sie ab. Ein Klick mit Licht setzt eins
+                        oder schaltet es an und aus. Fackeln für Figuren gibt es in
+                        ihrem Menü.
                     </p>
                     {#if gameState.scene?.state.walls?.length || gameState.scene?.state.doors?.length}
                         <p class="text-xs text-base-content/60">

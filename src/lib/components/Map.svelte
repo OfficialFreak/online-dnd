@@ -41,6 +41,18 @@
     } from "$lib/vision";
     import VisionLayer from "./VisionLayer.svelte";
     import {
+        compute_sight,
+        LIGHT_PRESETS,
+        scene_lights,
+        SEEN,
+        seen_at,
+        type Eye,
+        type Lamp,
+        type Lighting,
+        type SceneLight,
+        type Sight,
+    } from "$lib/lighting";
+    import {
         drawing_shape,
         shape_contains,
         type Drawing,
@@ -1187,28 +1199,96 @@
     );
     /** Whose sight the map shows: the player's own, or the one the DM looks through */
     let viewer = $derived(gameState.dm ? wallState.preview : gameState.name);
-    /** Where the viewer's figures look from, their middle in cells */
-    let eyes: Point[] = $derived.by(() => {
+    let lighting: Lighting = $derived(gameState.scene?.state.lighting ?? "bright");
+    let lights: SceneLight[] = $derived(
+        editable ? scene_lights(gameState.scene?.state.lights) : [],
+    );
+
+    /** The middle of a marker where it is going, in cells */
+    function marker_center(marker: any): Point {
+        return [
+            marker.x.target * columns + marker.size / 2,
+            marker.y.target * map_rows + marker.size / 2,
+        ];
+    }
+
+    /** Where the viewer's figures look from, what they see and how far in the dark */
+    let eyes: Eye[] = $derived.by(() => {
         if (!wall_index || !viewer) return [];
         const character = gameState.characters.find(
             (char) => char.player_name === viewer,
-        )?.name;
+        );
         return markers
-            .filter((marker: any) => marker.name === character)
-            .map(
-                (marker: any) =>
-                    [
-                        marker.x.target * columns + marker.size / 2,
-                        marker.y.target * map_rows + marker.size / 2,
-                    ] as Point,
-            );
+            .filter((marker: any) => marker.name === character?.name)
+            .map((marker: any) => {
+                const point = marker_center(marker);
+                const feet =
+                    marker.darkvision ??
+                    (character?.specialSenses as { darkvision?: number })
+                        ?.darkvision ??
+                    0;
+                return {
+                    point,
+                    polygon: visibility_polygon(wall_index!, point),
+                    darkvision: feet / 5,
+                };
+            });
     });
-    let sight = $derived(
-        wall_index ? eyes.map((eye) => visibility_polygon(wall_index!, eye)) : [],
+    /** The lights on the map, what they reach only changes with the walls and doors */
+    let placed_lamps: Lamp[] = $derived(
+        wall_index
+            ? lights
+                  .filter((light) => light.on !== false)
+                  .map((light) => {
+                      const point: Point = [light.x * columns, light.y * map_rows];
+                      return {
+                          point,
+                          polygon: visibility_polygon(
+                              wall_index!,
+                              point,
+                              light.dim / 5,
+                          ),
+                          bright: light.bright / 5,
+                          dim: light.dim / 5,
+                      };
+                  })
+            : [],
+    );
+    /** Torches and the like the figures carry, everyone sees their light */
+    let carried_lamps: Lamp[] = $derived(
+        wall_index
+            ? markers
+                  .filter((marker: any) => marker.light?.dim > 0 && !marker.hidden)
+                  .map((marker: any) => {
+                      const point = marker_center(marker);
+                      return {
+                          point,
+                          polygon: visibility_polygon(
+                              wall_index!,
+                              point,
+                              marker.light.dim / 5,
+                          ),
+                          bright: marker.light.bright / 5,
+                          dim: marker.light.dim / 5,
+                      };
+                  })
+            : [],
+    );
+    /** How well the viewer sees every spot, with the lights and darkvision */
+    let sight: Sight | null = $derived(
+        wall_index && viewer && map_rows
+            ? compute_sight(
+                  columns,
+                  map_rows,
+                  lighting,
+                  [...placed_lamps, ...carried_lamps],
+                  eyes,
+              )
+            : null,
     );
 
     function seen(point: Point) {
-        return !!wall_index && eyes.some((eye) => wall_index!.sees(eye, point));
+        return !!sight && seen_at(sight, point) > SEEN;
     }
 
     /** Monsters and others out of the viewer's sight are hidden, the party always shows */
@@ -1236,11 +1316,10 @@
         revealed = [];
     }, 300);
     $effect(() => {
-        if (gameState.dm || !wall_index || !eyes.length || !gameState.scene) return;
+        if (gameState.dm || !sight || !gameState.scene) return;
         const fog = gameState.scene.state.fog_squares[gameState.name];
         if (!fog) return;
-        const index = wall_index;
-        const looking = eyes;
+        const current = sight;
         untrack(() => {
             let changed = false;
             for (let y = 0; y < rows; y++) {
@@ -1250,7 +1329,7 @@
                         x + 0.5 + x_offset / size,
                         y + 0.5 + y_offset / size,
                     ];
-                    if (looking.some((eye) => index.sees(eye, center))) {
+                    if (seen_at(current, center) > SEEN) {
                         setFogAt(fog, x, y, false);
                         revealed.push(y * columns + x);
                         changed = true;
@@ -1327,9 +1406,46 @@
                 gameState.scene.name,
                 $state.snapshot(walls),
                 $state.snapshot(doors),
+                { lights: $state.snapshot(lights) },
             ),
         );
     }, 300);
+
+    /** The light at this point, within reach of a click */
+    function light_at(px: number, py: number) {
+        const reach = 14 / gesture_scale;
+        return lights.find(
+            (light) => Math.hypot(light.x * w - px, light.y * h - py) <= reach,
+        );
+    }
+
+    /** A click puts a light there, or turns the one there on or off */
+    function place_light(px: number, py: number) {
+        if (!gameState.scene) return;
+        const near = light_at(px, py);
+        if (near) {
+            gameState.scene.state.lights = lights.map((light) =>
+                light === near ? { ...light, on: light.on === false } : light,
+            );
+        } else {
+            const preset =
+                LIGHT_PRESETS.find((preset) => preset.key === wallState.light) ??
+                LIGHT_PRESETS[1];
+            const [x, y] = wall_snap(px, py);
+            gameState.scene.state.lights = [
+                ...lights,
+                {
+                    id: short_id(),
+                    x,
+                    y,
+                    bright: preset.bright,
+                    dim: preset.dim,
+                    on: true,
+                },
+            ];
+        }
+        save_walls();
+    }
 
     /**
      * Where a click puts a point: on the end of another wall nearby, so no light slips
@@ -1402,6 +1518,10 @@
             erase_wall_at(px, py);
             return;
         }
+        if (wallState.mode === "light") {
+            place_light(px, py);
+            return;
+        }
         const point = wall_snap(px, py);
         if (wallState.mode === "door") {
             door_start = point;
@@ -1424,7 +1544,10 @@
 
     function wall_move(event: PointerEvent) {
         const { x: px, y: py } = local(event);
-        wall_cursor = wallState.mode === "erase" ? null : wall_snap(px, py);
+        wall_cursor =
+            wallState.mode === "erase" || wallState.mode === "light"
+                ? null
+                : wall_snap(px, py);
     }
 
     /** How far a point is from a line, in pixels of the map */
@@ -1451,6 +1574,12 @@
     function erase_wall_at(px: number, py: number) {
         if (!gameState.scene) return;
         const reach = 10 / gesture_scale;
+        const light = light_at(px, py);
+        if (light) {
+            gameState.scene.state.lights = lights.filter((other) => other !== light);
+            save_walls();
+            return;
+        }
         const door = doors.find(
             (door) => distance_to_line(px, py, door.a, door.b) <= reach,
         );
@@ -1702,9 +1831,9 @@
                 {/if}
             {/each}
         </svg>
-        {#if wall_index && viewer}
+        {#if sight}
             <!-- What the figures don't see is darker, under the fog of what they never saw -->
-            <VisionLayer polygons={sight} {columns} rows={map_rows} />
+            <VisionLayer {sight} />
         {/if}
         <!-- Fog -->
         <canvas
@@ -1792,6 +1921,36 @@
                         stroke-dasharray="{8 / gesture_scale} {5 / gesture_scale}"
                     />
                 {/if}
+                {#each lights as light (light.id)}
+                    {@const cell = w / columns}
+                    <g opacity={light.on === false ? 0.4 : 1}>
+                        <circle
+                            cx={light.x * w}
+                            cy={light.y * h}
+                            r={(light.dim / 5) * cell}
+                            fill="rgb(253 224 71 / 0.08)"
+                            stroke="#fde047"
+                            stroke-width={1.5 / gesture_scale}
+                            stroke-dasharray="{6 / gesture_scale} {4 / gesture_scale}"
+                        />
+                        <circle
+                            cx={light.x * w}
+                            cy={light.y * h}
+                            r={(light.bright / 5) * cell}
+                            fill="none"
+                            stroke="#fde047"
+                            stroke-width={1.5 / gesture_scale}
+                        />
+                        <circle
+                            cx={light.x * w}
+                            cy={light.y * h}
+                            r={7 / gesture_scale}
+                            fill={light.on === false ? "#78716c" : "#facc15"}
+                            stroke="black"
+                            stroke-width={1.5 / gesture_scale}
+                        />
+                    </g>
+                {/each}
                 {#if wall_cursor && wallState.mode !== "erase"}
                     <circle
                         cx={wall_cursor[0] * w}

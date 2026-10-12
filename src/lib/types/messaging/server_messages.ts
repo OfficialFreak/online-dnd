@@ -3,6 +3,7 @@ import type { DiceReplay } from "$lib/dice-sync";
 import type { MonsterInfo } from "$lib/monsters";
 import type { Drawing } from "$lib/drawings";
 import type { Door, Wall } from "$lib/vision";
+import type { CarriedLight, Lighting, SceneLight } from "$lib/lighting";
 import type { AssetInfo } from "$lib/assets";
 import type { Sound } from "$lib/audio.svelte";
 import type { TabletopTrack } from "$lib/sound-library";
@@ -144,6 +145,10 @@ export interface Marker {
      * the end of the creature's turn.
      */
     effect_rounds?: Record<string, number>;
+    /** A light the creature carries */
+    light?: CarriedLight | null;
+    /** How far it sees in the dark in feet, instead of what its character has */
+    darkvision?: number | null;
 }
 
 /** Weather over the map, each from 0 for none to 1 for the most */
@@ -170,19 +175,12 @@ export interface SceneState {
     /** Walls and doors that block sight, in fractions of the map */
     walls?: Wall[];
     doors?: Door[];
-    /** Lights of an imported map, kept for lighting the scene */
+    /** Lights on the map, older imports have a range instead of radii */
     lights?: SceneLight[];
     /** Players only see what their figures see past the walls */
     vision?: boolean;
-}
-
-/** A light of an imported map, in fractions of the map and feet */
-export interface SceneLight {
-    x: number;
-    y: number;
-    range: number;
-    intensity: number;
-    color: string;
+    /** How bright the scene is without lights, bright if missing */
+    lighting?: Lighting;
 }
 
 export interface InitiativeSceneData extends BaseServerMessage {

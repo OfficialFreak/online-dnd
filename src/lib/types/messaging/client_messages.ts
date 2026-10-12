@@ -1,4 +1,5 @@
-import type { SceneData, SceneLight, SceneState, Weather } from "./server_messages";
+import type { SceneData, SceneState, Weather } from "./server_messages";
+import type { CarriedLight, Lighting, SceneLight } from "$lib/lighting";
 import type { Door, Wall } from "$lib/vision";
 import type { RollMode } from "$lib/rolls";
 import type { DiceReplay } from "$lib/dice-sync";
@@ -156,7 +157,7 @@ export class SetTurn {
 
 export class UpdateSceneMarker {
     /** Changes one placed marker of the active scene but not its position, a different name renames it */
-    static create(old_name: string, marker: { name: string; size: number; status_effects: string[]; hidden?: boolean; hp?: number | null; max_hp?: number | null; effect_rounds?: Record<string, number> }): string {
+    static create(old_name: string, marker: { name: string; size: number; status_effects: string[]; hidden?: boolean; hp?: number | null; max_hp?: number | null; effect_rounds?: Record<string, number>; light?: CarriedLight | null; darkvision?: number | null }): string {
         return JSON.stringify({
             type: "update_scene_marker",
             old_name: old_name,
@@ -167,7 +168,9 @@ export class UpdateSceneMarker {
                 hidden: !!marker.hidden,
                 hp: marker.hp ?? null,
                 max_hp: marker.max_hp ?? null,
-                effect_rounds: marker.effect_rounds ?? {}
+                effect_rounds: marker.effect_rounds ?? {},
+                light: marker.light ?? null,
+                darkvision: marker.darkvision ?? null
             }
         });
     }
@@ -444,7 +447,7 @@ export class StopMusic {
 
 /** All walls and doors of a scene, the lights and whether sight is on only if given */
 export class PutWalls {
-    static create(scene: string, walls: Wall[], doors: Door[], extra: { lights?: SceneLight[]; vision?: boolean } = {}): string {
+    static create(scene: string, walls: Wall[], doors: Door[], extra: { lights?: SceneLight[]; vision?: boolean; lighting?: Lighting } = {}): string {
         return JSON.stringify({
             type: "put_walls",
             scene: scene,
@@ -455,12 +458,12 @@ export class PutWalls {
     }
 }
 
-/** Whether players only see what their figures see, in the active scene */
+/** Whether players only see what their figures see, and how bright the active scene is */
 export class SetVision {
-    static create(enabled: boolean): string {
+    static create(change: { enabled?: boolean; lighting?: Lighting }): string {
         return JSON.stringify({
             type: "set_vision",
-            enabled: enabled
+            ...change
         });
     }
 }

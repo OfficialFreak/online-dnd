@@ -26,6 +26,7 @@ import { MessageTypes, notify } from "./notifications.svelte";
 import type { RollEntry, RollMode } from "./rolls";
 import { roll_initiative } from "./monsters";
 import { DRAWING_COLORS, type DrawingKind } from "./drawings";
+import type { LightPreset } from "./lighting";
 import type { AssetInfo, AssetKind } from "./assets";
 
 export enum Tools {
@@ -242,7 +243,9 @@ export const drawState = $state({
 });
 
 export const wallState = $state({
-    mode: "wall" as "wall" | "door" | "erase",
+    mode: "wall" as "wall" | "door" | "light" | "erase",
+    /** What a light placed with the wall tool is */
+    light: "torch" as LightPreset,
     /** The player whose sight the DM looks through, null for seeing everything */
     preview: null as string | null,
 });

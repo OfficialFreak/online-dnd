@@ -17,6 +17,8 @@ export type Door = { id: string; a: Point; b: Point; open: boolean; locked: bool
 const NEAR = 1e-6;
 /** How far beside a wall's end the rays pass, in radians */
 const BESIDE = 1e-4;
+/** Rays around a light with a range, its edge between them is straight */
+const CIRCLE_STEPS = 64;
 
 /**
  * The walls sorted into a grid, so a ray only tests the walls in the cells it crosses.
@@ -241,14 +243,21 @@ export function wall_segments(
 
 /**
  * Everything the eye sees, as a polygon around it: rays to every wall's end and just
- * beside it, each as far as the first wall it meets.
+ * beside it, each as far as the first wall it meets. With a range, e.g. for a torch, only
+ * that far, the edge then follows a circle.
  */
-export function visibility_polygon(index: WallIndex, eye: Point): Point[] {
+export function visibility_polygon(index: WallIndex, eye: Point, range = Infinity): Point[] {
     const [ox, oy] = eye;
     const angles: number[] = [];
     for (const [x, y] of index.corners) {
+        if (Math.hypot(x - ox, y - oy) > range + 1e-6) continue;
         const angle = Math.atan2(y - oy, x - ox);
         angles.push(angle - BESIDE, angle, angle + BESIDE);
+    }
+    if (Number.isFinite(range)) {
+        for (let i = 0; i < CIRCLE_STEPS; i++) {
+            angles.push(-Math.PI + (i / CIRCLE_STEPS) * 2 * Math.PI);
+        }
     }
     angles.sort((a, b) => a - b);
     const polygon: Point[] = [];
@@ -258,7 +267,7 @@ export function visibility_polygon(index: WallIndex, eye: Point): Point[] {
         last = angle;
         const dx = Math.cos(angle);
         const dy = Math.sin(angle);
-        const t = index.cast(ox, oy, dx, dy);
+        const t = index.cast(ox, oy, dx, dy, range);
         if (!Number.isFinite(t)) continue;
         polygon.push([ox + dx * t, oy + dy * t]);
     }

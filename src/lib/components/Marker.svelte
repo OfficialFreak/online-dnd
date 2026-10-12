@@ -26,6 +26,7 @@
     import Display from "./Display.svelte";
     import ConditionEffects from "./ConditionEffects.svelte";
     import { keep_in_view } from "$lib/keep-in-view";
+    import { LIGHT_PRESETS, preset_of, type CarriedLight } from "$lib/lighting";
 
     let {
         marker,
@@ -52,6 +53,8 @@
             max_hp: null,
             monster: null,
             effect_rounds: {} as Record<string, number>,
+            light: null as CarriedLight | null,
+            darkvision: null as number | null,
         },
     );
     let scene_marker_index = $derived(
@@ -273,6 +276,33 @@
             .map(normalize_condition)
             .filter((effect) => CONDITIONS[effect]),
     );
+
+    /** How far the figure's character sees in the dark, from D&D Beyond */
+    let character_darkvision = $derived(
+        (connected_character?.specialSenses as { darkvision?: number } | undefined)
+            ?.darkvision ?? null,
+    );
+
+    function set_light(key: string) {
+        // An own light the presets don't have stays
+        if (key === "custom") return;
+        record_undo();
+        const preset = LIGHT_PRESETS.find((preset) => preset.key === key);
+        scene_marker.light = preset
+            ? { bright: preset.bright, dim: preset.dim }
+            : null;
+        throttled_save();
+    }
+
+    /** Empty uses the character's from D&D Beyond */
+    function set_darkvision(value: string) {
+        const feet = Math.round(Number(value));
+        scene_marker.darkvision =
+            value.trim() && Number.isFinite(feet) && feet >= 0
+                ? Math.min(feet, 1000)
+                : null;
+        throttled_save();
+    }
 
     /** Empty lasts until the DM removes it */
     function set_rounds(effect: string, value: string) {
@@ -676,6 +706,54 @@
                         </div>
                     {/if}
                 </fieldset>
+                {#if gameState.scene?.state.vision}
+                    <fieldset class="fieldset p-0">
+                        <legend class="fieldset-legend pt-0"
+                            >Licht und Dunkelsicht</legend
+                        >
+                        <div class="grid grid-cols-2 gap-2">
+                            <select
+                                class="select select-sm"
+                                aria-label="Licht, das die Figur trägt"
+                                value={preset_of(scene_marker.light)?.key ??
+                                    (scene_marker.light ? "custom" : "")}
+                                onchange={(event) =>
+                                    set_light(event.currentTarget.value)}
+                            >
+                                <option value="">Kein Licht</option>
+                                {#each LIGHT_PRESETS as preset (preset.key)}
+                                    <option value={preset.key}>{preset.label}</option>
+                                {/each}
+                                {#if scene_marker.light && !preset_of(scene_marker.light)}
+                                    <option value="custom"
+                                        >{scene_marker.light.bright}/{scene_marker
+                                            .light.dim} ft</option
+                                    >
+                                {/if}
+                            </select>
+                            <label class="input input-sm">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="5"
+                                    inputmode="numeric"
+                                    class="tabular-nums"
+                                    placeholder={String(character_darkvision ?? 0)}
+                                    aria-label="Dunkelsicht in Fuß"
+                                    value={scene_marker.darkvision ?? ""}
+                                    onchange={(event) =>
+                                        set_darkvision(event.currentTarget.value)}
+                                />
+                                <span class="label">ft</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-base-content/60">
+                            {character_darkvision
+                                ? `Leer: ${character_darkvision} ft Dunkelsicht aus D&D Beyond.`
+                                : "Dunkelsicht in Fuß, leer: keine."}
+                        </p>
+                    </fieldset>
+                {/if}
                 <div class="grid grid-cols-2 gap-2">
                     {#if !gameState.scene?.state.initiative.some((initiative) => initiative[1] === scene_marker.name)}
                         {#if initiative_bonus(scene_marker) !== null}

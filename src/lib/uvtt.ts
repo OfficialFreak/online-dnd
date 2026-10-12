@@ -4,7 +4,7 @@
  * lights measured in grid squares. https://arkenforge.com/universal-vtt-files/
  */
 import type { Door, Point, Wall } from "$lib/vision";
-import type { SceneLight } from "$lib/types/messaging/server_messages";
+import { lighting_of_colour, type Lighting, type SceneLight } from "$lib/lighting";
 import { appState, gameState } from "$lib/state.svelte";
 import { PutScene, PutWalls } from "$lib/types/messaging/client_messages";
 import { MessageTypes, notify } from "$lib/notifications.svelte";
@@ -18,6 +18,7 @@ export type ImportedMap = {
     walls: Wall[];
     doors: Door[];
     lights: SceneLight[];
+    lighting: Lighting;
 };
 
 /** A field whatever its case: Dungeondraft writes "resolution", the format "Resolution" */
@@ -106,19 +107,22 @@ export function parse_uvtt(text: string): ImportedMap {
         });
     }
 
-    // Ranges in squares of five feet
+    // Ranges in squares of five feet, bright light reaching half as far like Foundry has it
     const lights: SceneLight[] = list(field(data, "lights"))
-        .map((light) => {
+        .map((light, index) => {
             const [x, y] = point(field(light, "position"));
+            const range = (Number(field(light, "range")) || 0) * 5;
             return {
+                id: `l${index.toString(36)}`,
                 x,
                 y,
-                range: (Number(field(light, "range")) || 0) * 5,
-                intensity: Number(field(light, "intensity")) || 1,
+                bright: range / 2,
+                dim: range,
                 color: String(field(light, "color") ?? "#ffffff"),
+                on: true,
             };
         })
-        .filter((light) => valid([light.x, light.y]) && light.range > 0);
+        .filter((light) => valid([light.x, light.y]) && light.dim > 0);
 
     const image = field(data, "image");
     if (typeof image !== "string" || !image) {
@@ -133,6 +137,9 @@ export function parse_uvtt(text: string): ImportedMap {
         walls,
         doors,
         lights,
+        lighting: lighting_of_colour(
+            field(field(data, "environment"), "ambient_light"),
+        ),
     };
 }
 
@@ -214,6 +221,7 @@ export async function import_uvtt() {
         PutWalls.create(name, map.walls, map.doors, {
             lights: map.lights,
             vision: true,
+            lighting: map.lighting,
         }),
     );
     notify(
