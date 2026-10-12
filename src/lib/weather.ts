@@ -125,6 +125,8 @@ export class WeatherRenderer {
     private height = 0;
     private shown: Weather = { ...CLEAR };
     private target: Weather = { ...CLEAR };
+    /** The colour behind the drops, see tint */
+    private tinted = "";
     private drops: Drop[] = [];
     private flakes: Flake[] = [];
     private clouds: Cloud[] = [];
@@ -181,8 +183,38 @@ export class WeatherRenderer {
         this.options.on_active?.(active);
     }
 
+    /**
+     * Rain and storms darken the map, snow cools it and fog pales it: one colour behind the
+     * drops, set on the canvas as its background. Filled into the canvas on every frame it
+     * was a whole screen of pixels each time, which Firefox drew and sent along slowly.
+     */
+    private tint(shown: Weather) {
+        let [red, green, blue, alpha] = [0, 0, 0, 0];
+        const over = (r: number, g: number, b: number, a: number) => {
+            if (a <= 0) return;
+            const together = a + alpha * (1 - a);
+            red = (r * a + red * alpha * (1 - a)) / together;
+            green = (g * a + green * alpha * (1 - a)) / together;
+            blue = (b * a + blue * alpha * (1 - a)) / together;
+            alpha = together;
+        };
+        over(12, 20, 34, shown.rain * 0.12 + (shown.lightning ? 0.1 : 0));
+        if (shown.snow >= NONE) over(215, 228, 255, shown.snow * 0.06);
+        if (shown.fog >= NONE) over(200, 206, 216, shown.fog * 0.14);
+        const colour =
+            alpha > 0.005
+                ? `rgba(${Math.round(red)}, ${Math.round(green)}, ${Math.round(blue)}, ${alpha.toFixed(3)})`
+                : "transparent";
+        if (colour !== this.tinted) {
+            this.tinted = colour;
+            this.canvas.style.backgroundColor = colour;
+        }
+    }
+
     resize(width: number, height: number) {
-        const scale = Math.min(devicePixelRatio || 1, this.options.lite ? 1.5 : 2);
+        // A pixel of the canvas for each of the page, also on sharp screens: rain is a blur
+        // in motion, and four times the pixels each frame made Firefox stutter
+        const scale = Math.min(devicePixelRatio || 1, 1);
         this.width = width;
         this.height = height;
         this.canvas.width = Math.round(width * scale);
@@ -333,22 +365,10 @@ export class WeatherRenderer {
     private draw(now: number) {
         const { context: ctx, width, height, shown } = this;
         ctx.clearRect(0, 0, width, height);
+        this.tint(shown);
         if (is_clear(shown) && !this.flashes.length) return;
 
-        // Rain and storms darken the map, snow cools it
-        const dark = shown.rain * 0.12 + (shown.lightning ? 0.1 : 0);
-        if (dark > 0.005) {
-            ctx.fillStyle = `rgba(12, 20, 34, ${dark})`;
-            ctx.fillRect(0, 0, width, height);
-        }
-        if (shown.snow >= NONE) {
-            ctx.fillStyle = `rgba(215, 228, 255, ${shown.snow * 0.06})`;
-            ctx.fillRect(0, 0, width, height);
-        }
-
         if (shown.fog >= NONE) {
-            ctx.fillStyle = `rgba(200, 206, 216, ${shown.fog * 0.14})`;
-            ctx.fillRect(0, 0, width, height);
             const t = now / 1000;
             for (const cloud of this.clouds) {
                 ctx.globalAlpha =
