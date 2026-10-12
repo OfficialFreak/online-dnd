@@ -610,18 +610,35 @@
                     <h3 class="font-bold">Nebel</h3>
                     <fieldset class="fieldset p-0">
                         <legend class="fieldset-legend pt-0">Spieler wählen</legend>
-                        <select
-                            class="select select-sm w-full"
-                            bind:value={fogState.selected_player}
-                        >
-                            <option value="all">Alle</option>
-                            {#each gameState.users as player}
-                                <option value={player.name}
-                                    >{#if player.active}🟢{:else}🔴{/if}
-                                    {player.name}</option
+                        <!-- Buttons, not a select: its list opens outside the page, the
+                             menu lost the mouse there and closed -->
+                        <div class="flex flex-wrap gap-1">
+                            <button
+                                class="btn btn-xs {fogState.selected_player === 'all'
+                                    ? 'btn-info'
+                                    : ''}"
+                                onclick={() => (fogState.selected_player = "all")}
+                                >Alle</button
+                            >
+                            {#each gameState.users as player (player.name)}
+                                <button
+                                    class="btn btn-xs {fogState.selected_player ===
+                                    player.name
+                                        ? 'btn-info'
+                                        : ''}"
+                                    title={player.active ? "Online" : "Offline"}
+                                    onclick={() =>
+                                        (fogState.selected_player = player.name)}
                                 >
+                                    <span
+                                        class="w-1.5 h-1.5 rounded-full {player.active
+                                            ? 'bg-success'
+                                            : 'bg-error'}"
+                                    ></span>
+                                    {player.name}
+                                </button>
                             {/each}
-                        </select>
+                        </div>
                     </fieldset>
                     <fieldset class="fieldset p-0">
                         <legend class="fieldset-legend pt-0">Pinsel</legend>
@@ -785,41 +802,54 @@
                         {/each}
                     </div>
                     {#if wallState.mode === "light"}
-                        <select
-                            class="select select-sm w-full"
-                            aria-label="Neues Licht"
-                            bind:value={wallState.light}
-                        >
+                        <div class="flex flex-wrap gap-1" aria-label="Neues Licht">
                             {#each LIGHT_PRESETS as preset (preset.key)}
-                                <option value={preset.key}
-                                    >{preset.label} ({preset.bright}/{preset.dim} ft)</option
+                                <button
+                                    class="btn btn-xs {wallState.light === preset.key
+                                        ? 'btn-info'
+                                        : ''}"
+                                    title="{preset.bright} ft hell, {preset.dim} ft dämmrig"
+                                    onclick={() => (wallState.light = preset.key)}
                                 >
+                                    <span
+                                        class="w-2 h-2 rounded-full"
+                                        style="background: {preset.color}"
+                                    ></span>
+                                    {preset.label}
+                                </button>
                             {/each}
-                        </select>
+                        </div>
                     {/if}
                     <fieldset class="fieldset p-0">
                         <legend class="fieldset-legend pt-0">Sicht ansehen von</legend>
-                        <select
-                            class="select select-sm w-full"
-                            value={wallState.preview ?? ""}
-                            onchange={(event) =>
-                                (wallState.preview =
-                                    event.currentTarget.value || null)}
-                        >
-                            <option value="">Niemand, du siehst alles</option>
+                        <div class="flex flex-wrap gap-1">
+                            <button
+                                class="btn btn-xs {wallState.preview === null
+                                    ? 'btn-info'
+                                    : ''}"
+                                title="Du siehst alles"
+                                onclick={() => (wallState.preview = null)}
+                                >Niemand</button
+                            >
                             {#each gameState.users.filter((user) => !user.dm) as player (player.name)}
-                                <option value={player.name}>{player.name}</option>
+                                <button
+                                    class="btn btn-xs {wallState.preview === player.name
+                                        ? 'btn-info'
+                                        : ''}"
+                                    onclick={() => (wallState.preview = player.name)}
+                                    >{player.name}</button
+                                >
                             {/each}
-                        </select>
+                        </div>
                     </fieldset>
                     <p class="text-xs text-base-content/60">
                         Klick setzt Punkte, Doppelklick, Rechtsklick oder Enter beendet
                         die Wand, Esc bricht ab. Am Handy beendet doppeltes Tippen.
                         Enden rasten an anderen Wänden ein, mit Strg auch am Raster.
                         Türen ziehst du auf. Alle öffnen sie mit einem Klick, ein
-                        Rechtsklick schließt sie ab. Ein Klick mit Licht setzt eins
-                        oder schaltet es an und aus. Fackeln für Figuren gibt es in
-                        ihrem Menü.
+                        Rechtsklick schließt sie ab. Ein Klick mit Licht setzt eins, ein
+                        Klick auf eins ändert Farbe und Reichweite. Fackeln für Figuren
+                        gibt es in ihrem Menü.
                     </p>
                     {#if gameState.scene?.state.walls?.length || gameState.scene?.state.doors?.length}
                         <p class="text-xs text-base-content/60">
