@@ -1814,7 +1814,7 @@
                 {@const unclear = dim_edge(marker)}
                 <Marker
                     {marker}
-                    blur={unclear * (marker.size / columns) * w * 0.07}
+                    blur={unclear * (marker.size / columns) * w * 0.04}
                     fade={unclear * 0.4}
                     dragOptions={{
                         ...dragOptions,
