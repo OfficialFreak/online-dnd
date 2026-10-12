@@ -282,17 +282,21 @@ function keep_in_step(audio: HTMLAudioElement) {
     }, 15_000);
 }
 
-let music_player: HTMLAudioElement | null = null;
+/** Two take turns, so the next song fades in while the last one fades out */
+const music_players: HTMLAudioElement[] = [];
 
+/** The player that isn't playing the music, a silent one before one still fading out */
 function get_music_player() {
-    if (!music_player) {
-        music_player = new Audio();
-        music_player.loop = true;
-        route_audio(music_player);
-        keep_unlocked(music_player);
-        keep_in_step(music_player);
+    while (music_players.length < 2) {
+        const player = new Audio();
+        player.loop = true;
+        route_audio(player);
+        keep_unlocked(player);
+        keep_in_step(player);
+        music_players.push(player);
     }
-    return music_player;
+    const free = music_players.filter((player) => player !== music);
+    return free.find((player) => player.paused) ?? free[0] ?? music_players[0];
 }
 
 const effect_players: HTMLAudioElement[] = [];
@@ -365,6 +369,7 @@ export function play_music(
         if (music.paused && !document.hidden) play_or_wait(music);
         return;
     }
+    const old = music;
     const player = get_music_player();
     player.src = asset_url(file);
     set_audio_level(player, 0);
@@ -373,6 +378,12 @@ export function play_music(
     play_or_wait(player);
     // Slowly, music coming in at once is a jump scare
     fade(player, playing_music_volume, undefined, 3000);
+    // The last song fades out underneath instead of breaking off, e.g. on a new scene
+    if (old) {
+        fade(old, () => 0, () => {
+            if (old !== music) old.pause();
+        }, 2000);
+    }
 }
 
 // Phones and tablets pause the music while the app is in the background, and play on
