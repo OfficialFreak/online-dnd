@@ -397,11 +397,12 @@ export function stop_music() {
     audioState.music = null;
 }
 
-export function play_effect(name: string, file: string) {
+/** Loudness below 1 plays it quieter than the effect volume, e.g. a distant thunder */
+export function play_effect(name: string, file: string, loudness = 1) {
     const audio = free_effect_player();
     clearInterval(fades.get(audio));
     audio.src = asset_url(file);
-    set_audio_level(audio, effect_volume());
+    set_audio_level(audio, effect_volume() * loudness);
     wake_audio();
     const playing = effects.get(name) ?? new Set();
     playing.add(audio);

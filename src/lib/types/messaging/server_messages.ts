@@ -159,6 +159,8 @@ export interface Weather {
     /** From -1, blowing to the left, to 1, to the right */
     wind: number;
     lightning: boolean;
+    /** The sound file everyone hears a moment after a flash */
+    thunder?: string | null;
 }
 
 /** What plays when the DM switches to a scene, the music last played or stopped in it */

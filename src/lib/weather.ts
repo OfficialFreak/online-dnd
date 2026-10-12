@@ -44,6 +44,46 @@ export const PRESETS: { label: string; icon: string; weather: Weather }[] = [
 
 const NONE = 0.01;
 
+/** Lightning comes in windows of this many milliseconds, each may have a flash */
+const FLASH_WINDOW = 8000;
+
+/** A random number generator from a seed (mulberry32), the same numbers everywhere */
+function seeded(seed: number) {
+    return () => {
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/**
+ * The flashes after `from` until `to`, in milliseconds since 1970. They come from the
+ * clock, so every screen flashes at the same moment without the server. Each brings
+ * how long its thunder takes and how loud it is.
+ */
+export function flashes_between(from: number, to: number) {
+    const flashes: { at: number; thunder_delay: number; loudness: number }[] = [];
+    for (
+        let slot = Math.floor(from / FLASH_WINDOW);
+        slot <= Math.floor(to / FLASH_WINDOW);
+        slot++
+    ) {
+        const next = seeded(slot);
+        if (next() > 0.6) continue;
+        const at = slot * FLASH_WINDOW + next() * FLASH_WINDOW;
+        if (at <= from || at > to) continue;
+        // Close storms thunder soon and loud, far ones later and quieter
+        const distance = next();
+        flashes.push({
+            at,
+            thunder_delay: 400 + distance * 3200,
+            loudness: 1 - distance * 0.5,
+        });
+    }
+    return flashes;
+}
+
 export function is_clear(weather: Weather | null | undefined) {
     return (
         !weather ||
@@ -90,9 +130,9 @@ export class WeatherRenderer {
     private clouds: Cloud[] = [];
     private sprites: HTMLCanvasElement[] = [];
     private flashes: { at: number; strength: number }[] = [];
-    private next_flash = 0;
     private frame = 0;
     private last = 0;
+    private active = false;
 
     /**
      * Lite draws fewer particles, for phones. Calm (reduced motion) draws a still picture
@@ -100,13 +140,19 @@ export class WeatherRenderer {
      */
     constructor(
         private canvas: HTMLCanvasElement,
-        private options: { lite: boolean; calm: boolean },
+        private options: {
+            lite: boolean;
+            calm: boolean;
+            /** Whether there is weather to draw, the canvas can go while there is none */
+            on_active?: (active: boolean) => void;
+        },
     ) {
         this.context = canvas.getContext("2d")!;
     }
 
     set(weather: Weather) {
         this.target = { ...weather };
+        if (!is_clear(weather)) this.set_active(true);
         if (this.options.calm) {
             // A still picture, the particles spread over the screen
             this.shown = { ...weather };
@@ -115,9 +161,24 @@ export class WeatherRenderer {
                 particle.y = Math.random() * this.height;
             }
             this.draw(performance.now());
+            this.set_active(!is_clear(weather));
             return;
         }
         this.start();
+    }
+
+    /** A flash of lightning and a weaker one right after, while there is lightning */
+    flash() {
+        if (this.options.calm || !this.target.lightning) return;
+        const now = performance.now();
+        this.flashes.push({ at: now, strength: 0.55 }, { at: now + 140, strength: 0.35 });
+        this.start();
+    }
+
+    private set_active(active: boolean) {
+        if (this.active === active) return;
+        this.active = active;
+        this.options.on_active?.(active);
     }
 
     resize(width: number, height: number) {
@@ -149,13 +210,30 @@ export class WeatherRenderer {
         this.ease(dt);
         this.update(dt, now);
         this.draw(now);
-        if (is_clear(this.shown) && is_clear(this.target) && !this.flashes.length) {
-            this.context.clearRect(0, 0, this.width, this.height);
+        // Nothing moves any more: the picture stays until the weather changes or it flashes
+        if (this.settled()) {
             this.frame = 0;
+            if (is_clear(this.shown) && is_clear(this.target)) {
+                this.context.clearRect(0, 0, this.width, this.height);
+                this.set_active(false);
+            }
             return;
         }
         this.frame = requestAnimationFrame(this.tick);
     };
+
+    private settled() {
+        const eased = (["rain", "snow", "fog", "wind"] as const).every(
+            (key) => Math.abs(this.shown[key] - this.target[key]) < 0.002,
+        );
+        return (
+            eased &&
+            !this.drops.length &&
+            !this.flakes.length &&
+            this.shown.fog < NONE &&
+            !this.flashes.length
+        );
+    }
 
     private ease(dt: number) {
         const step = Math.min(1, dt * 1.5);
@@ -241,13 +319,6 @@ export class WeatherRenderer {
             if (cloud.x < -cloud.width) cloud.x = width;
         }
 
-        // A flash and a weaker one right after, every 6 to 20 seconds
-        if (this.shown.lightning && !this.options.calm && now >= this.next_flash) {
-            if (this.next_flash) {
-                this.flashes.push({ at: now, strength: 0.55 }, { at: now + 140, strength: 0.35 });
-            }
-            this.next_flash = now + 6000 + Math.random() * 14000;
-        }
         this.flashes = this.flashes.filter((flash) => now - flash.at < 600);
     }
 

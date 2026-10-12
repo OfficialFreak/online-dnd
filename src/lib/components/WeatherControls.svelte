@@ -1,5 +1,6 @@
 <script lang="ts">
     import { appState, gameState } from "$lib/state.svelte";
+    import { audioState } from "$lib/audio.svelte";
     import { SetWeather } from "$lib/types/messaging/client_messages";
     import type { Weather } from "$lib/types/messaging/server_messages";
     import { CLEAR, PRESETS } from "$lib/weather";
@@ -14,9 +15,22 @@
         { trailing: true },
     );
 
+    let effect_sounds = $derived(
+        audioState.sounds
+            .filter((sound) => sound.kind === "effect")
+            .toSorted((a, b) => a.name.localeCompare(b.name)),
+    );
+
     function change(update: Partial<Weather>) {
         if (!gameState.scene) return;
         const next = { ...weather, ...update };
+        // Lightning turned on brings a thunder from the library, if one is called like it
+        if (next.lightning && !weather.lightning && !next.thunder) {
+            next.thunder =
+                effect_sounds.find((sound) =>
+                    /thunder|donner|gewitter/i.test(sound.name),
+                )?.file ?? null;
+        }
         // Here right away, for everyone once the server sends it on
         gameState.scene.weather = next;
         send(next);
@@ -93,6 +107,26 @@
             />
             Blitze
         </label>
+        {#if weather.lightning}
+            <label class="flex items-center gap-2 text-sm">
+                <span class="w-14">Donner</span>
+                <select
+                    class="select select-sm flex-1 min-w-0"
+                    value={weather.thunder ?? ""}
+                    onchange={(event) =>
+                        change({ thunder: event.currentTarget.value || null })}
+                >
+                    <option value="">Kein Donner</option>
+                    {#each effect_sounds as sound (sound.name)}
+                        <option value={sound.file}>{sound.name}</option>
+                    {/each}
+                </select>
+            </label>
+            <p class="text-xs text-base-content/60">
+                Ein Effekt aus deinen Sounds, er kommt bei allen ein paar Sekunden nach
+                jedem Blitz, mal näher und lauter, mal ferner.
+            </p>
+        {/if}
     {:else}
         <p class="text-sm text-base-content/60">
             Aktiviere eine Szene, dann kannst du ihr Wetter einstellen.
