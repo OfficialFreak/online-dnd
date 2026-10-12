@@ -71,7 +71,7 @@
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
     import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
-    import { normalize_condition } from "$lib/conditions";
+    import { condition_label, normalize_condition } from "$lib/conditions";
     import { load_dice_skin } from "$lib/dice-skins.svelte";
     import DiceSkinPicker from "$lib/components/DiceSkinPicker.svelte";
     import { goto } from "$app/navigation";
@@ -743,6 +743,15 @@
                 case MessageType.STOP_SOUND:
                     stop_effect(message.name);
                     break;
+                case MessageType.EFFECTS_ENDED: {
+                    const labels = message.effects.map(condition_label);
+                    notify(
+                        `${message.marker}: ${labels.join(", ")} ${labels.length > 1 ? "enden" : "endet"}`,
+                        MessageTypes.Info,
+                        6000,
+                    );
+                    break;
+                }
                 case MessageType.USER_ADMIN:
                     adminState.users = message.users;
                     break;

@@ -3,7 +3,14 @@
     import StatusIcon from "./StatusIcon.svelte";
 
     /** Conditions of a marker, the overlay covers exactly the marker */
-    let { effects }: { effects: string[] } = $props();
+    let {
+        effects,
+        rounds = {},
+    }: {
+        effects: string[];
+        /** Rounds left of those that end by themselves */
+        rounds?: Record<string, number>;
+    } = $props();
 
     const MAX_ICONS = 4;
 </script>
@@ -34,6 +41,9 @@
             {#each effects.slice(0, MAX_ICONS) as effect (effect)}
                 <div class="icon-slot">
                     <StatusIcon {effect} compact />
+                    {#if rounds[effect]}
+                        <span class="rounds">{rounds[effect]}</span>
+                    {/if}
                 </div>
             {/each}
             {#if effects.length > MAX_ICONS}
@@ -160,8 +170,26 @@
     }
 
     .icon-slot {
+        position: relative;
         width: 22cqw;
         height: 22cqw;
+    }
+
+    /* Rounds left, at the top right of the icon */
+    .rounds {
+        position: absolute;
+        top: -18%;
+        right: -22%;
+        min-width: 60%;
+        padding: 0 8%;
+        border-radius: 9999px;
+        background: var(--color-base-content);
+        color: var(--color-base-100);
+        font-size: 9cqw;
+        font-weight: bold;
+        line-height: 1.3;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
     }
 
     .more {

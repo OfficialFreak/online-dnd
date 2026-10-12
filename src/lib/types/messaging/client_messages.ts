@@ -138,20 +138,24 @@ export class InitiativeEntries {
 }
 
 export class SetTurn {
-    /** Only applies if the turn on the server is still `from` */
-    static create(from: string | null, turn: string | null, round: number): string {
+    /**
+     * Only applies if the turn on the server is still `from`. Going `back` gives the
+     * creature whose turn it is again the round of its conditions back.
+     */
+    static create(from: string | null, turn: string | null, round: number, back = false): string {
         return JSON.stringify({
             type: "set_turn",
             from: from,
             turn: turn,
-            round: round
+            round: round,
+            back: back
         });
     }
 }
 
 export class UpdateSceneMarker {
     /** Changes one placed marker of the active scene but not its position, a different name renames it */
-    static create(old_name: string, marker: { name: string; size: number; status_effects: string[]; hidden?: boolean; hp?: number | null; max_hp?: number | null }): string {
+    static create(old_name: string, marker: { name: string; size: number; status_effects: string[]; hidden?: boolean; hp?: number | null; max_hp?: number | null; effect_rounds?: Record<string, number> }): string {
         return JSON.stringify({
             type: "update_scene_marker",
             old_name: old_name,
@@ -161,7 +165,8 @@ export class UpdateSceneMarker {
                 status_effects: marker.status_effects,
                 hidden: !!marker.hidden,
                 hp: marker.hp ?? null,
-                max_hp: marker.max_hp ?? null
+                max_hp: marker.max_hp ?? null,
+                effect_rounds: marker.effect_rounds ?? {}
             }
         });
     }

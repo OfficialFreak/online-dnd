@@ -41,7 +41,8 @@ export enum MessageType {
     TABLETOP_AUDIO = "tabletop_audio",
     SOUND_IMPORT_FAILED = "sound_import_failed",
     MOUSE_POSITION = "mouse_position",
-    MARKER_POSITION = "marker_position"
+    MARKER_POSITION = "marker_position",
+    EFFECTS_ENDED = "effects_ended"
 }
 
 export enum EventType {
@@ -135,7 +136,14 @@ export interface Marker {
     hp?: number | null;
     max_hp?: number | null;
     monster?: MonsterInfo | null;
+    /**
+     * Rounds left of the conditions that end by themselves. The server counts them down at
+     * the end of the creature's turn.
+     */
+    effect_rounds?: Record<string, number>;
 }
+
+
 
 export interface SceneState {
     fog_squares: Record<string, Array<number>>;
@@ -305,6 +313,13 @@ export interface StopSound extends BaseServerMessage {
     name: string;
 }
 
+/** Conditions whose rounds ran out at the end of the creature's turn */
+export interface EffectsEnded extends BaseServerMessage {
+    type: MessageType.EFFECTS_ENDED;
+    marker: string;
+    effects: string[];
+}
+
 export interface UserAdmin extends BaseServerMessage {
     type: MessageType.USER_ADMIN;
     users: AdminUser[];
@@ -374,6 +389,7 @@ export type ServerMessage =
     | PlaySound
     | StopMusic
     | StopSound
+    | EffectsEnded
     | UserAdmin
     | TabletopAudio
     | SoundImportFailed
@@ -460,6 +476,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MousePosition;
         case MessageType.MARKER_POSITION:
             return data as MarkerPosition;
+        case MessageType.EFFECTS_ENDED:
+            return data as EffectsEnded;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

@@ -312,19 +312,20 @@ export async function previous_turn() {
     // Going back past the first one undoes the start of the round
     const round =
         index === 0 ? Math.max(1, current_round() - 1) : current_round();
-    await set_turn(sorted_initiative[previous][1], round);
+    // From nobody's turn there is no turn to undo
+    await set_turn(sorted_initiative[previous][1], round, index !== -1);
 }
 
 /**
  * Moves the turn on. The server only takes it if the turn is still the one this client
  * saw, so two people ending the same turn at once don't skip the next one.
  */
-async function set_turn(turn: string | null, round: number) {
+async function set_turn(turn: string | null, round: number, back = false) {
     if (!appState.ws || !gameState.scene) return;
     const from = gameState.scene.state.turn ?? null;
     gameState.scene.state.turn = turn;
     gameState.scene.state.round = round;
-    await appState.ws.send(SetTurn.create(from, turn, round));
+    await appState.ws.send(SetTurn.create(from, turn, round, back));
 }
 
 /** Who has the turn once these markers left the initiative, the next one if it was theirs */

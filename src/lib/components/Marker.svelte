@@ -51,6 +51,7 @@
             hp: null,
             max_hp: null,
             monster: null,
+            effect_rounds: {} as Record<string, number>,
         },
     );
     let scene_marker_index = $derived(
@@ -255,9 +256,34 @@
         const current = (scene_marker.status_effects ?? []).map(
             normalize_condition,
         );
-        scene_marker.status_effects = current.includes(effect)
+        const removing = current.includes(effect);
+        scene_marker.status_effects = removing
             ? current.filter((active) => active !== effect)
             : [...current, effect];
+        if (removing && scene_marker.effect_rounds?.[effect] !== undefined) {
+            const { [effect]: _, ...rounds } = scene_marker.effect_rounds;
+            scene_marker.effect_rounds = rounds;
+        }
+        throttled_save();
+    }
+
+    /** The conditions the DM gave the marker, they can end after some rounds */
+    let marker_conditions = $derived(
+        (scene_marker.status_effects ?? [])
+            .map(normalize_condition)
+            .filter((effect) => CONDITIONS[effect]),
+    );
+
+    /** Empty lasts until the DM removes it */
+    function set_rounds(effect: string, value: string) {
+        const rounds = Math.round(Number(value));
+        const { [effect]: _, ...others } = scene_marker.effect_rounds ?? {};
+        scene_marker.effect_rounds =
+            value.trim() && Number.isFinite(rounds) && rounds > 0
+                ? { ...others, [effect]: Math.min(rounds, 999) }
+                : others;
+        // The server matches the rounds by the names it keeps
+        scene_marker.status_effects = marker_conditions;
         throttled_save();
     }
 </script>
@@ -415,7 +441,7 @@
             {/each}
         </div>
         {#if animated && interactive && effects.length > 0}
-            <ConditionEffects {effects} />
+            <ConditionEffects {effects} rounds={marker.effect_rounds} />
         {/if}
         {#if gameState.dm && mapUse && !selecting_tool}
             <!-- Not a div, the avatar gives those a square shape -->
@@ -602,9 +628,53 @@
                                 <span class="truncate"
                                     >{CONDITIONS[effect].label}</span
                                 >
+                                {#if active && scene_marker.effect_rounds?.[effect]}
+                                    <span class="ml-auto opacity-70 tabular-nums"
+                                        >{scene_marker.effect_rounds[effect]}</span
+                                    >
+                                {/if}
                             </button>
                         {/each}
                     </div>
+                    {#if marker_conditions.length}
+                        <div class="flex flex-col gap-1 mt-1">
+                            {#each marker_conditions as effect (effect)}
+                                <label class="flex items-center gap-2 text-xs">
+                                    <span
+                                        class="w-2 h-2 shrink-0 rounded-full"
+                                        style="background: {CONDITIONS[effect]
+                                            .color}"
+                                    ></span>
+                                    <span class="flex-1 truncate"
+                                        >{CONDITIONS[effect].label}</span
+                                    >
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="999"
+                                        inputmode="numeric"
+                                        class="input input-xs w-16 tabular-nums"
+                                        placeholder="∞"
+                                        aria-label="Runden für {CONDITIONS[effect]
+                                            .label}"
+                                        value={scene_marker.effect_rounds?.[
+                                            effect
+                                        ] ?? ""}
+                                        onchange={(event) =>
+                                            set_rounds(
+                                                effect,
+                                                event.currentTarget.value,
+                                            )}
+                                    />
+                                    <span class="w-12 opacity-60">Runden</span>
+                                </label>
+                            {/each}
+                            <p class="text-xs text-base-content/60">
+                                Zählt am Ende ihres Zugs runter, leer hält bis
+                                du ihn entfernst.
+                            </p>
+                        </div>
+                    {/if}
                 </fieldset>
                 <div class="grid grid-cols-2 gap-2">
                     {#if !gameState.scene?.state.initiative.some((initiative) => initiative[1] === scene_marker.name)}
