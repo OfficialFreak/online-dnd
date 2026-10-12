@@ -67,6 +67,7 @@
     import Display from "./Display.svelte";
     // @ts-ignore
     import confetti from "canvas-confetti";
+    import { billows, smoothstep } from "$lib/noise";
 
     let {
         file,
@@ -168,6 +169,116 @@
         return (fog[Math.floor(index / 32)] & (1 << (31 - (index % 32)))) !== 0;
     }
 
+    /** The fog drawn last, of which scene and player, to see what was uncovered since */
+    let last_fog: { key: string; squares: number[] } | null = null;
+    let fog_fades: HTMLDivElement | undefined = $state();
+
+    /**
+     * Fog the DM uncovers drifts apart and fades instead of vanishing at once: a copy of
+     * it over the spot, drawn like the fog, dissolves.
+     */
+    function dissolve_fog(before: number[], after: number[]) {
+        if (!fog_fades || !rows || !w || !h) return;
+        const cells: [number, number][] = [];
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < columns; x++) {
+                if (isFogAt(before, x, y) && !isFogAt(after, x, y)) cells.push([x, y]);
+            }
+        }
+        if (!cells.length) return;
+
+        // Only around the uncovered cells
+        const pad = size / 2;
+        const left = Math.max(0, Math.min(...cells.map(([x]) => size * x + x_offset)) - pad);
+        const top = Math.max(0, Math.min(...cells.map(([, y]) => size * y + y_offset)) - pad);
+        const right = Math.min(w, Math.max(...cells.map(([x]) => size * (x + 1) + x_offset)) + pad);
+        const bottom = Math.min(h, Math.max(...cells.map(([, y]) => size * (y + 1) + y_offset)) + pad);
+        if (right <= left || bottom <= top) return;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round((right - left) * fog_resolution));
+        canvas.height = Math.max(1, Math.round((bottom - top) * fog_resolution));
+        const ctx = canvas.getContext("2d")!;
+        // In the map's coordinates like the fog, so its texture lines up
+        ctx.setTransform(
+            fog_resolution,
+            0,
+            0,
+            fog_resolution,
+            -left * fog_resolution,
+            -top * fog_resolution,
+        );
+        ctx.beginPath();
+        for (const [x, y] of cells) {
+            ctx.rect(size * x + x_offset, size * y + y_offset, size, size);
+        }
+        ctx.fillStyle = "#cccccc";
+        ctx.fill();
+        const pattern = ctx.createPattern(fogImg, "repeat");
+        if (pattern) {
+            ctx.globalCompositeOperation = "source-in";
+            pattern.setTransform(new DOMMatrix().scale(layout_zoom));
+            ctx.fillStyle = pattern;
+            ctx.filter = `blur(${5 * fog_resolution * layout_zoom}px)`;
+            ctx.fillRect(left - 5, top - 5, right - left + 10, bottom - top + 10);
+            ctx.filter = "none";
+        }
+
+        // Shown is the fog torn into wisps by noise that drifts, more of it gone each frame
+        const shown = document.createElement("canvas");
+        shown.width = canvas.width;
+        shown.height = canvas.height;
+        Object.assign(shown.style, {
+            position: "absolute",
+            left: `${(left / w) * 100}%`,
+            top: `${(top / h) * 100}%`,
+            width: `${((right - left) / w) * 100}%`,
+            height: `${((bottom - top) / h) * 100}%`,
+        });
+        fog_fades.append(shown);
+        const shown_ctx = shown.getContext("2d")!;
+        if (!appState.motion || document.hidden) {
+            shown_ctx.drawImage(canvas, 0, 0);
+            shown
+                .animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500 })
+                .finished.finally(() => shown.remove());
+            return;
+        }
+        // Up to ten noise pixels a cell, the browser smooths them out. A big area gets
+        // coarser wisps, not more work.
+        const per_cell = Math.min(10, (160 * size) / Math.max(right - left, bottom - top));
+        const mask = document.createElement("canvas");
+        mask.width = Math.max(2, Math.round(((right - left) / size) * per_cell));
+        mask.height = Math.max(2, Math.round(((bottom - top) / size) * per_cell));
+        const mask_ctx = mask.getContext("2d")!;
+        const wisps = mask_ctx.createImageData(mask.width, mask.height);
+        const start = performance.now();
+        const duration = 2000;
+        const step = (now: number) => {
+            const progress = (now - start) / duration;
+            if (progress >= 1 || !shown.isConnected) {
+                shown.remove();
+                return;
+            }
+            const time = (now - start) / 1000;
+            const level = progress * 1.3 - 0.15;
+            for (let y = 0; y < mask.height; y++) {
+                for (let x = 0; x < mask.width; x++) {
+                    const gaps = billows(x * 0.09 + time * 0.35, y * 0.09 - time * 0.2);
+                    wisps.data[(y * mask.width + x) * 4 + 3] =
+                        255 * (1 - smoothstep(gaps - 0.15, gaps + 0.15, level));
+                }
+            }
+            mask_ctx.putImageData(wisps, 0, 0);
+            shown_ctx.globalCompositeOperation = "copy";
+            shown_ctx.drawImage(canvas, 0, 0);
+            shown_ctx.globalCompositeOperation = "destination-in";
+            shown_ctx.drawImage(mask, 0, 0, shown.width, shown.height);
+            requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
     $effect(() => {
         if (!editable) return;
 
@@ -213,6 +324,14 @@
                 fogCtx.filter = `blur(${5 * fog_resolution * layout_zoom}px)`;
                 fogCtx.fillRect(-5, -5, w + 10, h + 10);
                 fogCtx.filter = "none";
+            }
+
+            // What the DM uncovered since dissolves, not while the DM paints it away
+            const key = untrack(() => `${gameState.scene?.name}|${viewer}|${columns}`);
+            const before = last_fog;
+            last_fog = { key, squares: [...fog_squares] };
+            if (before?.key === key && !painting) {
+                untrack(() => dissolve_fog(before.squares, fog_squares!));
             }
         }
     });
@@ -1969,6 +2088,12 @@
             style="opacity: {gameState.dm && !viewer ? '60' : '100'}%"
         >
         </canvas>
+        <!-- Uncovered fog dissolving -->
+        <div
+            bind:this={fog_fades}
+            class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+            style="opacity: {gameState.dm && !viewer ? '60' : '100'}%"
+        ></div>
         <!-- Player Markers above the Fog, a marker with its menu open above everything -->
         <div
             class="absolute top-0 left-0 w-full h-full z-0 has-[.menu-open]:z-30 pointer-events-none"
