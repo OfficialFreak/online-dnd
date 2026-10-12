@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { fade, fly, slide } from "svelte/transition";
+    import { fade } from "svelte/transition";
     import {
         appState,
         toolbarState,
@@ -376,6 +376,19 @@
         if (toolbarState.panel && !appState.controls_open) set_controls_open(true);
     });
 
+    /** The panel on the page, also while it slides out of sight after closing */
+    let shown_panel: typeof toolbarState.panel = $state(null);
+    /** Standing still the panel is frosted glass, sliding the glass cost every frame */
+    let panel_settled = $state(false);
+    let panel_timer: ReturnType<typeof setTimeout> | undefined;
+    $effect(() => {
+        const panel = toolbarState.panel;
+        if (panel) shown_panel = panel;
+        panel_settled = false;
+        clearTimeout(panel_timer);
+        if (panel) panel_timer = setTimeout(() => (panel_settled = true), 220);
+    });
+
     // The server echoes this back to everyone, which updates gameState.pressure
     async function toggle_pressure() {
         if (!appState.ws) return;
@@ -400,33 +413,32 @@
     class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row pointer-events-none"
     data-keep-clear
 >
-    {#if toolbarState.panel}
-        <!-- Narrows as the panel opens and closes, so the tools beside it glide along
-             instead of waiting and jumping -->
-        <div
-            class="h-full mr-1 shrink-0"
-            transition:slide|global={{ axis: "x", duration: 200 }}
-        >
+    <!-- Once opened a panel stays on the page and only slides out of sight. Built anew each
+         time it took a frame of 50 ms, and sliding moves it on the graphics card alone. -->
+    {#if shown_panel}
+        <div class="h-full mr-1 shrink-0 w-[min(24rem,calc(100vw-4rem))]">
         <!-- Out of the way while a marker or scene is dragged from it onto the map. Only
              transparent, not closed or hidden: that would end the drag. -->
         <div
-            class="relative h-full w-[min(24rem,calc(100vw-4rem))] rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 transition-[box-shadow,opacity,translate] {fileDropState.over &&
+            class="panel relative h-full w-full rounded-box frosted pointer-events-auto overflow-y-auto overscroll-contain flex flex-col *:shrink-0 {fileDropState.over &&
             fileDropState.over === toolbarState.panel
                 ? 'ring-4 ring-info'
                 : ''} {dragState.payload
                 ? 'opacity-0 !pointer-events-none -translate-x-8'
-                : ''}"
-            transition:fly|global={{ x: -50, duration: 200 }}
+                : ''} {toolbarState.panel ? '' : 'panel-closed'} {panel_settled
+                ? ''
+                : 'moving'}"
+            inert={!toolbarState.panel}
             bind:this={scroll_container}
             data-file-drop={toolbarState.panel}
         >
-            {#if toolbarState.panel === "markers"}
+            {#if shown_panel === "markers"}
                 <MarkerPanel />
-            {:else if toolbarState.panel === "scenes"}
+            {:else if shown_panel === "scenes"}
                 <ScenePanel />
-            {:else if toolbarState.panel === "rolls"}
+            {:else if shown_panel === "rolls"}
                 <RollLog />
-            {:else if toolbarState.panel === "sounds"}
+            {:else if shown_panel === "sounds"}
                 <SoundPanel />
             {:else if !toolbarState.characterOpen}
                 <div class="p-2 px-4">
@@ -515,9 +527,13 @@
         </div>
     {/if}
 
-    <!-- Two columns where one doesn't fit, like on a phone held sideways -->
+    <!-- Two columns where one doesn't fit, like on a phone held sideways. Beside a panel
+         slid out of sight it moves into its place. -->
     <div
-        class="flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto [@media(max-height:600px)]:grid [@media(max-height:600px)]:grid-cols-2"
+        class="tools flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto [@media(max-height:600px)]:grid [@media(max-height:600px)]:grid-cols-2 {shown_panel &&
+        !toolbarState.panel
+            ? 'tools-tucked'
+            : ''}"
         transition:fade|global={{ duration: 100 }}
     >
         <div class="tooltip tooltip-right">
@@ -1116,3 +1132,38 @@
     </div>
 </div>
 {/if}
+
+<style>
+    /* Sliding only moves and fades it, which the graphics card does alone */
+    .panel {
+        transition:
+            translate 200ms ease-out,
+            opacity 200ms ease-out,
+            box-shadow 150ms,
+            visibility 0s;
+    }
+
+    .panel-closed {
+        translate: -50px 0;
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            translate 200ms ease-in,
+            opacity 200ms ease-in,
+            visibility 0s 200ms;
+    }
+
+    /* Frosted glass while it slides was redrawn behind it every frame */
+    .panel.moving {
+        backdrop-filter: none;
+        background: color-mix(in srgb, var(--color-base-100), transparent 8%);
+    }
+
+    .tools {
+        transition: translate 200ms ease-out;
+    }
+
+    .tools-tucked {
+        translate: calc(-1 * (min(24rem, 100vw - 4rem) + 0.25rem)) 0;
+    }
+</style>
