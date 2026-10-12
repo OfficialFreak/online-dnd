@@ -1052,7 +1052,13 @@
     });
 
     const MIN_ZOOM = 0.3;
-    const MAX_ZOOM = 5;
+    /**
+     * In until a square is about two thumbs wide, at least fivefold: on a phone the squares
+     * of a big map stayed an eighth of a thumb at five
+     */
+    let max_zoom = $derived(
+        Math.min(40, Math.max(5, 140 / Math.max(0.5, base_w / Math.max(1, columns)))),
+    );
 
     /**
      * Where the map is without the zoom's centering and the gesture's shift, from where it
@@ -1113,7 +1119,7 @@
     function zoom_to(new_zoom: number, client_x: number, client_y: number) {
         if (!map_element) return;
         const old_zoom = appState.zoom;
-        new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), MAX_ZOOM);
+        new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), max_zoom);
         // The tolerance keeps rounding errors from stopping again right after a stop
         const titlebar = titlebar_room;
         const fit_height = (window.innerHeight - titlebar) / base_h;
@@ -1202,7 +1208,7 @@
                     (pinch.zoom * spread(event.touches)) / pinch.distance,
                     MIN_ZOOM,
                 ),
-                MAX_ZOOM,
+                max_zoom,
             );
             appState.zoom = zoom;
             // The map point that was between the fingers stays between them
