@@ -9,6 +9,10 @@ const config = {
   preprocess: vitePreprocess(),
   kit: {
     adapter: adapter(),
+    // The web version offers to reload once a newer one is on the server, see +layout.svelte
+    version: {
+      pollInterval: 5 * 60 * 1000,
+    },
   },
 };
 

@@ -71,6 +71,7 @@
     import { load_dice_skin } from "$lib/dice-skins.svelte";
     import DiceSkinPicker from "$lib/components/DiceSkinPicker.svelte";
     import { goto } from "$app/navigation";
+    import { updated } from "$app/state";
     import { Character } from "$lib/types/character";
     import { setActivity, start, stop } from "tauri-plugin-drpc";
     import { Activity, Assets, Timestamps } from "tauri-plugin-drpc/activity";
@@ -225,6 +226,8 @@
             hidden_since = Date.now();
             return;
         }
+        // A phone may keep the app open for days, a new version shows on return
+        if (!in_tauri) updated.check().catch(() => {});
         if (!url || taken_over) return;
         retry_delay = 1000;
         if (!appState.ws) {
@@ -1345,6 +1348,16 @@
         <Notifications />
     </div>
 </div>
+<!-- The desktop app updates itself, the web version runs on until it is reloaded -->
+{#if !in_tauri && updated.current}
+    <button
+        class="btn btn-info btn-sm fixed left-1/2 -translate-x-1/2 top-[calc(var(--titlebar)+var(--safe-top)+0.5rem)] z-[9999] shadow-lg"
+        transition:fly={{ y: -10, duration: 200 }}
+        onclick={() => location.reload()}
+    >
+        <i class="fa-solid fa-rotate"></i> Neue Version, neu laden
+    </button>
+{/if}
 
 {@render children()}
 
