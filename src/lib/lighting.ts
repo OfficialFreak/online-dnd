@@ -19,15 +19,16 @@ export type SceneLight = {
 };
 
 /** A light a figure carries */
-export type CarriedLight = { bright: number; dim: number };
+export type CarriedLight = { bright: number; dim: number; color?: string };
 
+/** Flames are warm, magic light cool */
 export const LIGHT_PRESETS = [
-    { key: "candle", label: "Kerze", bright: 5, dim: 10 },
-    { key: "torch", label: "Fackel", bright: 20, dim: 40 },
-    { key: "lamp", label: "Lampe", bright: 15, dim: 45 },
-    { key: "lantern", label: "Laterne", bright: 30, dim: 60 },
-    { key: "light", label: "Licht (Zauber)", bright: 20, dim: 40 },
-    { key: "daylight", label: "Tageslicht (Zauber)", bright: 60, dim: 120 },
+    { key: "candle", label: "Kerze", bright: 5, dim: 10, color: "#ffb04d" },
+    { key: "torch", label: "Fackel", bright: 20, dim: 40, color: "#ff8a2b" },
+    { key: "lamp", label: "Lampe", bright: 15, dim: 45, color: "#ffc061" },
+    { key: "lantern", label: "Laterne", bright: 30, dim: 60, color: "#ffcf7a" },
+    { key: "light", label: "Licht (Zauber)", bright: 20, dim: 40, color: "#cfe3ff" },
+    { key: "daylight", label: "Tageslicht (Zauber)", bright: 60, dim: 120, color: "#fff6e0" },
 ] as const;
 
 export type LightPreset = (typeof LIGHT_PRESETS)[number]["key"];
@@ -47,6 +48,19 @@ export function preset_of(light: CarriedLight | null | undefined) {
     );
 }
 
+/**
+ * A colour as #rrggbb, also from exported maps that write it with alpha in front or behind
+ * (ffeeccaa), null if it isn't one
+ */
+export function hex_colour(colour: unknown): string | null {
+    let hex = String(colour ?? "").replace("#", "").toLowerCase();
+    if (!/^[0-9a-f]{6}([0-9a-f]{2})?$/.test(hex)) return null;
+    if (hex.length === 8) {
+        hex = hex.startsWith("ff") && !hex.endsWith("ff") ? hex.slice(2) : hex.slice(0, 6);
+    }
+    return `#${hex}`;
+}
+
 /** The lights of a scene, also those an older import stored with a range only */
 export function scene_lights(raw: any[] | null | undefined): SceneLight[] {
     return (raw ?? [])
@@ -60,7 +74,7 @@ export function scene_lights(raw: any[] | null | undefined): SceneLight[] {
                 y: Number(light?.y),
                 bright: Math.min(bright, dim),
                 dim,
-                color: light?.color,
+                color: hex_colour(light?.color) ?? undefined,
                 on: light?.on !== false,
             };
         })
@@ -70,7 +84,13 @@ export function scene_lights(raw: any[] | null | undefined): SceneLight[] {
 }
 
 /** A light shining on the map: where it is and what it reaches past the walls, in cells */
-export type Lamp = { point: Point; polygon: Point[]; bright: number; dim: number };
+export type Lamp = {
+    point: Point;
+    polygon: Point[];
+    bright: number;
+    dim: number;
+    color?: string;
+};
 /** A figure looking: where it stands, what it sees past the walls, darkvision in cells */
 export type Eye = { point: Point; polygon: Point[]; darkvision: number };
 
@@ -88,6 +108,10 @@ export type Sight = {
     shade: ImageData;
     /** Grey over what only darkvision sees, null if nothing */
     grey: ImageData | null;
+    /** The glow of coloured lights where they are seen, null if none */
+    tint: ImageData | null;
+    /** How bright the lights and the scene make each spot, without the figures */
+    lit: Uint8ClampedArray;
 };
 
 /** About 12 pixels per cell, the browser stretches the picture softly over the map */
@@ -97,14 +121,10 @@ const UNSEEN = 158;
 /** Brightness from which a spot counts as seen, dim light is about 128 */
 export const SEEN = 60;
 
-let canvases: [HTMLCanvasElement, HTMLCanvasElement, HTMLCanvasElement] | null = null;
+let canvases: HTMLCanvasElement[] | null = null;
 
 function contexts(width: number, height: number) {
-    canvases ??= [
-        document.createElement("canvas"),
-        document.createElement("canvas"),
-        document.createElement("canvas"),
-    ];
+    canvases ??= [0, 1, 2, 3].map(() => document.createElement("canvas"));
     return canvases.map((canvas) => {
         if (canvas.width !== width) canvas.width = width;
         if (canvas.height !== height) canvas.height = height;
@@ -133,7 +153,7 @@ export function compute_sight(
     const height = Math.max(1, Math.round((width * rows) / columns));
     const sx = width / columns;
     const sy = height / rows;
-    const [light, eye_ctx, seen_ctx] = contexts(width, height);
+    const [light, eye_ctx, seen_ctx, tint_ctx] = contexts(width, height);
 
     // How bright the map is without the figures: the scene, then the lights past the walls
     light.globalCompositeOperation = "source-over";
@@ -191,6 +211,8 @@ export function compute_sight(
         seen_ctx.drawImage(eye_ctx.canvas, 0, 0);
     }
     const seen = seen_ctx.getImageData(0, 0, width, height).data;
+    const lit = light.getImageData(0, 0, width, height).data;
+    const tint = draw_tint(tint_ctx, lamps, sx, sy, seen_ctx.canvas);
 
     const shade = new ImageData(width, height);
     const grey = new ImageData(width, height);
@@ -217,7 +239,70 @@ export function compute_sight(
         seen,
         shade,
         grey: any_grey ? grey : null,
+        tint,
+        lit,
     };
+}
+
+/**
+ * The coloured glow of the lights, only where the figures see when there is a mask. The
+ * DM sees it everywhere.
+ */
+function draw_tint(
+    ctx: CanvasRenderingContext2D,
+    lamps: Lamp[],
+    sx: number,
+    sy: number,
+    mask: HTMLCanvasElement | null,
+) {
+    const coloured = lamps.filter((lamp) => lamp.color && lamp.polygon.length >= 3);
+    if (!coloured.length) return null;
+    const { width, height } = ctx.canvas;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.clearRect(0, 0, width, height);
+    ctx.globalCompositeOperation = "lighter";
+    for (const lamp of coloured) {
+        const cx = lamp.point[0] * sx;
+        const cy = lamp.point[1] * sy;
+        const radius = lamp.dim * sx;
+        const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        gradient.addColorStop(0, colour_alpha(lamp.color!, 0.45));
+        gradient.addColorStop(Math.min(0.95, lamp.bright / lamp.dim), colour_alpha(lamp.color!, 0.25));
+        gradient.addColorStop(1, colour_alpha(lamp.color!, 0));
+        ctx.save();
+        trace(ctx, lamp.polygon, sx, sy);
+        ctx.clip();
+        ctx.fillStyle = gradient;
+        ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+        ctx.restore();
+    }
+    if (mask) {
+        ctx.globalCompositeOperation = "destination-in";
+        ctx.drawImage(mask, 0, 0);
+    }
+    ctx.globalCompositeOperation = "source-over";
+    return ctx.getImageData(0, 0, width, height);
+}
+
+function colour_alpha(hex: string, alpha: number) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** The glow of the lights for the DM, who sees everything */
+export function compute_tint(columns: number, rows: number, lamps: Lamp[]) {
+    const width = Math.max(1, Math.min(1024, Math.round(columns * PIXELS_PER_CELL)));
+    const height = Math.max(1, Math.round((width * rows) / columns));
+    const [, , , tint_ctx] = contexts(width, height);
+    const tint = draw_tint(tint_ctx, lamps, width / columns, height / rows, null);
+    return tint && { width, height, tint };
+}
+
+/** How bright the lights make this spot without the figures, in cells */
+export function lit_at(sight: Sight, [x, y]: Point) {
+    const px = Math.min(sight.width - 1, Math.max(0, Math.floor(x * sight.scale_x)));
+    const py = Math.min(sight.height - 1, Math.max(0, Math.floor(y * sight.scale_y)));
+    return sight.lit[(py * sight.width + px) * 4];
 }
 
 /** How bright this spot is seen, in cells: 0 unseen, about 128 dim, 255 bright */
@@ -230,13 +315,9 @@ export function seen_at(sight: Sight, [x, y]: Point) {
 
 /** How bright a scene is without lights, from the ambient colour of an exported map */
 export function lighting_of_colour(colour: unknown): Lighting {
-    let hex = String(colour ?? "").replace("#", "").toLowerCase();
-    if (!/^[0-9a-f]{6}([0-9a-f]{2})?$/.test(hex)) return "bright";
-    if (hex.length === 8) {
-        // Alpha first or last, it is mostly ff
-        hex = hex.startsWith("ff") && !hex.endsWith("ff") ? hex.slice(2) : hex.slice(0, 6);
-    }
-    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const hex = hex_colour(colour);
+    if (!hex) return "bright";
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
     const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
     return luminance >= 0.75 ? "bright" : luminance >= 0.3 ? "dim" : "dark";
 }

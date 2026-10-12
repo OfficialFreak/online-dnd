@@ -4,7 +4,12 @@
  * lights measured in grid squares. https://arkenforge.com/universal-vtt-files/
  */
 import type { Door, Point, Wall } from "$lib/vision";
-import { lighting_of_colour, type Lighting, type SceneLight } from "$lib/lighting";
+import {
+    hex_colour,
+    lighting_of_colour,
+    type Lighting,
+    type SceneLight,
+} from "$lib/lighting";
 import { appState, gameState } from "$lib/state.svelte";
 import { PutScene, PutWalls } from "$lib/types/messaging/client_messages";
 import { MessageTypes, notify } from "$lib/notifications.svelte";
@@ -118,7 +123,7 @@ export function parse_uvtt(text: string): ImportedMap {
                 y,
                 bright: range / 2,
                 dim: range,
-                color: String(field(light, "color") ?? "#ffffff"),
+                color: hex_colour(field(light, "color")) ?? undefined,
                 on: true,
             };
         })

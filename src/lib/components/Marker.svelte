@@ -35,6 +35,9 @@
         mapUse = true,
         banner = false,
         interactive = true,
+        /** Blurred and faded, e.g. at the edge of what darkvision makes out, in pixels */
+        blur = 0,
+        fade = 0,
     } = $props();
     let markerElement: HTMLDivElement | null = $state(null);
     // The same object first, it stays the same marker if names ever repeat
@@ -184,6 +187,14 @@
     let conditions = $derived(effects.map((effect) => CONDITIONS[effect]));
     // Animations only play on the map, not in the initiative bar or previews
     let animated = $derived(mapUse && !banner);
+    let container_filter = $derived(
+        [
+            marker.hidden && mapUse ? "opacity(0.5)" : "",
+            blur > 0.2 ? `blur(${blur.toFixed(1)}px) opacity(${(1 - fade).toFixed(2)})` : "",
+        ]
+            .filter(Boolean)
+            .join(" "),
+    );
     /** Moving effects, everyone can turn them off when they slow their device down */
     let moving = $derived(animated && appState.motion);
     let image_filter = $derived(
@@ -291,7 +302,7 @@
         record_undo();
         const preset = LIGHT_PRESETS.find((preset) => preset.key === key);
         scene_marker.light = preset
-            ? { bright: preset.bright, dim: preset.dim }
+            ? { bright: preset.bright, dim: preset.dim, color: preset.color }
             : null;
         throttled_save();
     }
@@ -443,9 +454,8 @@
                 ? 'transition: width 0.05s ease-out'
                 : 'transition: transform 0.4s ease-out'}; transform: {prone
                 ? 'rotate(90deg)'
-                : 'none'}; animation: {animation || 'none'}; {marker.hidden &&
-            mapUse
-                ? 'filter: opacity(0.5);'
+                : 'none'}; animation: {animation || 'none'}; {container_filter
+                ? `filter: ${container_filter};`
                 : ''} {health
                 ? `background: conic-gradient(var(--background) ${health_degrees}deg, #ff002b73 ${health_degrees}deg) !important;`
                 : 'background: var(--background)'}"
@@ -719,8 +729,28 @@
                             >Licht und Dunkelsicht</legend
                         >
                         <div class="grid grid-cols-2 gap-2">
+                            <div class="flex gap-1 min-w-0">
+                            {#if scene_marker.light}
+                                <input
+                                    type="color"
+                                    class="w-8 h-8 shrink-0 cursor-pointer rounded bg-transparent"
+                                    aria-label="Farbe des Lichts"
+                                    value={scene_marker.light.color ??
+                                        preset_of(scene_marker.light)?.color ??
+                                        "#ffffff"}
+                                    onpointerdown={record_undo}
+                                    oninput={(event) => {
+                                        if (!scene_marker.light) return;
+                                        scene_marker.light = {
+                                            ...scene_marker.light,
+                                            color: event.currentTarget.value,
+                                        };
+                                        throttled_save();
+                                    }}
+                                />
+                            {/if}
                             <select
-                                class="select select-sm"
+                                class="select select-sm flex-1 min-w-0"
                                 aria-label="Licht, das die Figur trägt"
                                 value={preset_of(scene_marker.light)?.key ??
                                     (scene_marker.light ? "custom" : "")}
@@ -738,6 +768,7 @@
                                     >
                                 {/if}
                             </select>
+                            </div>
                             <label class="input input-sm">
                                 <input
                                     type="number"

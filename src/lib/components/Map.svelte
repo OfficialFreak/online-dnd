@@ -42,7 +42,10 @@
     import VisionLayer from "./VisionLayer.svelte";
     import {
         compute_sight,
+        compute_tint,
         LIGHT_PRESETS,
+        lit_at,
+        preset_of,
         scene_lights,
         SEEN,
         seen_at,
@@ -1250,6 +1253,7 @@
                           ),
                           bright: light.bright / 5,
                           dim: light.dim / 5,
+                          color: light.color,
                       };
                   })
             : [],
@@ -1270,6 +1274,7 @@
                           ),
                           bright: marker.light.bright / 5,
                           dim: marker.light.dim / 5,
+                          color: marker.light.color ?? preset_of(marker.light)?.color,
                       };
                   })
             : [],
@@ -1287,8 +1292,47 @@
             : null,
     );
 
+    /** The DM sees everything, the coloured glow of the lights too */
+    let dm_tint = $derived(
+        gameState.dm && !viewer && wall_index && map_rows
+            ? compute_tint(columns, map_rows, [...placed_lamps, ...carried_lamps])
+            : null,
+    );
+
     function seen(point: Point) {
         return !!sight && seen_at(sight, point) > SEEN;
+    }
+
+    /**
+     * How unclear a figure in the dark is: at the edge of what a light reaches or of the
+     * viewer's darkvision. 0 further inside, growing over the last 5 ft to 1 at the edge.
+     */
+    function dim_edge(marker: any) {
+        // A lit scene shows everything clearly
+        if (!sight || !wall_index || lighting !== "dark") return 0;
+        const center: Point = [
+            marker.x.current * columns + marker.size / 2,
+            marker.y.current * map_rows + marker.size / 2,
+        ];
+        // How many cells inside the best light or darkvision it stands
+        let inside = -Infinity;
+        for (const lamp of [...placed_lamps, ...carried_lamps]) {
+            const distance = Math.hypot(
+                center[0] - lamp.point[0],
+                center[1] - lamp.point[1],
+            );
+            if (distance - lamp.dim > 1 || !wall_index.sees(lamp.point, center)) continue;
+            inside = Math.max(inside, lamp.dim - distance);
+        }
+        for (const eye of eyes) {
+            if (eye.darkvision <= 0 || !wall_index.sees(eye.point, center)) continue;
+            const distance = Math.hypot(
+                center[0] - eye.point[0],
+                center[1] - eye.point[1],
+            );
+            inside = Math.max(inside, eye.darkvision - distance);
+        }
+        return Math.min(1, Math.max(0, 1 - inside));
     }
 
     /** Monsters and others out of the viewer's sight are hidden, the party always shows */
@@ -1419,15 +1463,42 @@
         );
     }
 
-    /** A click puts a light there, or turns the one there on or off */
+    /** The light whose colour and size the DM is changing */
+    let editing_light: string | null = $state(null);
+    let edited_light = $derived(
+        lights.find((light) => light.id === editing_light) ?? null,
+    );
+
+    $effect(() => {
+        if (appState.selectedTool !== Tools.Walls || wallState.mode !== "light") {
+            editing_light = null;
+        }
+    });
+
+    function edit_light(id: string, change: Partial<SceneLight>, record = true) {
+        if (!gameState.scene) return;
+        if (record) record_undo();
+        gameState.scene.state.lights = lights.map((light) =>
+            light.id === id ? { ...light, ...change } : light,
+        );
+        save_walls();
+    }
+
+    /** A click puts a light there, or opens the one there to change it */
     function place_light(px: number, py: number) {
         if (!gameState.scene) return;
         const near = light_at(px, py);
         if (near) {
-            gameState.scene.state.lights = lights.map((light) =>
-                light === near ? { ...light, on: light.on === false } : light,
-            );
-        } else {
+            editing_light = near.id;
+            return;
+        }
+        // The first click next to an open one closes it
+        if (editing_light) {
+            editing_light = null;
+            return;
+        }
+        record_undo();
+        {
             const preset =
                 LIGHT_PRESETS.find((preset) => preset.key === wallState.light) ??
                 LIGHT_PRESETS[1];
@@ -1440,6 +1511,7 @@
                     y,
                     bright: preset.bright,
                     dim: preset.dim,
+                    color: preset.color,
                     on: true,
                 },
             ];
@@ -1752,8 +1824,11 @@
             {#each non_player_markers as marker}
                 {@const hidden = !gameState.dm && in_fog(marker)}
                 {#if !out_of_sight(marker)}
+                {@const unclear = dim_edge(marker)}
                 <Marker
                     {marker}
+                    blur={unclear * (marker.size / columns) * w * 0.07}
+                    fade={unclear * 0.4}
                     dragOptions={{
                         ...dragOptions,
                         position: {
@@ -1834,7 +1909,19 @@
         </svg>
         {#if sight}
             <!-- What the figures don't see is darker, under the fog of what they never saw -->
-            <VisionLayer {sight} />
+            <VisionLayer
+                width={sight.width}
+                height={sight.height}
+                shade={sight.shade}
+                grey={sight.grey}
+                tint={sight.tint}
+            />
+        {:else if dm_tint}
+            <VisionLayer
+                width={dm_tint.width}
+                height={dm_tint.height}
+                tint={dm_tint.tint}
+            />
         {/if}
         <!-- Fog -->
         <canvas
@@ -1946,8 +2033,10 @@
                             cx={light.x * w}
                             cy={light.y * h}
                             r={7 / gesture_scale}
-                            fill={light.on === false ? "#78716c" : "#facc15"}
-                            stroke="black"
+                            fill={light.on === false
+                                ? "#78716c"
+                                : (light.color ?? "#facc15")}
+                            stroke={light.id === editing_light ? "white" : "black"}
                             stroke-width={1.5 / gesture_scale}
                         />
                     </g>
@@ -1961,6 +2050,98 @@
                     />
                 {/if}
             </svg>
+        {/if}
+        {#if edited_light && gameState.dm}
+            <!-- Above the layer that catches clicks for the tool, as wide at any zoom -->
+            <div
+                class="absolute z-20 bg-base-100 rounded-box shadow-lg p-2 flex flex-col gap-2 text-sm w-56"
+                style="left: {edited_light.x * w}px; top: {edited_light.y *
+                    h}px; transform-origin: left center; transform: translate({14 /
+                    gesture_scale}px, -50%) scale({1 / gesture_scale})"
+                role="dialog"
+                aria-label="Licht"
+                tabindex="-1"
+                onpointerdown={(event) => event.stopPropagation()}
+            >
+                <div class="flex items-center gap-2">
+                    <input
+                        type="color"
+                        class="w-9 h-8 shrink-0 cursor-pointer rounded bg-transparent"
+                        aria-label="Farbe des Lichts"
+                        value={edited_light.color ?? "#ffffff"}
+                        onpointerdown={record_undo}
+                        oninput={(event) =>
+                            edit_light(
+                                edited_light!.id,
+                                { color: event.currentTarget.value },
+                                false,
+                            )}
+                    />
+                    <select
+                        class="select select-sm flex-1 min-w-0"
+                        aria-label="Wie weit das Licht reicht"
+                        value={preset_of(edited_light)?.key ?? "custom"}
+                        onchange={(event) => {
+                            const preset = LIGHT_PRESETS.find(
+                                (preset) => preset.key === event.currentTarget.value,
+                            );
+                            if (preset) {
+                                edit_light(edited_light!.id, {
+                                    bright: preset.bright,
+                                    dim: preset.dim,
+                                });
+                            }
+                        }}
+                    >
+                        {#each LIGHT_PRESETS as preset (preset.key)}
+                            <option value={preset.key}
+                                >{preset.label} ({preset.bright}/{preset.dim} ft)</option
+                            >
+                        {/each}
+                        {#if !preset_of(edited_light)}
+                            <option value="custom"
+                                >{edited_light.bright}/{edited_light.dim} ft</option
+                            >
+                        {/if}
+                    </select>
+                </div>
+                <div class="flex gap-1">
+                    <button
+                        class="btn btn-sm flex-1"
+                        onclick={() =>
+                            edit_light(edited_light!.id, {
+                                on: edited_light!.on === false,
+                            })}
+                    >
+                        <i
+                            class="fa-solid {edited_light.on === false
+                                ? 'fa-lightbulb'
+                                : 'fa-power-off'}"
+                        ></i>
+                        {edited_light.on === false ? "Anmachen" : "Ausmachen"}
+                    </button>
+                    <button
+                        class="btn btn-sm btn-soft btn-error"
+                        aria-label="Licht löschen"
+                        onclick={() => {
+                            if (!gameState.scene) return;
+                            record_undo();
+                            const id = edited_light!.id;
+                            editing_light = null;
+                            gameState.scene.state.lights = lights.filter(
+                                (light) => light.id !== id,
+                            );
+                            save_walls();
+                        }}><i class="fa-solid fa-trash"></i></button
+                    >
+                    <button
+                        class="btn btn-sm btn-ghost btn-square"
+                        aria-label="Schließen"
+                        onclick={() => (editing_light = null)}
+                        ><i class="fa-solid fa-xmark"></i></button
+                    >
+                </div>
+            </div>
         {/if}
         {#if vision_on || (gameState.dm && appState.selectedTool === Tools.Walls)}
             <!-- Everyone opens and closes the doors, the DM locks them with a right click -->
