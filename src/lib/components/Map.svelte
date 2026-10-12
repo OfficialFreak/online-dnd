@@ -1398,17 +1398,35 @@
             map_rows = Math.round(now * 1000) / 1000;
         }
     });
+    /**
+     * The props as plain values for the sight and the light. Read as props they are read
+     * through the scene, and every scene the server sends anew, on each figure moved,
+     * counted as a change: the walls and all lights were worked out again each time.
+     */
+    let grid_columns = $derived(columns);
+    let grid_x_offset = $derived(x_offset);
+    let grid_y_offset = $derived(y_offset);
     let walls: Wall[] = $derived(
         editable ? (gameState.scene?.state.walls ?? []) : [],
     );
     let doors: Door[] = $derived(
         editable ? (gameState.scene?.state.doors ?? []) : [],
     );
-    let segments = $derived(
-        vision_on && map_rows ? wall_segments(walls, doors, columns, map_rows) : [],
+    /**
+     * The walls and doors as text. The server sends the whole scene anew on every change,
+     * e.g. each figure moved, with walls and lights as new objects: built from those, the
+     * walls and every light were worked out anew each time, 70 ms on a big map. Now only
+     * when they really changed.
+     */
+    let walls_key = $derived(
+        vision_on && map_rows ? JSON.stringify([walls, doors, grid_columns, map_rows]) : "",
     );
+    let segments = $derived.by(() => {
+        if (!walls_key) return [];
+        return untrack(() => wall_segments(walls, doors, grid_columns, map_rows));
+    });
     let wall_index = $derived(
-        vision_on && map_rows ? new WallIndex(segments, columns, map_rows) : null,
+        vision_on && map_rows ? new WallIndex(segments, grid_columns, map_rows) : null,
     );
 
     /**
@@ -1416,18 +1434,20 @@
      * wall, a fogged corridor hides the room behind it. Lights shine through, the fog only
      * hides things from the player.
      */
+    let fog_key = $derived(fog_squares ? fog_squares.join(",") : "");
     let fog_edges: Segment[] = $derived.by(() => {
-        if (!wall_index || !fog_squares || !size) return [];
+        if (!wall_index || !fog_key || !size) return [];
+        const ox = grid_x_offset / size;
+        const oy = grid_y_offset / size;
+        const fog = untrack(() => fog_squares);
         const fogged = (x: number, y: number) =>
-            x >= 0 && y >= 0 && x < columns && y < rows && isFogAt(fog_squares, x, y);
-        const ox = x_offset / size;
-        const oy = y_offset / size;
+            x >= 0 && y >= 0 && x < grid_columns && y < rows && isFogAt(fog, x, y);
         const edges: Segment[] = [];
         // Where a fogged cell meets a clear one, joined into runs along the grid
         for (let y = 0; y <= rows; y++) {
             let start = -1;
-            for (let x = 0; x <= columns; x++) {
-                const edge = x < columns && fogged(x, y) !== fogged(x, y - 1);
+            for (let x = 0; x <= grid_columns; x++) {
+                const edge = x < grid_columns && fogged(x, y) !== fogged(x, y - 1);
                 if (edge && start < 0) start = x;
                 if (!edge && start >= 0) {
                     edges.push([start + ox, y + oy, x + ox, y + oy]);
@@ -1435,7 +1455,7 @@
                 }
             }
         }
-        for (let x = 0; x <= columns; x++) {
+        for (let x = 0; x <= grid_columns; x++) {
             let start = -1;
             for (let y = 0; y <= rows; y++) {
                 const edge = y < rows && fogged(x, y) !== fogged(x - 1, y);
@@ -1451,7 +1471,7 @@
     /** The walls and the viewer's fog, for what the viewer's figures see */
     let sight_index = $derived(
         wall_index && fog_edges.length
-            ? new WallIndex([...segments, ...fog_edges], columns, map_rows)
+            ? new WallIndex([...segments, ...fog_edges], grid_columns, map_rows)
             : wall_index,
     );
     /** Whose sight the map shows: the player's own, or the one the DM looks through */
@@ -1463,14 +1483,42 @@
             : gameState.name,
     );
     let lighting: Lighting = $derived(gameState.scene?.state.lighting ?? "bright");
-    let lights: SceneLight[] = $derived(
-        editable ? scene_lights(gameState.scene?.state.lights) : [],
+    let lights_key = $derived(
+        editable ? JSON.stringify(gameState.scene?.state.lights ?? []) : "",
     );
+    let lights: SceneLight[] = $derived.by(() => {
+        if (!lights_key) return [];
+        return untrack(() => scene_lights(gameState.scene?.state.lights));
+    });
+
+    /**
+     * Keeps what was worked out from the same things: a new array of the same figures from
+     * the server keeps the polygons, and what is drawn from them, as they were.
+     */
+    function same<T>(cache: { key: string; value: T | null }, key: string, make: () => T): T {
+        if (cache.value !== null && cache.key === key) return cache.value;
+        cache.key = key;
+        cache.value = make();
+        return cache.value;
+    }
+    const eyes_cache: { key: string; value: (Eye & { index: WallIndex })[] | null } = {
+        key: "",
+        value: null,
+    };
+    const carried_cache: { key: string; value: Lamp[] | null } = { key: "", value: null };
+    /** Which index was used, as text for the caches */
+    const index_ids = new WeakMap<WallIndex, number>();
+    let next_index_id = 0;
+    function index_id(index: WallIndex | null) {
+        if (!index) return -1;
+        if (!index_ids.has(index)) index_ids.set(index, next_index_id++);
+        return index_ids.get(index)!;
+    }
 
     /** The middle of a marker where it is going, in cells */
     function marker_center(marker: any): Point {
         return [
-            marker.x.target * columns + marker.size / 2,
+            marker.x.target * grid_columns + marker.size / 2,
             marker.y.target * map_rows + marker.size / 2,
         ];
     }
@@ -1481,9 +1529,9 @@
         const character = gameState.characters.find(
             (char) => char.player_name === viewer,
         );
-        return markers
+        const seeing: { point: Point; feet: number; index: WallIndex }[] = markers
             .filter((marker: any) => marker.name === character?.name)
-            .map((marker: any) => {
+            .map((marker: any): { point: Point; feet: number; index: WallIndex } => {
                 const point = marker_center(marker);
                 const feet =
                     marker.darkvision ??
@@ -1493,17 +1541,22 @@
                 // A figure standing in fog itself would see nothing at all
                 const in_fog = isFogAt(
                     fog_squares,
-                    Math.floor(point[0] - x_offset / size),
-                    Math.floor(point[1] - y_offset / size),
+                    Math.floor(point[0] - grid_x_offset / size),
+                    Math.floor(point[1] - grid_y_offset / size),
                 );
-                const index = in_fog ? wall_index! : sight_index!;
-                return {
-                    point,
-                    polygon: visibility_polygon(index, point),
-                    darkvision: feet / 5,
-                    index,
-                };
+                return { point, feet, index: in_fog ? wall_index! : sight_index! };
             });
+        const key = JSON.stringify(
+            seeing.map(({ point, feet, index }) => [point, feet, index_id(index)]),
+        );
+        return same(eyes_cache, key, () =>
+            seeing.map(({ point, feet, index }) => ({
+                point,
+                polygon: visibility_polygon(index, point),
+                darkvision: feet / 5,
+                index,
+            })),
+        );
     });
     /** The lights on the map, what they reach only changes with the walls and doors */
     let placed_lamps: Lamp[] = $derived(
@@ -1511,7 +1564,7 @@
             ? lights
                   .filter((light) => light.on !== false)
                   .map((light) => {
-                      const point: Point = [light.x * columns, light.y * map_rows];
+                      const point: Point = [light.x * grid_columns, light.y * map_rows];
                       return {
                           point,
                           polygon: visibility_polygon(
@@ -1527,43 +1580,41 @@
             : [],
     );
     /** Torches and the like the figures carry, everyone sees their light */
-    let carried_lamps: Lamp[] = $derived(
-        wall_index
-            ? markers
-                  .filter((marker: any) => marker.light?.dim > 0 && !marker.hidden)
-                  .map((marker: any) => {
-                      const point = marker_center(marker);
-                      return {
-                          point,
-                          polygon: visibility_polygon(
-                              wall_index!,
-                              point,
-                              marker.light.dim / 5,
-                          ),
-                          bright: marker.light.bright / 5,
-                          dim: marker.light.dim / 5,
-                          color: marker.light.color ?? preset_of(marker.light)?.color,
-                      };
-                  })
-            : [],
-    );
+    let carried_lamps: Lamp[] = $derived.by(() => {
+        if (!wall_index) return [];
+        const carrying: Omit<Lamp, "polygon">[] = markers
+            .filter((marker: any) => marker.light?.dim > 0 && !marker.hidden)
+            .map((marker: any): Omit<Lamp, "polygon"> => ({
+                point: marker_center(marker),
+                bright: marker.light.bright / 5,
+                dim: marker.light.dim / 5,
+                color: marker.light.color ?? preset_of(marker.light)?.color,
+            }));
+        const key = JSON.stringify([carrying, index_id(wall_index)]);
+        return same(carried_cache, key, () =>
+            carrying.map((lamp) => ({
+                ...lamp,
+                polygon: visibility_polygon(wall_index!, lamp.point, lamp.dim),
+            })),
+        );
+    });
     /** The scene's light and its placed lights, only new when they or the walls change */
     let base = $derived(
         wall_index && map_rows
-            ? light_base(columns, map_rows, lighting, placed_lamps)
+            ? light_base(grid_columns, map_rows, lighting, placed_lamps)
             : null,
     );
     /** How well the viewer sees every spot, with the lights and darkvision */
     let sight: Sight | null = $derived(
         base && viewer
-            ? compute_sight(base, columns, map_rows, carried_lamps, eyes)
+            ? compute_sight(base, grid_columns, map_rows, carried_lamps, eyes)
             : null,
     );
 
     /** The DM sees everything, the coloured glow of the lights too */
     let dm_tint = $derived(
         gameState.dm && !viewer && base
-            ? compute_tint(base, columns, map_rows, carried_lamps)
+            ? compute_tint(base, grid_columns, map_rows, carried_lamps)
             : null,
     );
 
