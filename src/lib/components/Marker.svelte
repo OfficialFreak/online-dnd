@@ -475,16 +475,23 @@
                 : 'background: var(--background)'}"
         >
             <!-- A banner is taller than wide and the image fills it. Square, an animated
-                 portrait's video sat lower than its still image, with a dark bar above. -->
-            <Display
-                alt={marker.name}
-                class={"w-full mask object-cover object-top pointer-events-auto drag-none " +
+                 portrait's video sat lower than its still image, with a dark bar above.
+                 The mask on a box around the image, not on the image: Firefox and Zen
+                 sized a masked image's mask by the picture's own size, it stayed that
+                 large at any zoom and cut the image in its top left corner. -->
+            <div
+                class={"w-full mask pointer-events-none flex " +
                     (banner ? "h-full mask-banner" : "aspect-square mask-hexagon")}
-                hoverVideoOnly={true}
-                thumbnail={!(mapUse || banner)}
-                asset={marker.file}
-                style={image_filter ? `filter: ${image_filter};` : ""}
-            />
+            >
+                <Display
+                    alt={marker.name}
+                    class="w-full h-full object-cover object-top pointer-events-auto drag-none"
+                    hoverVideoOnly={true}
+                    thumbnail={!(mapUse || banner)}
+                    asset={marker.file}
+                    style={image_filter ? `filter: ${image_filter};` : ""}
+                />
+            </div>
         </div>
         </div>
         {#if animated && interactive && effects.length > 0}
