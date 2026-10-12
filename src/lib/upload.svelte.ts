@@ -1,12 +1,14 @@
-import { fileTypeFromBuffer } from "file-type";
+import { fileTypeFromBlob } from "file-type";
 import { appState } from "./state.svelte";
 import { in_tauri } from "./platform";
 import { MessageTypes, notify } from "./notifications.svelte";
 
-// Keep in sync with MAX_UPLOAD_SIZE in dnd-online-server/src/constants.rs
+// Keep in sync with MAX_UPLOAD_SIZE and MAX_VIDEO_SIZE in dnd-online-server/src/constants.rs
 const MAX_UPLOAD_MB = 50;
+const MAX_VIDEO_MB = 400;
 
-export const uploadState = $state({ uploading: false });
+/** While uploading, how much of the file the server has, from 0 to 1 */
+export const uploadState = $state({ uploading: false, progress: null as number | null });
 
 /** Uploads a file and returns the asset name it is stored under, or null if the upload failed. */
 async function upload_file(
@@ -30,11 +32,38 @@ async function upload_file(
     return await upload_content(fileContent, selectedFileName);
 }
 
-/** Uploads the content of a file, see upload_file */
+/** Sends a file to the server, following the progress. Null if it wasn't reachable. */
+function post_file(file: Blob, file_name: string) {
+    return new Promise<{ status: number; text: string } | null>((resolve) => {
+        const form = new FormData();
+        form.append("file", file, file_name);
+        const request = new XMLHttpRequest();
+        request.open(
+            "POST",
+            `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets?key=${encodeURIComponent(appState.token ?? "")}`,
+        );
+        uploadState.progress = 0;
+        request.upload.addEventListener("progress", (event) => {
+            if (event.lengthComputable) uploadState.progress = event.loaded / event.total;
+        });
+        request.addEventListener("load", () =>
+            resolve({ status: request.status, text: request.responseText }),
+        );
+        request.addEventListener("error", () => resolve(null));
+        request.addEventListener("abort", () => resolve(null));
+        request.send(form);
+    }).finally(() => (uploadState.progress = null));
+}
+
+/**
+ * Uploads the content of a file, see upload_file. A File a browser picked goes straight
+ * from the disk, also in the desktop app: a video can be a few hundred MB.
+ */
 async function upload_content(
-    fileContent: Uint8Array,
+    content: Uint8Array | Blob,
     selectedFileName: string,
 ): Promise<string | null> {
+    const file = content instanceof Blob ? content : new Blob([content as BlobPart]);
     if (!appState.token) {
         notify(
             "Hochladen fehlgeschlagen: Du bist nicht angemeldet.",
@@ -44,46 +73,29 @@ async function upload_content(
         return null;
     }
 
-    // Fail fast: the upload would be rejected anyway, and huge files are slow to hand over to Tauri
-    if (fileContent.byteLength > MAX_UPLOAD_MB * 1_000_000) {
+    // Fail fast, the upload would be rejected anyway
+    const fileType = await fileTypeFromBlob(file).catch(() => undefined);
+    const video = !!fileType?.mime.startsWith("video/");
+    const max_mb = video ? MAX_VIDEO_MB : MAX_UPLOAD_MB;
+    if (file.size > max_mb * 1_000_000) {
         notify(
-            `Die Datei ist zu groß (maximal ${MAX_UPLOAD_MB} MB).`,
+            `Die Datei ist zu groß (maximal ${max_mb} MB).`,
             MessageTypes.Error,
             8000,
         );
         return null;
     }
 
-    const fileType = await fileTypeFromBuffer(fileContent);
-
-    if (fileType && fileType.mime.startsWith("video/")) {
+    if (video) {
         notify(
-            "Die Datei wird auf dem Server konvertiert, weshalb der Upload einige Minuten dauern kann.",
+            "Videos werden auf dem Server bei Bedarf umgewandelt, das kann ein paar Minuten dauern.",
             MessageTypes.Info,
             5000,
         );
     }
 
-    // Create form data using Tauri's HTTP client
-    const formData = new FormData();
-    const blob = new Blob([fileContent]);
-    formData.append("file", blob, selectedFileName);
-
-    // Tauri's fetch in the desktop app, it isn't held back by the browser's CORS checks
-    const http_fetch = in_tauri
-        ? (await import("@tauri-apps/plugin-http")).fetch
-        : window.fetch.bind(window);
-    let response: Response;
-    try {
-        response = await http_fetch(
-            `${appState.secure ? "https://" : "http://"}${appState.baseUrl}/assets?key=${encodeURIComponent(appState.token)}`,
-            {
-                method: "POST",
-                body: formData,
-            },
-        );
-    } catch (e) {
-        console.error("Upload request failed", e);
+    const response = await post_file(file, selectedFileName);
+    if (!response) {
         notify(
             "Hochladen fehlgeschlagen: Der Server ist nicht erreichbar.",
             MessageTypes.Error,
@@ -92,13 +104,10 @@ async function upload_content(
         return null;
     }
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
         // The server answers with a message meant for the user
-        const reason = await response.text().catch(() => "");
-        console.error(
-            `Upload failed: ${response.status} ${response.statusText}`,
-            reason,
-        );
+        const reason = response.text;
+        console.error(`Upload failed: ${response.status}`, reason);
         notify(
             reason
                 ? `Hochladen fehlgeschlagen: ${reason}`
@@ -109,7 +118,7 @@ async function upload_content(
         return null;
     }
 
-    const asset = await response.text().catch(() => "");
+    const asset = response.text;
     if (!asset) {
         notify(
             "Hochladen fehlgeschlagen: Der Server hat keinen Dateinamen zurückgegeben.",
@@ -131,7 +140,7 @@ export function file_stem_of(path: string) {
 
 /** Uploads a file made in the app, e.g. a monster's picture, and returns its asset name */
 export async function upload_bytes(
-    bytes: Uint8Array,
+    bytes: Uint8Array | Blob,
     file_name: string,
 ): Promise<string | null> {
     uploadState.uploading = true;
@@ -162,12 +171,21 @@ const AUDIO_EXTENSIONS = ["mp3", "ogg", "opus", "wav", "m4a", "flac"];
 
 /** The browser's file picker, there are no paths there */
 function choose_file(accept: string): Promise<File | null> {
+    return choose_files(accept, false).then((files) => files[0] ?? null);
+}
+
+/**
+ * The browser's file picker for one or more files, none if canceled. It works in the
+ * desktop app too, and its files are read straight from the disk.
+ */
+export function choose_files(accept: string, multiple = true): Promise<File[]> {
     return new Promise((resolve) => {
         const input = document.createElement("input");
         input.type = "file";
         input.accept = accept;
-        input.addEventListener("change", () => resolve(input.files?.[0] ?? null));
-        input.addEventListener("cancel", () => resolve(null));
+        input.multiple = multiple;
+        input.addEventListener("change", () => resolve([...(input.files ?? [])]));
+        input.addEventListener("cancel", () => resolve([]));
         input.click();
     });
 }
@@ -244,7 +262,7 @@ export async function pick_text(
 /** Uploads a picked file, its path in the desktop app or the File in a browser */
 export async function upload_picked(picked: string | File): Promise<string | null> {
     if (typeof picked === "string") return await upload_path(picked);
-    return await upload_bytes(new Uint8Array(await picked.arrayBuffer()), picked.name);
+    return await upload_bytes(picked, picked.name);
 }
 
 /** Uploads the file at path, or one the user picks without a path. Null if canceled or failed. */

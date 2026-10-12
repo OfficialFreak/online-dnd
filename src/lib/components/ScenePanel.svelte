@@ -193,7 +193,11 @@
     >
         {#if uploadState.uploading}
             <span class="loading loading-spinner"></span>
-            Wird hochgeladen…
+            {#if uploadState.progress === null || uploadState.progress >= 1}
+                Wird verarbeitet…
+            {:else}
+                Wird hochgeladen… {Math.round(uploadState.progress * 100)} %
+            {/if}
         {:else}
             <i class="fa-solid fa-dungeon"></i> Karte mit Wänden importieren
         {/if}
