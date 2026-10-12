@@ -189,9 +189,12 @@
         ctx.filter = "none";
     }
 
-    /** Looks where the map is on the next frame, drawing the light if it moved */
+    /**
+     * Looks where the map is once the next frame is drawn, drawing the light if it moved.
+     * Asked before, the page laid itself out once more on every step of a zoom.
+     */
     function request() {
-        if (!frame) frame = requestAnimationFrame(update);
+        if (!frame) frame = requestAnimationFrame(() => setTimeout(update, 0));
     }
 
     function update() {

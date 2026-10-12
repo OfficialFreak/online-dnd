@@ -68,6 +68,7 @@
     // @ts-ignore
     import confetti from "canvas-confetti";
     import { billows, smoothstep } from "$lib/noise";
+    import { FOG_TEXTURE_SCALE, fog_texture } from "$lib/fog-texture";
 
     let {
         file,
@@ -127,22 +128,15 @@
     let ruler_size: null | number = $state(null);
     let ruler_angle: null | number = $state(null);
 
-    let fogImg = new Image(0, 0);
-    fogImg.src = "fog.jpg";
-    let fogPattern: CanvasPattern | null = $state(null);
-    fogImg.onload = () => {
-        if (!fogCtx) return;
-        const pattern = fogCtx.createPattern(fogImg, "repeat");
-        if (pattern) {
-            fogPattern = pattern;
-        }
-    };
+    /** The fog's texture, blurred once, see fog-texture */
+    let fogTexture: HTMLCanvasElement | null = $state(null);
     $effect(() => {
-        if (!fogCtx || !editable) return;
-        const pattern = fogCtx.createPattern(fogImg, "repeat");
-        if (pattern) {
-            fogPattern = pattern;
-        }
+        if (editable) fog_texture().then((texture) => (fogTexture = texture));
+    });
+    let fogPattern: CanvasPattern | null = $state(null);
+    $effect(() => {
+        if (!fogCtx || !editable || !fogTexture) return;
+        fogPattern = fogCtx.createPattern(fogTexture, "repeat");
     });
 
     function setFogAt(
@@ -234,14 +228,12 @@
         }
         ctx.fillStyle = "#cccccc";
         ctx.fill();
-        const pattern = ctx.createPattern(fogImg, "repeat");
+        const pattern = fogTexture && ctx.createPattern(fogTexture, "repeat");
         if (pattern) {
             ctx.globalCompositeOperation = "source-in";
-            pattern.setTransform(new DOMMatrix().scale(layout_zoom));
+            pattern.setTransform(new DOMMatrix().scale(layout_zoom * FOG_TEXTURE_SCALE));
             ctx.fillStyle = pattern;
-            ctx.filter = `blur(${5 * fog_resolution * layout_zoom}px)`;
             ctx.fillRect(left - 5, top - 5, right - left + 10, bottom - top + 10);
-            ctx.filter = "none";
         }
 
         const shown = document.createElement("canvas");
@@ -412,12 +404,11 @@
             if (fogPattern && !painting) {
                 fogCtx.globalCompositeOperation = "source-in";
                 // The texture grows with the map, like at the zoom it was made for
-                fogPattern.setTransform(new DOMMatrix().scale(layout_zoom));
+                fogPattern.setTransform(
+                    new DOMMatrix().scale(layout_zoom * FOG_TEXTURE_SCALE),
+                );
                 fogCtx.fillStyle = fogPattern;
-                // The blur works in pixels of the canvas, not of the map
-                fogCtx.filter = `blur(${5 * fog_resolution * layout_zoom}px)`;
                 fogCtx.fillRect(-5, -5, w + 10, h + 10);
-                fogCtx.filter = "none";
             }
         }
     });
@@ -1039,14 +1030,21 @@
             Math.max(0, (room - size * zoom) / 2),
         );
     }
+    /**
+     * Room the title bar takes above the page. Read on every zoom step it made the browser
+     * work out all styles anew, it only changes with the window and the folded controls.
+     */
+    let titlebar_room = $state(30);
+    $effect(() => {
+        window_w;
+        window_h;
+        appState.controls_open;
+        requestAnimationFrame(() => {
+            titlebar_room = parseFloat(getComputedStyle(document.body).marginTop) || 30;
+        });
+    });
     let zoom_offset_x = $derived(centered(base_w, window_w));
-    let zoom_offset_y = $derived(
-        centered(
-            base_h,
-            window_h -
-                (parseFloat(getComputedStyle(document.body).marginTop) || 30),
-        ),
-    );
+    let zoom_offset_y = $derived(centered(base_h, window_h - titlebar_room));
     let map_element: HTMLDivElement | null = $state(null);
 
     $effect(() => {
@@ -1117,7 +1115,7 @@
         const old_zoom = appState.zoom;
         new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), MAX_ZOOM);
         // The tolerance keeps rounding errors from stopping again right after a stop
-        const titlebar = parseFloat(getComputedStyle(document.body).marginTop) || 30;
+        const titlebar = titlebar_room;
         const fit_height = (window.innerHeight - titlebar) / base_h;
         for (const stop of [1, fit_height]) {
             const at_stop = Math.abs(old_zoom - stop) < 0.001;
@@ -1388,9 +1386,18 @@
     // out in cells, the walls are stored as fractions of the map.
     let vision_on = $derived(editable && !!gameState.scene?.state.vision);
     /** The map's height in cells */
-    let map_rows = $derived(
-        w && h ? Math.round(((columns * h) / w) * 1000) / 1000 : 0,
-    );
+    /**
+     * Rows of the map, from its shape. The sizes rounded after a zoom changed it in the
+     * third decimal, which built the walls and every light anew: only a real change counts.
+     */
+    let map_rows = $state(0);
+    $effect(() => {
+        const now = w && h ? (columns * h) / w : 0;
+        const known = untrack(() => map_rows);
+        if (!now || Math.abs(now - known) > Math.max(0.05, known * 0.005)) {
+            map_rows = Math.round(now * 1000) / 1000;
+        }
+    });
     let walls: Wall[] = $derived(
         editable ? (gameState.scene?.state.walls ?? []) : [],
     );
