@@ -173,7 +173,9 @@
 </script>
 
 <dialog bind:this={dialog} class="modal scrollbar-gutter-affected">
-    <div class="modal-box">
+    <!-- With room kept for the scrollbar: the preview is shorter when narrower, so it
+         would take the scrollbar away again and bring it back, flickering -->
+    <div class="modal-box [scrollbar-gutter:stable]">
         <h3 class="text-lg font-bold">
             {editing ? "Szene bearbeiten" : "Szene erstellen"}
         </h3>
