@@ -1688,11 +1688,12 @@
     ></div>
 {/if}
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- Marker menus may reach past the bottom of a wide map, on a tablet the window is
-     taller than the map. With the selection tool a finger draws a box instead of panning. -->
+<!-- Marker menus may reach past the edges of the map, they only keep on the screen: a
+     narrow map leaves room beside it, on a tablet the window is taller than the map. With
+     the selection tool a finger draws a box instead of panning. -->
 <div
     class="relative select-none {editable
-        ? 'overflow-x-clip'
+        ? ''
         : 'overflow-hidden'} {appState.selectedTool === Tools.Select
         ? 'touch-none'
         : ''}"
