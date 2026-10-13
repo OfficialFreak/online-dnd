@@ -33,6 +33,7 @@
         follow_server_update,
         look_for_update,
         look_for_update_on_opening,
+        tidy_address,
     } from "$lib/updates.svelte";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
@@ -1047,6 +1048,7 @@
     );
 
     invoke_tauri("frontend_ready");
+    tidy_address();
     look_for_update_on_opening();
 
     let cw = $state();

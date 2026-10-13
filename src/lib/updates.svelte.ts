@@ -51,11 +51,17 @@ export async function look_for_update() {
             });
         } else {
             if (!updated.current && !(await updated.check())) return;
+            // Just loaded for an update and still not the new one: once more would only
+            // show the portal again, in a loop
+            if (reloaded_lately()) {
+                console.warn("Loaded anew for an update, but still the old version");
+                return;
+            }
             applying = true;
             close_dialogs();
             await portal_update(async () => {
                 await leave();
-                location.reload();
+                reload_fresh();
             });
         }
     } catch (e) {
@@ -63,6 +69,37 @@ export async function look_for_update() {
     } finally {
         applying = false;
     }
+}
+
+const RELOADED_AT = "reloaded_for_update";
+
+function reloaded_lately() {
+    try {
+        return Date.now() - Number(sessionStorage.getItem(RELOADED_AT) ?? 0) < 2 * 60 * 1000;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Loads the page anew under an address the browser has kept nothing for: a plain reload
+ * gave Safari on an iPhone the old page again, which found the update again
+ */
+function reload_fresh() {
+    try {
+        sessionStorage.setItem(RELOADED_AT, String(Date.now()));
+    } catch {}
+    const url = new URL(location.href);
+    url.searchParams.set("v", Date.now().toString(36));
+    location.replace(url);
+}
+
+/** The address without what reload_fresh added, once the page is there */
+export function tidy_address() {
+    const url = new URL(location.href);
+    if (!url.searchParams.has("v")) return;
+    url.searchParams.delete("v");
+    history.replaceState(history.state, "", url);
 }
 
 let following: ReturnType<typeof setInterval> | undefined;
