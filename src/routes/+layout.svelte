@@ -3,7 +3,7 @@
     import { getVersion } from "@tauri-apps/api/app";
     import "../app.css";
     // Measures early how short iOS lays the page out, before anything is fixed to the bottom
-    import "$lib/viewport.svelte";
+    import { viewport } from "$lib/viewport.svelte";
     import "@fortawesome/fontawesome-free/css/all.min.css";
 
     import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -1370,6 +1370,12 @@
                     />
                     Stumm
                 </label>
+                {#if viewport.report}
+                    <!-- TEMPORARY: finds the gap at the bottom on the iPhone -->
+                    <p class="text-[10px] leading-tight opacity-60 font-mono max-w-56 select-text">
+                        {viewport.report}
+                    </p>
+                {/if}
             </div>
         </div>
         </div>
