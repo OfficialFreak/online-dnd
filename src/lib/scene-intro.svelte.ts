@@ -49,6 +49,13 @@ export function register_intro(shown: Intro | null) {
     // in as the portal opens.
     hold_sound();
     shown.knock().then(release_sound);
+    // The scene came first: the desktop app connects behind its loading screen, before
+    // the page with the map is there
+    if (gameState.scene) {
+        opening = false;
+        shown.lift(loaded(gameState.scene.map));
+        return;
+    }
     // Without a scene to show, e.g. none is active, it draws back on its own
     setTimeout(() => {
         if (!opening) return;
@@ -84,10 +91,11 @@ export async function change_scene(
         return;
     }
     if (opening) {
+        show(scene);
+        // Before the page with the map is there, it opens through the portal then
+        if (!intro) return;
         // The first scene as the app opens, behind the smoke that covers it already
         opening = false;
-        show(scene);
-        if (!intro) return;
         await tick();
         await drawn();
         intro.lift(loaded(scene.map));
