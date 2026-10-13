@@ -104,7 +104,9 @@ export function route_audio(audio: HTMLAudioElement) {
             : assets_same_origin();
         if (!same_origin) return;
         if (!context) {
-            context = new AudioContext();
+            // A larger buffer than for quick effects: music has time, and on a busy
+            // iPhone, e.g. while zooming the map, the small one ran dry and crackled
+            context = new AudioContext({ latencyHint: "playback" });
             // It starts halted without a tap, and iOS halts it in the background
             // iOS lets a touch start sound only once it lifts
             for (const type of ["pointerdown", "touchend", "click", "visibilitychange"]) {
@@ -132,8 +134,15 @@ function level(audio: HTMLAudioElement) {
 /** The volume of a sound from 0 to 1, by its gain node or by itself */
 export function set_audio_level(audio: HTMLAudioElement, value: number) {
     const gain = gains.get(audio);
-    if (gain) gain.gain.value = value;
-    else audio.volume = value;
+    if (gain) {
+        // Glides there within a few hundredths of a second: set at once, every step of a
+        // fade clicked
+        const now = gain.context.currentTime;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setTargetAtTime(value, now, 0.015);
+    } else {
+        audio.volume = value;
+    }
 }
 
 // iOS lets an audio element play only once a tap started it, and a new element for each
