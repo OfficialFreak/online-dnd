@@ -2,7 +2,6 @@ import { asset_url } from "./assets";
 import { in_tauri } from "./platform";
 import type { TabletopTrack } from "./sound-library";
 import { appState, ensureStore } from "./state.svelte";
-import { MessageTypes, notify } from "./notifications.svelte";
 
 /** Music or a sound effect the DM can play for everyone */
 export type Sound = {
@@ -432,47 +431,16 @@ if (typeof document !== "undefined") {
     for (let i = 0; i < 3; i++) new_loop_player();
 }
 
-let told_to_tap = false;
-
 /**
- * Whether the browser plays no sound before a tap or click, as on iPhones: a moment of
- * silence it refuses to play tells
+ * iOS plays sound only after a tap, then the next tap starts it. The opening asks for one,
+ * entering the portal, a hint to tap came up besides it before.
  */
-export async function sound_needs_tap() {
-    if (typeof Audio === "undefined") return false;
-    const probe = new Audio(SILENCE);
-    const answer = probe.play().then(
-        () => {
-            probe.pause();
-            return false;
-        },
-        (e) => (e as Error)?.name === "NotAllowedError",
-    );
-    // Without an answer the app opens anyway
-    const late = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500));
-    return Promise.race([answer, late]);
-}
-
-/** The opening asks for the tap itself, the music needn't ask for one too */
-export function tap_asked() {
-    told_to_tap = true;
-}
-
-/** iOS plays sound only after a tap, then the next tap starts it */
 function play_or_wait(audio: HTMLAudioElement) {
     // Comes back when the recording ends
     if (held) return;
     wake_audio();
     audio.play().catch((e) => {
         console.error("Playing music failed", e);
-        if (e?.name === "NotAllowedError" && !told_to_tap) {
-            told_to_tap = true;
-            notify(
-                "Tipp kurz irgendwo hin, dann hörst du die Musik",
-                MessageTypes.Info,
-                5000,
-            );
-        }
         document.addEventListener(
             "pointerdown",
             () => {

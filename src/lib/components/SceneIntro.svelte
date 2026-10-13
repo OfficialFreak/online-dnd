@@ -165,8 +165,8 @@
     }
 
     /**
-     * Opening where the browser plays no sound before a tap, the smoke covers everything
-     * and asks for one: it lets the music play, a hint to tap came while it did before
+     * Opening the app the smoke covers everything and asks for a tap to enter the portal,
+     * which lets the music play too
      */
     let knocking = $state(false);
     /** Resolved once there is no tap to wait for, or it came */
@@ -175,19 +175,16 @@
     const touch =
         typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
 
-    function knock(needed: Promise<boolean>) {
-        knocked = needed.then((needed) => {
-            if (!needed) return;
-            above = true;
-            knocking = true;
-            return new Promise<void>((resolve) => {
-                enter = () => {
-                    if (!knocking) return;
-                    knocking = false;
-                    above = false;
-                    resolve();
-                };
-            });
+    function knock() {
+        above = true;
+        knocking = true;
+        knocked = new Promise<void>((resolve) => {
+            enter = () => {
+                if (!knocking) return;
+                knocking = false;
+                above = false;
+                resolve();
+            };
         });
     }
 
