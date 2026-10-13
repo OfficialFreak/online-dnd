@@ -1133,18 +1133,14 @@
         if (zooming) settle_later();
     });
 
-    // Zooming in makes the page scrollable to the right and bottom. Below 100% the map
-    // shrinks towards its center, and a map taller than the window towards the middle
-    // of the window, not of its own height, which would put it far down.
+    // Zooming in makes the page scrollable to the right and bottom. A map smaller than
+    // the window sits in its middle, also at 100% on a phone, where it fills the width
+    // but not the height and sat at the top.
     let window_w = $state(0);
     let window_h = $state(0);
     function centered(size: number, room: number) {
-        const zoom = appState.zoom;
-        if (!editable || zoom >= 1) return 0;
-        return Math.min(
-            (size * (1 - zoom)) / 2,
-            Math.max(0, (room - size * zoom) / 2),
-        );
+        if (!editable) return 0;
+        return Math.max(0, (room - size * appState.zoom) / 2);
     }
     /**
      * Room the title bar takes above the page. Read on every zoom step it made the browser
