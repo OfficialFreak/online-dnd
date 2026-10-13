@@ -92,19 +92,6 @@
         set_rows(rows);
     });
 
-    // Lines instead of a canvas, they stay sharp when zoomed and on high-DPI screens
-    let grid_path = $derived.by(() => {
-        if (!size || !rows) return "";
-        let path = "";
-        for (let i = 1; i < columns; i++) {
-            path += `M${size * i + x_offset} ${y_offset}V${(rows - 1) * size + y_offset}`;
-        }
-        for (let i = 1; i < rows - 1; i++) {
-            path += `M${x_offset} ${size * i + y_offset}H${w + x_offset}`;
-        }
-        return path;
-    });
-
     /**
      * Pixels of the fog canvas per pixel of the map: sharp on high-DPI screens, but small
      * enough for phones, whose browsers refuse very large canvases
@@ -2104,19 +2091,30 @@
         bind:clientWidth={w}
         bind:clientHeight={h}
     ></div>
-    <!-- One screen pixel wide at any zoom -->
-    <svg
-        class="absolute top-0 left-0 w-full h-full z-0 opacity-50 pointer-events-none"
-        viewBox="0 0 {w || 1} {h || 1}"
-        aria-hidden="true"
-    >
-        <path
-            d={grid_path}
-            fill="none"
-            stroke="black"
-            stroke-width={1 / gesture_scale}
-        />
-    </svg>
+    <!-- The grid, one screen pixel wide at any zoom and sharp on high-DPI screens. Lines
+         repeated by gradients, which the graphics card draws: as an SVG path over the whole
+         map, Firefox drew it anew on the processor at every step of a zoom gesture, which
+         alone cost a dozen frames of 50 ms per pinch. -->
+    {#if size > 0}
+        {@const line = 1 / gesture_scale}
+        <div
+            class="absolute top-0 left-0 w-full h-full z-0 overflow-hidden pointer-events-none"
+            aria-hidden="true"
+        >
+            {#if columns > 1}
+                <div
+                    class="absolute"
+                    style="left: {x_offset + size - line / 2}px; top: {y_offset}px; width: {(columns - 2) * size + line}px; height: {(rows - 1) * size}px; background: linear-gradient(to right, rgb(0 0 0 / 0.5) {line}px, transparent {line}px) 0 0 / {size}px 100% repeat-x"
+                ></div>
+            {/if}
+            {#if rows > 2}
+                <div
+                    class="absolute"
+                    style="left: {x_offset}px; top: {y_offset + size - line / 2}px; width: {w}px; height: {(rows - 3) * size + line}px; background: linear-gradient(to bottom, rgb(0 0 0 / 0.5) {line}px, transparent {line}px) 0 0 / 100% {size}px repeat-y"
+                ></div>
+            {/if}
+        </div>
+    {/if}
     {#if editable}
         <!-- Effects canvas -->
         <canvas
