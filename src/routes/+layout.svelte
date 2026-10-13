@@ -29,6 +29,7 @@
         set_motion,
     } from "../lib/state.svelte";
     import { connect, LIVE, message_type } from "../lib/connection.svelte";
+    import { look_for_update } from "$lib/updates.svelte";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
@@ -232,6 +233,8 @@
             if (connected) {
                 retry_delay = 1000;
                 notify("Wieder verbunden", MessageTypes.Success, 1500);
+                // The server may have gone for an update, the app may be behind it now
+                look_for_update();
             } else {
                 retry_delay = Math.min(retry_delay * 2, 15_000);
                 retry_connection();
@@ -263,8 +266,8 @@
             hidden_since = Date.now();
             return;
         }
-        // A phone may keep the app open for days, a new version shows on return
-        if (!in_tauri) updated.check().catch(() => {});
+        // A phone may keep the app open for days, a new version comes on return
+        look_for_update();
         if (!url || taken_over) return;
         retry_delay = 1000;
         if (!appState.ws) {
@@ -559,6 +562,14 @@
                 case MessageType.INITIAL:
                     gameState.name = message.display_name;
                     gameState.dm = message.dm_status;
+                    // Another start than before: the server was updated
+                    if (message.started) {
+                        if (server_started && message.started !== server_started) {
+                            notify("Das Portal wurde neu gewoben", MessageTypes.Info, 4000);
+                            look_for_update();
+                        }
+                        server_started = message.started;
+                    }
 
                     setDiscordStatus(
                         isDev
@@ -991,6 +1002,20 @@
     });
 
     let updating = $state(false);
+
+    /** When the server started, from its first answer, see INITIAL */
+    let server_started = 0;
+
+    // The desktop app looks for updates while it runs too, SvelteKit finds the web
+    // version's every five minutes: both are applied at once
+    $effect(() => {
+        if (!in_tauri) return;
+        const timer = setInterval(look_for_update, 30 * 60 * 1000);
+        return () => clearInterval(timer);
+    });
+    $effect(() => {
+        if (!in_tauri && updated.current) look_for_update();
+    });
 
     listen_tauri("update-started", () => {
         updating = true;
@@ -1646,16 +1671,6 @@
         <Notifications />
     </div>
 </div>
-<!-- The desktop app updates itself, the web version runs on until it is reloaded -->
-{#if !in_tauri && updated.current}
-    <button
-        class="btn btn-info btn-sm fixed left-1/2 -translate-x-1/2 top-[calc(var(--titlebar)+var(--safe-top)+0.5rem)] z-[9999] shadow-lg"
-        transition:fly={{ y: -10, duration: 200 }}
-        onclick={() => location.reload()}
-    >
-        <i class="fa-solid fa-rotate"></i> Neue Version, neu laden
-    </button>
-{/if}
 
 {@render children()}
 

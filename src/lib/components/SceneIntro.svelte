@@ -135,6 +135,39 @@
         resolve?.();
     }
 
+    /** Covered at once, as the app opens, until its first map is there */
+    function veil() {
+        run++;
+        smoke.set(1, { duration: 0 });
+        drawn_covered = false;
+        start_smoke();
+    }
+
+    /** The smoke draws back without a scroll once ready, a scroll still shown rolls up */
+    async function lift(ready: Promise<unknown>) {
+        const mine = run;
+        await Promise.race([ready, wait(6000)]);
+        if (mine !== run) return;
+        start_smoke();
+        smoke.set(0, { duration: 1700, easing: linear });
+        if (scroll_shown) {
+            await roll(0, 650, cubicIn);
+            if (mine === run) scroll_shown = false;
+        }
+    }
+
+    /** The smoke closes and the scroll unrolls with this, and stays */
+    async function announce(text: string) {
+        await cover();
+        if (document.hidden) return;
+        name = text;
+        unrolled = 0;
+        scroll_shown = true;
+        await tick();
+        await roll(1, 900, cubicOut);
+        await wait(1500);
+    }
+
     async function reveal(scene_name: string, ready: Promise<unknown>) {
         if (document.hidden) {
             skip();
@@ -232,7 +265,7 @@
     }
 
     onMount(() => {
-        register_intro({ cover, reveal });
+        register_intro({ cover, reveal, veil, lift, announce });
         document.addEventListener("visibilitychange", on_visibility);
         // Ready before the first scene changes: the font and the parchment
         document.fonts?.load('700 2rem "Cinzel Decorative"').catch(() => {});

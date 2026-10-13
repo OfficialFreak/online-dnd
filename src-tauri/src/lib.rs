@@ -83,6 +83,32 @@ async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
     Ok(())
 }
 
+/// The newer version the updater offers, if any. Looked for again while the app runs, it
+/// only looked when it started: an app left open missed the updates of a day.
+#[tauri::command]
+async fn update_version(app: tauri::AppHandle) -> Option<String> {
+    #[cfg(not(debug_assertions))]
+    {
+        let updater = app.updater().ok()?;
+        updater.check().await.ok().flatten().map(|update| update.version)
+    }
+    #[cfg(debug_assertions)]
+    {
+        let _ = app;
+        None
+    }
+}
+
+/// Installs the newer version and starts the app anew
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(not(debug_assertions))]
+    update(app).await.map_err(|error| error.to_string())?;
+    #[cfg(debug_assertions)]
+    let _ = app;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -123,7 +149,9 @@ pub fn run() {
             send_mouse_position,
             send_marker_position,
             frontend_ready,
-            is_dev
+            is_dev,
+            update_version,
+            install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

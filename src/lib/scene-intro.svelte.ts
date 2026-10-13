@@ -11,13 +11,46 @@ type Intro = {
     cover(): Promise<void>;
     /** Shows the name and draws the smoke back once the map is there */
     reveal(name: string, ready: Promise<unknown>): void;
+    /** Covers the map with smoke at once */
+    veil(): void;
+    /** Draws the smoke back without a name once ready */
+    lift(ready: Promise<unknown>): void;
+    /** Closes the smoke and unrolls the scroll with this, which stays */
+    announce(text: string): Promise<void>;
 };
 
 let intro: Intro | null = null;
+/**
+ * Opening the app, smoke covers it until the first map is there and then draws back: the
+ * map and all on it came in bit by bit before
+ */
+let opening = true;
 
 /** The page with the map shows the intro, without it scenes change at once */
 export function register_intro(shown: Intro | null) {
     intro = shown;
+    if (!shown || !opening || !appState.scene_intro || document.hidden) return;
+    shown.veil();
+    // Without a scene to show, e.g. none is active, it draws back on its own
+    setTimeout(() => {
+        if (!opening) return;
+        opening = false;
+        intro?.lift(Promise.resolve());
+    }, 5000);
+}
+
+/**
+ * Announces a new version over the map, the portal being woven anew, then applies it: the
+ * page loads again or the app starts anew. If that fails the smoke draws back.
+ */
+export async function portal_update(apply: () => unknown) {
+    try {
+        await intro?.announce("Das Portal wird neu gewoben");
+        await apply();
+    } catch (e) {
+        console.error("Updating failed", e);
+        intro?.lift(Promise.resolve());
+    }
 }
 
 /** The scene shown once the smoke covers the old one, the newest if more came */
@@ -30,6 +63,16 @@ export async function change_scene(
 ) {
     if (waiting) {
         waiting = scene;
+        return;
+    }
+    if (opening) {
+        // The first scene as the app opens, behind the smoke that covers it already
+        opening = false;
+        show(scene);
+        if (!intro) return;
+        await tick();
+        await drawn();
+        intro.lift(loaded(scene.map));
         return;
     }
     const other = !!gameState.scene && gameState.scene.name !== scene.name;

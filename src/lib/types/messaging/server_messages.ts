@@ -72,6 +72,8 @@ export interface PlayerMessage extends BaseServerMessage {
 
 export interface InitialData extends BaseServerMessage {
     type: MessageType.INITIAL;
+    /** When the server started, a new start means it was updated. Missing from older ones. */
+    started?: number;
     display_name: string;
     dm_status: boolean;
 }
