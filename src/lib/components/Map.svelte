@@ -492,6 +492,18 @@
         drag_frame ||= requestAnimationFrame(take_drag_step);
     }
 
+    /**
+     * A marker's place kept on the map, as fractions of it: a place off the map, e.g. from
+     * a drag the map was laid out anew during, lost the marker for good
+     */
+    function on_map(marker: { size?: number } | undefined, x: number, y: number) {
+        const width = (marker?.size ?? 1) / Math.max(1, columns);
+        const height = h > 0 ? (width * w) / h : width;
+        const keep = (value: number, most: number) =>
+            Number.isFinite(value) ? Math.min(Math.max(value, 0), Math.max(0, most)) : 0.5;
+        return [keep(x, 1 - width), keep(y, 1 - height)];
+    }
+
     function take_drag_step() {
         drag_frame = 0;
         const step = drag_step;
@@ -501,10 +513,11 @@
             (marker) => marker.name === step.name,
         );
         if (!appState.ws || !marker) return;
-        marker.x.set(step.x, { duration: 0 });
-        marker.y.set(step.y, { duration: 0 });
-        send_marker_position(step.x, step.y, step.name);
-        move_group(step.x, step.y, false);
+        const [x, y] = on_map(marker, step.x, step.y);
+        marker.x.set(x, { duration: 0 });
+        marker.y.set(y, { duration: 0 });
+        send_marker_position(x, y, step.name);
+        move_group(x, y, false);
     }
 
     function saveSceneFog() {
@@ -1009,10 +1022,13 @@
             const back =
                 drag_cancelled && drag_start?.name === currentNode.id ? drag_start : null;
             drag_start = null;
-            const x = back ? back.x : offsetX / w;
-            const y = back ? back.y : offsetY / h;
             let marker = gameState.scene?.state.markers.find(
                 (marker) => marker.name === currentNode.id,
+            );
+            const [x, y] = on_map(
+                marker,
+                back ? back.x : offsetX / w,
+                back ? back.y : offsetY / h,
             );
             marker?.x.set(x, { duration: 0 });
             marker?.y.set(y, { duration: 0 });

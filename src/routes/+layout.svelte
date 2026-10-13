@@ -1009,6 +1009,8 @@
 
     /** A live position over QUIC in the desktop app, over the WebSocket in a browser */
     function move_marker_live(marker_name: string, x: number, y: number) {
+        // A broken place would lose the marker off the map
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
         // The marker may be gone already, e.g. after a scene switch mid-drag
         const marker = gameState.scene?.state.markers.find(
             (marker) => marker.name === marker_name,
@@ -1041,8 +1043,16 @@
         ch;
         scrollbar_visible = html.scrollHeight > html.clientHeight;
     });
+    /** On the map, a place that isn't a number lost a marker for good */
+    function place(value: unknown) {
+        return typeof value === "number" && Number.isFinite(value)
+            ? Math.min(Math.max(value, 0), 1)
+            : 0.5;
+    }
+
     /** A marker as the server sends it, with tweened positions */
     function tweened(marker: any) {
+        marker = { ...marker, x: place(marker.x), y: place(marker.y) };
         return {
             ...marker,
             status_effects: (marker.status_effects ?? []).map(normalize_condition),
@@ -1108,8 +1118,9 @@
                 },
                 ["x", "y"],
             );
-            if (marker.x.target !== incoming.x) marker.x.target = incoming.x;
-            if (marker.y.target !== incoming.y) marker.y.target = incoming.y;
+            const [x, y] = [place(incoming.x), place(incoming.y)];
+            if (marker.x.target !== x) marker.x.target = x;
+            if (marker.y.target !== y) marker.y.target = y;
             return marker;
         });
         if (reordered) shown.state.markers = next;
