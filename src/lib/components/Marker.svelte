@@ -14,6 +14,7 @@
         Tools,
     } from "../state.svelte";
     import { draggable } from "@neodrag/svelte";
+    import { portrait_colour } from "$lib/portrait-colour";
     // @ts-ignore
     import throttle from "just-throttle";
     import { UpdateSceneMarker } from "$lib/types/messaging/client_messages";
@@ -242,6 +243,15 @@
         if (!gameState.dm) return getCharacter(marker.name) ? null : marker.name;
         return marker.name;
     });
+    /** The name tag's rim in the colour of the portrait, gold until it is known */
+    let rim: string | null = $state(null);
+    $effect(() => {
+        if (!mapUse || banner || !marker.file) return;
+        const file = marker.file;
+        portrait_colour(file).then((colour) => {
+            if (marker.file === file) rim = colour;
+        });
+    });
     let health_degrees = $derived(
         health ? Math.max(0, Math.min(1, health.current / health.max)) * 360 : 360,
     );
@@ -405,7 +415,7 @@
         <span
             class="tooltip-content name-tag !absolute"
             style="inset: unset !important; top: 114% !important; left: 50% !important; transform: translateX(-50%) scale({1 /
-                tag_scale}) !important;"
+                tag_scale}) !important; {rim ? `--rim: ${rim};` : ''}"
             >{name_tag}</span
         >
     {/if}
@@ -907,7 +917,7 @@
         content: unset !important;
     }
 
-    /* A small dark plate with a thin golden rim */
+    /* A small dark plate with a thin rim in the portrait's colour, golden until known */
     .name-tag {
         transform-origin: 50% 0;
         white-space: nowrap;
@@ -919,7 +929,7 @@
         line-height: 1.3;
         color: #f4ead5;
         background: rgb(22 18 14 / 0.85) !important;
-        border: 1px solid rgb(214 178 104 / 0.6);
+        border: 1px solid var(--rim, rgb(214 178 104 / 0.6));
         box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
         text-shadow: 0 1px 1px rgb(0 0 0 / 0.6);
     }
