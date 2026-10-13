@@ -18,7 +18,12 @@
 :root {
     /* Taller on touch screens, a finger hits its buttons there */
     --titlebar: 30px;
-    --safe-top: max(env(safe-area-inset-top, 0px), var(--browser-bar, 0px));
+    /* Plus the blur under the status bar while it shows, held sideways it has no inset */
+    --safe-top: max(
+        env(safe-area-inset-top, 0px) +
+            min(env(safe-area-inset-top, 0px) * 100, var(--status-blur, 0px)),
+        var(--browser-bar, 0px)
+    );
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);

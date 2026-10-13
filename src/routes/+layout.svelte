@@ -457,10 +457,6 @@
 
         if (confetti_canvas) pressure_burst = emoji_cannon(confetti_canvas);
 
-        if (!in_tauri && (navigator as { standalone?: boolean }).standalone) {
-            check_home_screen_install();
-        }
-
         // The rest is for the desktop app
         if (!in_tauri) return;
 
@@ -492,35 +488,6 @@
             );
         }
     });
-
-    /**
-     * A home screen install from before the opaque status bar keeps the translucent one:
-     * iOS reads it only when the app is added. iOS 26 blurs the top of such an app and
-     * makes it shorter than the screen. With the opaque one the app starts below the
-     * status bar and gets no inset at the top.
-     */
-    function check_home_screen_install() {
-        const probe = document.createElement("div");
-        probe.style.cssText =
-            "position: fixed; top: 0; padding-top: env(safe-area-inset-top); visibility: hidden; pointer-events: none";
-        document.body.append(probe);
-        const inset = parseFloat(getComputedStyle(probe).paddingTop) || 0;
-        probe.remove();
-        if (inset > 0) {
-            notify(
-                "Diese App ist noch mit einer alten Einstellung auf dem Home-Bildschirm: oben verschwommen, unten zu kurz. Lösch sie vom Home-Bildschirm und füg sie in Safari über Teilen → „Zum Home-Bildschirm“ neu hinzu.",
-                MessageTypes.Warning,
-                0,
-            );
-            return;
-        }
-        // Held sideways the status bar is hidden and has no inset, upright it shows
-        const portrait = matchMedia("(orientation: portrait)");
-        if (portrait.matches) return;
-        portrait.addEventListener("change", check_home_screen_install, {
-            once: true,
-        });
-    }
 
     function setDiscordStatus(message: string, dev: boolean) {
         if (!in_tauri) return;

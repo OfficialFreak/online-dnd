@@ -11,8 +11,8 @@
     <link rel="apple-touch-icon" href="%sveltekit.assets%/pwa/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <!-- See-through, the map's light shows behind it instead of a grey bar. The page keeps
-         the status bar's room free at the top (--safe-top in app.css). Under it iOS makes the
-         app a status bar shorter, the bottom ends above the screen's: the user takes that. -->
+         the status bar's room and the blur below it free at the top (--safe-top in app.css).
+         Under it iOS 26 made the app a status bar shorter: the user takes that. -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="DND Online" />
     <meta name="theme-color" content="#1d232a" />
@@ -31,14 +31,15 @@
     <link rel="preconnect" href="https://dnd.wiegraebe.dev">
     <script>
       // Safari on iPhones and iPads blurs the top of the page under its toolbar, the
-      // title bar moves down out of it. Not when started from the home screen.
-      if (
-        navigator.maxTouchPoints > 1 &&
-        /iPhone|iPad|Macintosh/.test(navigator.userAgent) &&
-        !navigator.standalone &&
-        !matchMedia("(display-mode: standalone)").matches
-      ) {
-        document.documentElement.style.setProperty("--browser-bar", "24px");
+      // title bar moves down out of it. Started from the home screen iOS blurs under the
+      // see-through status bar and about 28px further down (iOS 27).
+      if (navigator.maxTouchPoints > 1 && /iPhone|iPad|Macintosh/.test(navigator.userAgent)) {
+        const home_screen =
+          navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+        document.documentElement.style.setProperty(
+          home_screen ? "--status-blur" : "--browser-bar",
+          home_screen ? "28px" : "24px",
+        );
       }
     </script>
     %sveltekit.head%
