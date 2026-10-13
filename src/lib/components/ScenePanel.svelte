@@ -15,7 +15,7 @@
     import { weather_icons } from "$lib/weather";
     import { import_uvtt } from "$lib/uvtt";
     import { uploadState } from "$lib/upload.svelte";
-    import Map from "./Map.svelte";
+    import Display from "./Display.svelte";
 
     let search = $state("");
     let confirm_delete: string | null = $state(null);
@@ -39,6 +39,16 @@
         if (now - (last_preload.get(file) ?? 0) < PRELOAD_COOLDOWN_MS) return;
         last_preload.set(file, now);
         appState.ws.send(PreloadResource.create(file));
+    }
+
+    /**
+     * Only once the pointer stays on a scene a moment, or it is grabbed: moving down the
+     * list made every player load each scene's whole map on the way, phones too
+     */
+    let preload_timer: ReturnType<typeof setTimeout> | undefined;
+    function preload_soon(file: string) {
+        clearTimeout(preload_timer);
+        preload_timer = setTimeout(() => send_preload(file), 350);
     }
 
     function request_delete(name: string) {
@@ -80,19 +90,27 @@
                     ? 'bg-info/15'
                     : ''}"
                 use:dragSource={{ kind: "scene", scene }}
-                onmouseenter={() => send_preload(scene.map_file)}
+                onmouseenter={() => preload_soon(scene.map_file)}
+                onmouseleave={() => clearTimeout(preload_timer)}
+                onpointerdown={() => send_preload(scene.map_file)}
             >
+                <!-- The small picture of the map with its grid. A whole map each, with its
+                     listeners and all it works out, stayed in the panel for every scene. -->
                 <div
-                    class="w-24 shrink-0 rounded-field overflow-hidden pointer-events-none"
+                    class="@container relative w-24 shrink-0 rounded-field overflow-hidden pointer-events-none"
                 >
-                    <Map
-                        file={scene.map_file}
-                        columns={scene.columns}
-                        x_offset={scene.x_offset}
-                        y_offset={scene.y_offset}
-                        fog_squares={{}}
-                        markers={[]}
+                    <Display
+                        asset={scene.map_file}
+                        thumbnail={true}
+                        alt=""
+                        class="w-full block"
+                        loading="lazy"
+                        decoding="async"
                     />
+                    <div
+                        class="absolute inset-0"
+                        style="background: linear-gradient(to right, rgb(0 0 0 / 0.5) 1px, transparent 1px) 0 0 / calc(100cqw / {scene.columns}) 100%, linear-gradient(to bottom, rgb(0 0 0 / 0.5) 1px, transparent 1px) 0 0 / 100% calc(100cqw / {scene.columns})"
+                    ></div>
                 </div>
                 <div class="flex-1 min-w-0 flex flex-col">
                     <span class="font-bold truncate" title={scene.name}
