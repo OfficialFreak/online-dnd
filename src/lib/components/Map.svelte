@@ -1362,6 +1362,7 @@
         window.addEventListener("touchend", on_touch_end);
         window.addEventListener("touchcancel", on_touch_end);
         window.addEventListener("gesturestart", on_gesture);
+        appState.end_drag = cancel_marker_drag;
         appState.zoom_by = (factor: number) =>
             zoom_to(
                 appState.zoom * factor,
@@ -1377,6 +1378,7 @@
             window.removeEventListener("touchcancel", on_touch_end);
             window.removeEventListener("gesturestart", on_gesture);
             appState.zoom_by = null;
+            appState.end_drag = null;
         };
     });
 

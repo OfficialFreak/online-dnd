@@ -29,7 +29,7 @@
         set_motion,
     } from "../lib/state.svelte";
     import { connect, LIVE, message_type } from "../lib/connection.svelte";
-    import { look_for_update } from "$lib/updates.svelte";
+    import { look_for_update, look_for_update_on_opening } from "$lib/updates.svelte";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
@@ -1055,6 +1055,7 @@
     );
 
     invoke_tauri("frontend_ready");
+    look_for_update_on_opening();
 
     let cw = $state();
     let ch = $state();

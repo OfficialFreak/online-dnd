@@ -64,6 +64,8 @@ export const appState = $state({
     layout_zoom: 1,
     /** Zooms the map around the window center, set by the map that is shown */
     zoom_by: null as ((factor: number) => void) | null,
+    /** Ends a marker's drag, putting it back where it was, see updates.svelte.ts */
+    end_drag: null as (() => void) | null,
     /** Height divided by width of the shown map */
     map_aspect: null as number | null,
     ctrlPressed: false,

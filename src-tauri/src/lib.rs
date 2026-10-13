@@ -113,11 +113,21 @@ async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
+            // The page looks for updates itself and shows them over the map, see
+            // updates.svelte.ts. Only if it doesn't come up, the app updates here.
             #[cfg(not(debug_assertions))]
             {
                 let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    let _ = update(handle).await;
+                std::thread::spawn(move || {
+                    for _ in 0..30 {
+                        if let Some(state) = handle.try_state::<FrontendState>() {
+                            if *state.ready.lock().unwrap() {
+                                return;
+                            }
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+                    let _ = tauri::async_runtime::block_on(update(handle));
                 });
             }
 

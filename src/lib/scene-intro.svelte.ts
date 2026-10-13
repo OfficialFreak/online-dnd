@@ -26,9 +26,14 @@ let intro: Intro | null = null;
  */
 let opening = true;
 
+let intro_shown: () => void;
+/** Resolved once the page with the map can show the intro */
+export const intro_ready = new Promise<void>((resolve) => (intro_shown = resolve));
+
 /** The page with the map shows the intro, without it scenes change at once */
 export function register_intro(shown: Intro | null) {
     intro = shown;
+    if (shown) intro_shown();
     if (!shown || !opening || !appState.scene_intro || document.hidden) return;
     shown.veil();
     // Without a scene to show, e.g. none is active, it draws back on its own
