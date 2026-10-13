@@ -5,10 +5,6 @@
 export const in_tauri =
     typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-/** Safari's engine, which every browser on an iPhone or iPad uses */
-export const in_webkit =
-    typeof navigator !== "undefined" && navigator.vendor === "Apple Computer, Inc.";
-
 /** Calls a command of the Tauri backend, does nothing in a browser */
 export async function invoke_tauri<T>(
     command: string,

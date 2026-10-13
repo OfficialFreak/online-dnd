@@ -17,7 +17,6 @@
     import { dropTarget, type DragPayload } from "$lib/drag.svelte";
     // @ts-ignore
     import throttle from "just-throttle";
-    import { in_webkit } from "$lib/platform";
     import debounce from "just-debounce-it";
     import { send_marker_position, send_pointer } from "$lib/live";
     import { fade } from "svelte/transition";
@@ -1085,21 +1084,11 @@
 
     const MIN_ZOOM = 0.3;
     /**
-     * iPhones and iPads in at most fivefold, as before: further in, the map laid out up to
-     * eighteen times its size, Safari closed the page zooming out again. Laying it out
-     * anew while zooming out didn't help.
-     */
-    const SAFARI_TOUCH_MAX_ZOOM = 5;
-    const safari_touch =
-        in_webkit && typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
-    /**
      * In until a square is about two thumbs wide, at least fivefold: on a phone the squares
      * of a big map stayed an eighth of a thumb at five
      */
     let max_zoom = $derived(
-        safari_touch
-            ? SAFARI_TOUCH_MAX_ZOOM
-            : Math.min(40, Math.max(5, 140 / Math.max(0.5, base_w / Math.max(1, columns)))),
+        Math.min(40, Math.max(5, 140 / Math.max(0.5, base_w / Math.max(1, columns)))),
     );
 
     /**
