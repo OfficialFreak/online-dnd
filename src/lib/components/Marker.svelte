@@ -208,8 +208,10 @@
             .filter(Boolean)
             .join(" "),
     );
+    // Not while blurred at the edge of sight: the blur was worked out anew on every frame
+    // of the animation under it, which is hardly seen there anyway
     let animation = $derived(
-        moving
+        moving && blur <= 0.2
             ? conditions
                   .map((condition) => condition.animation)
                   .filter(Boolean)
@@ -508,7 +510,10 @@
                 {moving}
             />
         {/if}
-        {#if gameState.dm && mapUse && !selecting_tool}
+        <!-- On the map a menu opens only by menu_open, built only then: kept for every
+             marker while closed, the DM's were a hundred elements each, built for all of
+             them with the scene and anew whenever the selection tool came or went -->
+        {#if gameState.dm && mapUse && !selecting_tool && (menu_open || !on_map)}
             <!-- Not a div, the avatar gives those a square shape -->
             <section
                 class="dropdown-content bg-base-100 rounded-box z-1 w-84 max-w-[calc(100vw-4.5rem)] p-3 shadow-sm flex flex-col gap-3 text-left cursor-default !transition-none"
@@ -888,7 +893,7 @@
                     </button>
                 </div>
             </section>
-        {:else if !gameState.dm && getCharacter(marker.name) && !appState.dragging && mapUse}
+        {:else if !gameState.dm && getCharacter(marker.name) && !appState.dragging && mapUse && (menu_open || !on_map)}
             <ul
                 class="dropdown-content menu z-1 p-0 shadow-sm w-80 max-w-[calc(100vw-4.5rem)] flex flex-row justify-start items-start text-left !transition-none"
                 style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px)) scale({Math.min(
