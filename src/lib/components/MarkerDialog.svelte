@@ -15,7 +15,7 @@
         uploadState,
     } from "$lib/upload.svelte";
     import {
-        openverse_suggestions,
+        commons_suggestions,
         quick_suggestions,
         type Suggestion,
     } from "$lib/monster-images";
@@ -105,12 +105,12 @@
         if (!name.trim()) return;
         const this_opening = opened;
         finding_pictures = true;
-        // The quick ones first, Openverse's come after a few seconds
+        // The quick ones first, Commons' come after a few seconds
         await Promise.allSettled([
             quick_suggestions(name.trim(), type).then((found) => {
                 if (this_opening === opened) suggestions = [...found, ...suggestions];
             }),
-            openverse_suggestions(name.trim()).then((found) => {
+            commons_suggestions(name.trim()).then((found) => {
                 if (this_opening === opened) suggestions = [...suggestions, ...found];
             }),
         ]);
@@ -315,8 +315,9 @@
                     {/each}
                 </div>
                 <p class="fieldset-label">
-                    Tippe ein Bild an. Vorschläge aus dem Monsterhandbuch, das Symbol der
-                    Kreaturart und freie Bilder von Openverse.
+                    Tippe ein Bild an. Vorschläge aus dem Monsterhandbuch, gemalte Porträts
+                    aus Battle for Wesnoth, alte Illustrationen von Wikimedia Commons und das
+                    Symbol der Kreaturart.
                 </p>
             {/if}
             <div class="grid grid-cols-2 gap-2">

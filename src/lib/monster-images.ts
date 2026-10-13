@@ -1,6 +1,8 @@
-// Pictures for markers to choose from. The 5e API has one for every monster of the SRD,
-// every creature type has a token with its symbol, and Openverse has free pictures.
+// Pictures for markers to choose from, all made by people: the 5e API has one for every
+// monster of the SRD, Battle for Wesnoth painted portraits of many creatures, Wikimedia
+// Commons has old illustrations, and every creature type has a token with its symbol.
 import { CREATURE_ICONS } from "./creature-icons";
+import { WESNOTH_COMMIT, WESNOTH_PORTRAITS } from "./wesnoth-portraits";
 
 const API = "https://www.dnd5eapi.co";
 
@@ -111,18 +113,10 @@ async function fetched(url: string, file_name: string): Promise<Picture> {
     return { bytes: new Uint8Array(await response.arrayBuffer()), file_name };
 }
 
-type OpenverseImage = { id: string; title?: string; creator?: string; thumbnail?: string };
-
-/** Freely licensed pictures from Openverse, mostly photos and drawings from Flickr */
-async function openverse(query: string, count: number): Promise<OpenverseImage[]> {
-    const response = await fetch(
-        `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=${count}&mature=false`,
-    );
-    if (!response.ok) throw new Error(`Openverse answered ${response.status}`);
-    return (await response.json()).results ?? [];
-}
-
-/** The 5e API's picture of the monster and the symbol of its creature type, quick to get */
+/**
+ * The 5e API's picture of the monster, painted portraits of Battle for Wesnoth and the
+ * symbol of its creature type, quick to get
+ */
 export async function quick_suggestions(
     name: string,
     type: string | null,
@@ -140,6 +134,7 @@ export async function quick_suggestions(
             picture: () => fetched(url, `monster-${index}.png`),
         });
     }
+    suggestions.push(...wesnoth_suggestions(name, type));
     if (type) {
         const token = await type_token(type).catch(() => null);
         if (token) {
@@ -156,33 +151,198 @@ export async function quick_suggestions(
     return suggestions;
 }
 
+/** A word without its plural, "wolves" and "goblins" as "wolf" and "goblin" */
+function singular(word: string) {
+    if (word.endsWith("ves")) return word.slice(0, -3) + "f";
+    if (word.endsWith("s") && word.length > 3 && !word.endsWith("ss")) return word.slice(0, -1);
+    return word;
+}
+
+/** D&D's names for what Wesnoth paints under another one */
+const SYNONYMS: Record<string, string[]> = {
+    zombie: ["walking-corpse", "soulless"],
+    skeleton: ["skeletal", "bone"],
+    ghost: ["spectre", "shadow", "wraith"],
+    specter: ["spectre"],
+    ghast: ["ghoul"],
+    wight: ["draug", "revenant", "death-knight"],
+    mummy: ["revenant"],
+    vampire: ["nightgaunt"],
+    worg: ["wolf"],
+    dragon: ["fire-dragon", "drake", "wyvern"],
+    wyrmling: ["drake"],
+    giant: ["ogre", "troll", "yeti"],
+    owlbear: ["bear"],
+    griffon: ["gryphon"],
+    lizardfolk: ["saurian"],
+    kobold: ["saurian"],
+    treant: ["wose"],
+    hobgoblin: ["orc"],
+    bugbear: ["orc"],
+    merrow: ["merfolk"],
+    sahuagin: ["merfolk", "naga"],
+    drow: ["elves"],
+    duergar: ["dwarves"],
+    snake: ["serpent"],
+    panther: ["cat"],
+    lion: ["cat"],
+    tiger: ["cat"],
+    hawk: ["falcon"],
+    eagle: ["falcon"],
+    warhorse: ["horse"],
+    djinni: ["jinn"],
+    efreeti: ["jinn"],
+    elemental: ["fire_guardian", "jinn", "fire_wraith"],
+    cultist: ["dark-adept", "necromancer"],
+    wizard: ["mage"],
+    priest: ["mage-white"],
+    acolyte: ["mage-white"],
+    thug: ["ruffian"],
+    spy: ["thief", "footpad"],
+    veteran: ["swordsman", "sergeant"],
+    noble: ["lord", "lady", "general"],
+    commoner: ["peasant"],
+    gladiator: ["duelist", "swordsman"],
+    bandit: ["outlaw", "thug", "footpad", "ruffian"],
+};
+
 /**
- * Free pictures from Openverse, which takes a few seconds. Mostly painted miniatures and
- * players' drawings: "dnd" and "miniature" keep out goblin sharks, planes and premieres of
- * fantasy films. The name alone only when those find little.
+ * Words that only describe: a red dragon is no red mage, a giant spider no giant rat. Left
+ * out unless nothing else is in the name.
  */
-export async function openverse_suggestions(name: string): Promise<Suggestion[]> {
-    const search = (query: string) =>
-        openverse(query, 8).catch((e) => {
-            console.warn("Searching Openverse failed", e);
-            return [] as OpenverseImage[];
-        });
-    let found = (await Promise.all([search(`${name} dnd`), search(`${name} miniature`)])).flat();
-    if (found.length < 4) found = [...found, ...(await search(name))];
-    const seen = new Set<string>();
-    const suggestions: Suggestion[] = [];
-    for (const image of found) {
-        if (!image.thumbnail || seen.has(image.id)) continue;
-        seen.add(image.id);
-        suggestions.push({
-            id: `openverse-${image.id}`,
-            preview: image.thumbnail,
-            // Titles of photos can be whole stories
-            label:
-                [image.title?.slice(0, 60), image.creator].filter(Boolean).join(" · ") ||
-                "Openverse",
-            picture: () => fetched(image.thumbnail!, `openverse-${image.id}.jpg`),
-        });
+const DESCRIBING = new Set([
+    "adult", "young", "ancient", "elder", "baby", "dire", "giant", "greater", "lesser",
+    "swarm", "of", "the", "and", "red", "blue", "black", "white", "green", "brass",
+    "bronze", "copper", "gold", "silver", "brown", "gray", "grey", "boss", "chief",
+]);
+
+/** Without a name that fits, the creature type tells where to look */
+const BY_TYPE: [RegExp, string[]][] = [
+    [/goblinoid/, ["goblins/"]],
+    [/\borc\b/, ["orcs/"]],
+    [/\belf\b/, ["elves/"]],
+    [/dwarf/, ["dwarves/"]],
+    [/lizardfolk/, ["saurians/"]],
+    [/merfolk/, ["merfolk/"]],
+    [/undead/, ["undead/"]],
+    [/dragon/, ["monsters/fire-dragon", "drakes/", "monsters/wyvern"]],
+    [/giant/, ["monsters/ogre", "trolls/", "monsters/yeti"]],
+    [/beast/, ["monsters/bear", "wolves/", "monsters/woodland_boar", "monsters/giant-rat"]],
+    [/monstrosity/, ["monsters/"]],
+    [/fiend/, ["humans/dark-adept", "humans/necromancer", "monsters/fire_wraith"]],
+    [/elemental/, ["monsters/fire_guardian", "monsters/jinn", "monsters/fire_wraith"]],
+    [/plant/, ["woses/"]],
+    [/fey/, ["elves/sylph", "elves/shyde", "elves/sorceress"]],
+    [/aberration/, ["monsters/deep-tentacle", "monsters/kraken"]],
+    [/celestial/, ["humans/mage-white", "humans/mage-light"]],
+    [/humanoid/, ["humans/"]],
+];
+
+/** Undead only for the undead: else a goblin got a zombie goblin first */
+const UNDEAD_WORDS = /zombie|skelet|lich|ghost|ghoul|ghast|wight|wraith|spect|undead|mummy|vampire|revenant|draug|death|shadow|bone/;
+
+/**
+ * Painted portraits of Battle for Wesnoth for a monster, the best fitting first: its name's
+ * words, D&D's other names for them, and its creature type when the name finds little
+ */
+function wesnoth_portraits(name: string, type: string | null): string[] {
+    const all = name.toLowerCase().split(/[^a-z]+/).filter(Boolean).map(singular);
+    const naming = all.filter((word) => !DESCRIBING.has(word));
+    const words = naming.length ? naming : all;
+    const undead = UNDEAD_WORDS.test(name.toLowerCase()) || /undead/i.test(type ?? "");
+    const scores = new Map<string, number>();
+    for (const [folder, files] of Object.entries(WESNOTH_PORTRAITS)) {
+        if (folder === "undead" && !undead) continue;
+        for (const file of files) {
+            const stem = file.replace(/\.(webp|png)$/, "");
+            const parts = stem.split(/[-_+]/);
+            let score = 0;
+            for (const word of words) {
+                // The plain one first: a ghost before a ghost rider, wolves before a wolf rider
+                if (stem === word) score += 6;
+                else if (parts.includes(word)) score += 4;
+                if (singular(folder) === word) score += 1;
+                for (const other of SYNONYMS[word] ?? []) {
+                    if (stem === other) score += 5;
+                    else if (parts.includes(other)) score += 3;
+                    if (folder === other || singular(folder) === other) score += 1;
+                }
+            }
+            if (score > 0) scores.set(`${folder}/${file}`, score);
+        }
     }
-    return suggestions.slice(0, 12);
+    const found = [...scores].sort((a, b) => b[1] - a[1]).map(([path]) => path);
+    if (!found.length && type) {
+        const lower = type.toLowerCase();
+        const places = BY_TYPE.find(([pattern]) => pattern.test(lower))?.[1] ?? [];
+        for (const place of places) {
+            const [folder, stem] = place.split("/");
+            for (const file of WESNOTH_PORTRAITS[folder] ?? []) {
+                if (folder === "undead" && !undead) continue;
+                if (stem && !file.startsWith(stem)) continue;
+                const path = `${folder}/${file}`;
+                if (!found.includes(path)) found.push(path);
+            }
+        }
+    }
+    return found.slice(0, 8);
+}
+
+/** "goblins/spearman-2.webp" as "Spearman" */
+function portrait_label(path: string) {
+    const stem = path.split("/")[1].replace(/\.(webp|png)$/, "").replace(/-\d+$/, "");
+    return stem
+        .split(/[-_+]/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+}
+
+function wesnoth_suggestions(name: string, type: string | null): Suggestion[] {
+    return wesnoth_portraits(name, type).map((path) => {
+        const url = `https://raw.githubusercontent.com/wesnoth/wesnoth/${WESNOTH_COMMIT}/data/core/images/portraits/${path}`;
+        return {
+            id: `wesnoth-${path}`,
+            preview: url,
+            label: `${portrait_label(path)}, gemalt für Battle for Wesnoth`,
+            picture: () => fetched(url, `wesnoth-${path.replace("/", "-")}`),
+        };
+    });
+}
+
+/**
+ * Old illustrations and drawings from Wikimedia Commons, free to use: trolls of John
+ * Bauer, Blake's red dragon. A few seconds, and not every name finds something fitting.
+ */
+export async function commons_suggestions(name: string): Promise<Suggestion[]> {
+    const query = `${name} illustration filetype:bitmap`;
+    const response = await fetch(
+        "https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*" +
+            "&generator=search&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|mime" +
+            `&iiurlwidth=512&gsrsearch=${encodeURIComponent(query)}`,
+    );
+    if (!response.ok) throw new Error(`Commons answered ${response.status}`);
+    const pages: {
+        pageid: number;
+        index?: number;
+        title: string;
+        imageinfo?: { thumburl?: string; mime?: string }[];
+    }[] = Object.values((await response.json()).query?.pages ?? {});
+    return pages
+        .toSorted((a, b) => (a.index ?? 0) - (b.index ?? 0))
+        .flatMap((page) => {
+            const info = page.imageinfo?.[0];
+            if (!info?.thumburl) return [];
+            // Scanned pages of books come as TIFF, PDF or DjVu, mostly text
+            if (/tiff|djvu|pdf/.test(info.mime ?? "")) return [];
+            const title = page.title.replace(/^File:/, "").replace(/\.[a-z]+$/i, "");
+            return [
+                {
+                    id: `commons-${page.pageid}`,
+                    preview: info.thumburl,
+                    label: `${title.slice(0, 60)}, Wikimedia Commons`,
+                    picture: () => fetched(info.thumburl!, `commons-${page.pageid}.jpg`),
+                },
+            ];
+        })
+        .slice(0, 6);
 }
