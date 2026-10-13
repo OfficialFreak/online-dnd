@@ -1,6 +1,14 @@
 import { appState } from "./state.svelte";
 import { in_tauri } from "./platform";
 
+/** Live positions of pointers and dragged figures, many a second: not logged */
+export const LIVE = new Set(["mouse_position", "marker_position", "mouse_large"]);
+
+/** A message's type, read from its text without parsing all of it */
+export function message_type(data: string) {
+    return /"type"\s*:\s*"([^"]+)"/.exec(data.slice(0, 200))?.[1] ?? "?";
+}
+
 /** What the WebSocket plugin of Tauri passes to listeners */
 export type SocketMessage =
     | { type: "Text"; data: string }
@@ -90,13 +98,11 @@ async function connect(url: string) {
         // Save original send method
         let originalSend = appState.ws.send.bind(appState.ws);
 
-        // Override send method to log messages
+        // Logs what is sent, by its type: the whole message parsed twice and kept by the
+        // console, for every live position of a dragged figure, grew with every session
         appState.ws.send = function (data: string) {
-            try {
-                console.log(`Sent ${JSON.parse(data).type}:`, JSON.parse(data));
-            } catch {
-                console.log("Sent:", data);
-            }
+            const type = message_type(data);
+            if (!LIVE.has(type)) console.log(`Sent ${type}`);
             return originalSend(data);
         };
         return true;

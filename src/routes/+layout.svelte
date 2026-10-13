@@ -28,7 +28,7 @@
         set_ambient,
         set_motion,
     } from "../lib/state.svelte";
-    import { connect } from "../lib/connection.svelte";
+    import { connect, LIVE, message_type } from "../lib/connection.svelte";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
@@ -323,9 +323,10 @@
                 stop_all_sounds();
                 retry_delay = 1000;
                 retry_connection();
-            } else {
-                // @ts-ignore
-                console.log(`Received ${JSON.parse(msg.data).type}:`, msg);
+            } else if (typeof msg.data === "string") {
+                // By its type only, see the sending side
+                const type = message_type(msg.data);
+                if (!LIVE.has(type)) console.log(`Received ${type}`);
             }
         });
     });
