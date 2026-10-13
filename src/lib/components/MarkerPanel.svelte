@@ -54,7 +54,7 @@
     <div class="grid grid-cols-3 gap-1">
         {#each markers as marker (marker.name)}
             <div
-                class="group relative flex flex-col items-center gap-1 p-2 rounded-box hover:bg-base-content/10 cursor-grab active:cursor-grabbing select-none touch-none"
+                class="group relative flex flex-col items-center gap-1 p-2 rounded-box hover:bg-base-content/10 cursor-grab active:cursor-grabbing select-none touch-pan-y"
                 use:dragSource={{ kind: "marker", marker }}
             >
                 <div

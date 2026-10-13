@@ -77,6 +77,11 @@ export function dragSource(node: HTMLElement, payload: DragPayload | null) {
         if (e.key === "Escape") cancel();
     }
 
+    /** Whether the source lets a finger scroll up and down, a list item */
+    function scrolls_up_and_down() {
+        return getComputedStyle(node).touchAction.includes("pan-y");
+    }
+
     function onPointerDown(e: PointerEvent) {
         if (e.button !== 0 || !current) return;
         // Buttons inside the source keep working as usual
@@ -101,12 +106,16 @@ export function dragSource(node: HTMLElement, payload: DragPayload | null) {
     function onPointerMove(e: PointerEvent) {
         if (!start || e.pointerId !== start.pointerId) return;
         if (!dragState.payload) {
-            if (
-                !current ||
-                Math.hypot(e.clientX - start.x, e.clientY - start.y) <
-                    DRAG_THRESHOLD
-            )
+            const dx = e.clientX - start.x;
+            const dy = e.clientY - start.y;
+            if (!current || Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+            // In a list that scrolls up and down, a finger moving that way scrolls it
+            // and only one moving sideways drags: wiping through the scenes on a phone
+            // dropped one on the map and switched to it
+            if (e.pointerType === "touch" && scrolls_up_and_down() && Math.abs(dy) > Math.abs(dx)) {
+                cancel();
                 return;
+            }
             dragState.payload = current;
             window.addEventListener("keydown", onKeyDown);
         }

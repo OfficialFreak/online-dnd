@@ -86,7 +86,7 @@
         {#each scenes as scene (scene.name)}
             {@const active = gameState.scene?.name === scene.name}
             <li
-                class="group flex flex-row items-center gap-2 p-1 rounded-box hover:bg-base-content/10 cursor-grab active:cursor-grabbing select-none touch-none {active
+                class="group flex flex-row items-center gap-2 p-1 rounded-box hover:bg-base-content/10 cursor-grab active:cursor-grabbing select-none touch-pan-y {active
                     ? 'bg-info/15'
                     : ''}"
                 use:dragSource={{ kind: "scene", scene }}
