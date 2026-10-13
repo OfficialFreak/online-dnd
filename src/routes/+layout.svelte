@@ -1223,7 +1223,7 @@
 <!-- Without the controls only the dot and the button stay, the bar itself disappears -->
 <div
     data-tauri-drag-region
-    class="titlebar z-10 {appState.controls_open ? '' : 'titlebar-folded'}"
+    class="gui titlebar z-10 {appState.controls_open ? '' : 'titlebar-folded'}"
 >
     <div class="flex justify-center transition-opacity gap-2">
         <button
@@ -1696,7 +1696,9 @@
             background-color 0.2s,
             box-shadow 0.2s,
             border-color 0.2s,
-            backdrop-filter 0.2s;
+            backdrop-filter 0.2s,
+            /* Fading under the smoke, see .gui in app.css */
+            opacity 1.2s ease 0.5s;
     }
     .titlebar-folded {
         background: transparent;

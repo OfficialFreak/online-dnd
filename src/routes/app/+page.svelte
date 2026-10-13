@@ -192,7 +192,7 @@
     {#if gameState.dm && fogState.selected_player !== "all"}
         <!-- So the DM doesn't forget that the map shows a player's view -->
         <div
-            class="fixed top-[calc(var(--titlebar)+var(--safe-top)+0.5rem)] right-[calc(1rem+var(--safe-right))] z-10 badge badge-info gap-1 pr-0.5 shadow"
+            class="gui fixed top-[calc(var(--titlebar)+var(--safe-top)+0.5rem)] right-[calc(1rem+var(--safe-right))] z-10 badge badge-info gap-1 pr-0.5 shadow"
         >
             <i class="fa-solid fa-eye"></i>
             Ansicht von {fogState.selected_player}
@@ -207,7 +207,7 @@
     {/if}
     {#if gameState.scene && gameState.combat}
         <div
-            class="fixed top-[calc(var(--titlebar)+var(--safe-top))] left-[var(--safe-left)] ml-14 w-[calc(100vw-5rem-var(--safe-left)-var(--safe-right))] overflow-x-auto overflow-y-hidden pb-12 flex justify-center pointer-events-none"
+            class="gui fixed top-[calc(var(--titlebar)+var(--safe-top))] left-[var(--safe-left)] ml-14 w-[calc(100vw-5rem-var(--safe-left)-var(--safe-right))] overflow-x-auto overflow-y-hidden pb-12 flex justify-center pointer-events-none"
         >
             <InitiativeBar />
         </div>
@@ -217,7 +217,7 @@
          the bottom up, so items-start keeps the buttons at the bottom: with items-end the
          dice rose to the top when the reactions' menu took two lines. -->
     <div
-        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000] flex flex-wrap-reverse items-start gap-1 max-w-[calc(100vw-1rem-var(--safe-left))]"
+        class="gui fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000] flex flex-wrap-reverse items-start gap-1 max-w-[calc(100vw-1rem-var(--safe-left))]"
     >
         <DiceChooser roll_callback={roll} />
         <ReactionBar />
@@ -226,7 +226,7 @@
     <!-- What can be done with the selected markers, without Delete key on a tablet -->
     {#if gameState.dm && selection.size > 0}
         <div
-            class="fixed bottom-[calc(3.5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 z-10 frosted rounded-box p-1 pl-3 flex flex-row items-center gap-2"
+            class="gui fixed bottom-[calc(3.5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 z-10 frosted rounded-box p-1 pl-3 flex flex-row items-center gap-2"
             transition:fade={{ duration: 150 }}
         >
             <span
@@ -252,7 +252,7 @@
 
     <!-- On phones above the turn button, which moves to the right there -->
     <div
-        class="fixed bottom-[var(--safe-bottom)] max-sm:bottom-[calc(3.5rem+var(--safe-bottom))] left-0 pr-[var(--safe-right)] w-screen z-[999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
+        class="gui fixed bottom-[var(--safe-bottom)] max-sm:bottom-[calc(3.5rem+var(--safe-bottom))] left-0 pr-[var(--safe-right)] w-screen z-[999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"
     >
         <div
             class="w-80 p-2 pointer-events-none flex flex-col justify-end items-end gap-1"
@@ -277,7 +277,7 @@
     {#if gameState.combat && (gameState.scene?.state.initiative?.length || 0) > 0 && (gameState.dm || get_own_character()?.name === gameState.scene?.state.turn)}
         <!-- On phones the dice take the bottom left, so it goes to the right -->
         <div
-            class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 max-sm:left-auto max-sm:right-[calc(0.5rem+var(--safe-right))] max-sm:translate-x-0 z-10"
+            class="gui fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 max-sm:left-auto max-sm:right-[calc(0.5rem+var(--safe-right))] max-sm:translate-x-0 z-10"
         >
             <div class="tooltip">
                 <div class="tooltip-content">

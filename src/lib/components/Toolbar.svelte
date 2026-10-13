@@ -410,7 +410,7 @@
 
 {#if appState.controls_open}
 <div
-    class="fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row pointer-events-none"
+    class="gui fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(4rem+var(--safe-bottom))] flex flex-row pointer-events-none"
 >
     <!-- Once opened a panel stays on the page and only slides out of sight. Built anew each
          time it took a frame of 50 ms, and sliding moves it on the graphics card alone. -->

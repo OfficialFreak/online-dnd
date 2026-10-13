@@ -53,6 +53,25 @@ html.home-screen {
     min-height: calc(100% + env(safe-area-inset-top, 0px));
 }
 
+/* The controls fade out under the smoke between scenes and as the app opens, and back in as
+   it draws back, see SceneIntro. A class on the root once, not a value every frame: that
+   made the browser work out the whole page's styles anew on every step. */
+/* Back in slowly and a little later, as the smoke draws back from the middle */
+.gui {
+    transition: opacity 1.2s ease 0.5s;
+}
+
+/* Out quickly as the smoke closes */
+html.veiled .gui {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+html.veiled .gui,
+html.veiled .gui * {
+    pointer-events: none !important;
+}
+
 /* With the controls folded away the title bar is transparent, the page starts at the top */
 html.controls-folded body {
     margin-top: var(--safe-top);

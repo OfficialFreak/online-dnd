@@ -65,6 +65,12 @@
     /** Come with the smoke as it closes, go first as it draws back */
     let starlight = $derived(smoothstep(0.55, 0.95, smoke.current));
 
+    // The controls fade out while the smoke closes or covers, and back in as it draws back
+    $effect(() => {
+        document.documentElement.classList.toggle("veiled", smoke.target > 0);
+        return () => document.documentElement.classList.remove("veiled");
+    });
+
     /** The smoke in a small picture the browser stretches softly over the screen */
     function draw() {
         if (!canvas) return;
