@@ -17,7 +17,8 @@ import { MessageTypes, notify } from "$lib/notifications.svelte";
 import { choose_files, file_stem_of, upload_bytes } from "$lib/upload.svelte";
 
 export type ImportedMap = {
-    image: Uint8Array;
+    /** None in the export of an animated map, its video is the map */
+    image: Uint8Array | null;
     extension: "png" | "webp" | "jpg";
     columns: number;
     rows: number;
@@ -134,13 +135,10 @@ export function parse_uvtt(text: string): ImportedMap {
         .filter((light) => valid([light.x, light.y]) && light.dim > 0);
 
     const image = field(data, "image");
-    if (typeof image !== "string" || !image) {
-        throw new Error("Die Datei enthält kein Kartenbild");
-    }
-    const bytes = decode_base64(image);
+    const bytes = typeof image === "string" && image ? decode_base64(image) : null;
     return {
         image: bytes,
-        extension: image_type(bytes),
+        extension: bytes ? image_type(bytes) : "png",
         columns: Math.round(width),
         rows: Math.round(height),
         walls,
@@ -153,7 +151,7 @@ export function parse_uvtt(text: string): ImportedMap {
 }
 
 /** PNG maps get a lot smaller as WebP, for everyone loading them */
-async function smaller_image(map: ImportedMap) {
+async function smaller_image(map: ImportedMap & { image: Uint8Array }) {
     if (map.extension !== "png") return { bytes: map.image, extension: map.extension };
     try {
         const bitmap = await createImageBitmap(
@@ -261,9 +259,17 @@ export async function import_uvtt() {
         }
         notify("Das Video der Karte wird hochgeladen…", MessageTypes.Info, 3000);
         asset = await upload_bytes(video, `${name}.${extension_of(video.name)}`);
+    } else if (!map.image) {
+        // Dungeon Alchemist leaves the picture out of an animated map's export
+        notify(
+            "In der Datei ist kein Kartenbild. Bei animierten Karten wähle das Video zusammen mit der .dd2vtt aus.",
+            MessageTypes.Error,
+            10000,
+        );
+        return;
     } else {
         notify("Die Karte wird hochgeladen…", MessageTypes.Info, 3000);
-        const { bytes, extension } = await smaller_image(map);
+        const { bytes, extension } = await smaller_image({ ...map, image: map.image });
         asset = await upload_bytes(bytes, `${name}.${extension}`);
     }
     if (!asset || !appState.ws) return;
