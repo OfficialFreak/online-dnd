@@ -186,6 +186,7 @@
                 resolve();
             };
         });
+        return knocked;
     }
 
     /** The smoke draws back without a scroll once ready, a scroll still shown rolls up */

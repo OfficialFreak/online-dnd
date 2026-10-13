@@ -4,6 +4,7 @@
  */
 import { tick } from "svelte";
 import { appState, gameState } from "./state.svelte";
+import { hold_sound, release_sound } from "./audio.svelte";
 import type { SceneData } from "./types/messaging/server_messages";
 
 type Intro = {
@@ -19,9 +20,9 @@ type Intro = {
     announce(text: string): Promise<void>;
     /**
      * Asks for a tap over the covered screen, which also lets the browser play sound. The
-     * smoke draws back only after it.
+     * smoke draws back only after it, resolved by it.
      */
-    knock(): void;
+    knock(): Promise<void>;
 };
 
 let intro: Intro | null = null;
@@ -43,8 +44,11 @@ export function register_intro(shown: Intro | null) {
     // the loading screen, and opened without the portal there
     if (!shown || !opening || !appState.scene_intro) return;
     shown.veil();
-    // Every time, the user likes the look of it, also where sound plays without a tap
-    shown.knock();
+    // Every time, the user likes the look of it, also where sound plays without a tap.
+    // Nothing plays before, also where it could, as in the desktop app: the music comes
+    // in as the portal opens.
+    hold_sound();
+    shown.knock().then(release_sound);
     // Without a scene to show, e.g. none is active, it draws back on its own
     setTimeout(() => {
         if (!opening) return;
