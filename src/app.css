@@ -73,6 +73,13 @@ html.controls-folded body {
     border: 1px solid rgba(28, 34, 41, 0.12);
 }
 
+/* Inside frosted glass, what lies behind is blurred already: the character sheet's stats
+   blurred it once more each, seventeen times on every scroll of the sheet */
+.frosted .frosted {
+    backdrop-filter: none;
+    box-shadow: none;
+}
+
 /* Firefox blurs what lies behind frosted glass anew on every frame anything there moves,
    rain made it stutter at half the rate. It gets nearly opaque surfaces instead. */
 @supports (-moz-appearance: none) {
