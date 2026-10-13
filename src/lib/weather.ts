@@ -133,8 +133,17 @@ export class WeatherRenderer {
     private sprites: HTMLCanvasElement[] = [];
     private flashes: { at: number; strength: number }[] = [];
     private frame = 0;
+    /** The pause between frames while only fog drifts, see tick */
+    private wait = 0;
     private last = 0;
     private active = false;
+    /**
+     * The fog at half the size, drawn about thirty times a second. Seven clouds over the
+     * whole screen on every frame were four and a half screens of pixels each time, as
+     * much as heavy rain, for something that hardly moves.
+     */
+    private fog_layer: HTMLCanvasElement | null = null;
+    private fog_drawn = -Infinity;
 
     /**
      * Lite draws fewer particles, for phones. Calm (reduced motion) draws a still picture
@@ -221,11 +230,13 @@ export class WeatherRenderer {
         this.canvas.height = Math.round(height * scale);
         this.context.setTransform(scale, 0, 0, scale, 0, 0);
         for (const cloud of this.clouds) this.place_cloud(cloud, false);
+        this.fog_drawn = -Infinity;
         if (this.options.calm || !this.frame) this.draw(performance.now());
     }
 
     destroy() {
         cancelAnimationFrame(this.frame);
+        clearTimeout(this.wait);
         this.frame = 0;
     }
 
@@ -251,7 +262,16 @@ export class WeatherRenderer {
             }
             return;
         }
-        this.frame = requestAnimationFrame(this.tick);
+        if (this.drops.length || this.flakes.length || this.flashes.length) {
+            this.frame = requestAnimationFrame(this.tick);
+        } else {
+            // Only fog drifts, drawn about thirty times a second anyway: the frames in
+            // between would only copy it. Not 0 meanwhile, start() would run a second loop.
+            this.frame = -1;
+            this.wait = window.setTimeout(() => {
+                this.frame = requestAnimationFrame(this.tick);
+            }, 28);
+        }
     };
 
     private settled() {
@@ -369,19 +389,8 @@ export class WeatherRenderer {
         if (is_clear(shown) && !this.flashes.length) return;
 
         if (shown.fog >= NONE) {
-            const t = now / 1000;
-            for (const cloud of this.clouds) {
-                ctx.globalAlpha =
-                    shown.fog * 0.6 * (0.75 + 0.25 * Math.sin(t * 0.15 + cloud.phase));
-                ctx.drawImage(
-                    this.sprites[cloud.sprite],
-                    cloud.x,
-                    cloud.y,
-                    cloud.width,
-                    cloud.width * 0.45,
-                );
-            }
-            ctx.globalAlpha = 1;
+            if (this.options.calm || now - this.fog_drawn >= 30) this.draw_fog(now);
+            ctx.drawImage(this.fog_layer!, 0, 0, width, height);
         }
 
         if (this.drops.length) {
@@ -438,6 +447,35 @@ export class WeatherRenderer {
     }
 
     /** Soft fog banks, drawn once and then only moved */
+    /** The clouds into the fog layer, see fog_layer */
+    private draw_fog(now: number) {
+        this.fog_drawn = now;
+        const layer = (this.fog_layer ??= document.createElement("canvas"));
+        const width = Math.max(1, Math.ceil(this.width / 2));
+        const height = Math.max(1, Math.ceil(this.height / 2));
+        if (layer.width !== width || layer.height !== height) {
+            layer.width = width;
+            layer.height = height;
+        }
+        const fog = layer.getContext("2d")!;
+        fog.setTransform(1, 0, 0, 1, 0, 0);
+        fog.clearRect(0, 0, width, height);
+        fog.setTransform(width / Math.max(1, this.width), 0, 0, height / Math.max(1, this.height), 0, 0);
+        const t = now / 1000;
+        for (const cloud of this.clouds) {
+            fog.globalAlpha =
+                this.shown.fog * 0.6 * (0.75 + 0.25 * Math.sin(t * 0.15 + cloud.phase));
+            fog.drawImage(
+                this.sprites[cloud.sprite],
+                cloud.x,
+                cloud.y,
+                cloud.width,
+                cloud.width * 0.45,
+            );
+        }
+        fog.globalAlpha = 1;
+    }
+
     private make_clouds() {
         if (!this.sprites.length) {
             for (let i = 0; i < 3; i++) this.sprites.push(cloud_sprite());
