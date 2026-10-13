@@ -156,8 +156,15 @@
         }
     }
 
+    /**
+     * Over everything, the controls too, while the app is about to load again: they are of
+     * no use then, and the portal closes on the whole screen
+     */
+    let above = $state(false);
+
     /** The smoke closes and the scroll unrolls with this, and stays */
     async function announce(text: string) {
+        above = true;
         await cover();
         if (document.hidden) return;
         name = text;
@@ -288,12 +295,14 @@
     bind:this={canvas}
     class="fixed inset-0 w-full h-full pointer-events-none"
     style:display={smoke.current > 0 ? "block" : "none"}
+    style:z-index={above ? 100000 : null}
     aria-hidden="true"
 ></canvas>
 
 {#if scroll_shown}
     <div
         class="fixed inset-0 z-[999] flex items-center justify-center pointer-events-none px-8"
+        style:z-index={above ? 100001 : null}
         role="status"
     >
         <div class="scroll" bind:this={scroll} style:opacity="0">
