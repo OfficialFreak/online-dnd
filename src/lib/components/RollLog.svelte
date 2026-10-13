@@ -13,13 +13,11 @@
 
     let rolls = $derived(gameState.rolls.toReversed());
 
+    /** One for all rows: toLocaleTimeString made a new one for each, twice a row */
+    const clock = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" });
+
     function time(roll: RollEntry) {
-        return roll.time
-            ? new Date(roll.time).toLocaleTimeString("de-DE", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-              })
-            : "";
+        return roll.time ? clock.format(roll.time) : "";
     }
 
     function icon(roll: RollEntry) {
@@ -34,9 +32,12 @@
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
     <h1 class="text-3xl font-bold">Verlauf</h1>
     <ul class="flex flex-col gap-1">
-        {#each rolls as roll}
+        <!-- Keyed: a new roll comes first, without the key every row below took the next
+             row's roll and all of them were built anew -->
+        {#each rolls as roll (roll)}
             {@const natural = natural_d20(roll)}
             {@const detail = roll_detail(roll)}
+            {@const at = time(roll)}
             <li
                 class="relative flex flex-row items-center gap-3 p-2 pl-3 rounded-box bg-base-content/5 overflow-hidden"
             >
@@ -63,7 +64,7 @@
                     <div
                         class="text-xs text-base-content/50 flex flex-row flex-wrap items-center gap-x-1.5 mt-0.5"
                     >
-                        {#if time(roll)}<span>{time(roll)}</span>{/if}
+                        {#if at}<span>{at}</span>{/if}
                         {#if detail}<span class="tabular-nums">{detail}</span
                             >{/if}
                         {#if mode_label(roll.mode)}
