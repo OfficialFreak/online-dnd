@@ -14,7 +14,7 @@
     /** Width of the small copy of the map the light is made from */
     const SAMPLE = 48;
     /** How far the edges reach out, in sizes of the map */
-    const MARGIN = 1.5;
+    const MARGIN = 2.5;
     /**
      * How often a video map is looked at again, in milliseconds. Each look scales a frame
      * of up to 4K down on the graphics card, at 15 a second that kept it busy a quarter
@@ -31,21 +31,23 @@
      * blur away.
      */
     let grain = $state("");
+    /** The map fills the screen, nothing of the light shows and it isn't drawn */
+    let covered = $state(false);
 
     const base = document.createElement("canvas");
     const extended = document.createElement("canvas");
-    /** The edges' colours blurred wide, and only a little for right beside the map */
+    /**
+     * The edges' colours blurred wide, and only a little for right beside the map, each
+     * already fading with the distance from the map
+     */
     const glow = document.createElement("canvas");
     const glow_near = document.createElement("canvas");
     const average = document.createElement("canvas");
     average.width = average.height = 1;
-    /** The glow fading with the distance from the map, and what fades it */
-    const light = document.createElement("canvas");
-    const near_light = document.createElement("canvas");
+    /** What fades them, made once for the map's shape */
     const far_mask = document.createElement("canvas");
     const near_mask = document.createElement("canvas");
-    let far_pixels: ImageData | null = null;
-    let near_pixels: ImageData | null = null;
+    let mask_shape = "";
     /** Soft clouds over the light, so it isn't one smooth colour */
     const clouds = document.createElement("canvas");
 
@@ -167,8 +169,8 @@
         return current;
     }
 
-    /** A blurred copy a little more colourful, darker in a dark scene */
-    function tint(target: HTMLCanvasElement, source: HTMLCanvasElement) {
+    /** A blurred copy a little more colourful, darker in a dark scene, faded by the mask */
+    function tint(target: HTMLCanvasElement, source: HTMLCanvasElement, mask: HTMLCanvasElement) {
         target.width = source.width;
         target.height = source.height;
         const ctx = target.getContext("2d")!;
@@ -179,7 +181,46 @@
         ctx.globalCompositeOperation = "source-atop";
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - dimming})`;
         ctx.fillRect(0, 0, target.width, target.height);
+        ctx.globalCompositeOperation = "destination-in";
+        ctx.drawImage(mask, 0, 0);
         ctx.globalCompositeOperation = "source-over";
+    }
+
+    /**
+     * How strongly the light shows around the map, by the distance to it: right beside it
+     * the colours of its edge, fading within a few steps of the map, and its wide glow
+     * fading slowly over about a map's size. Made once for the map's shape and drawn with
+     * the light: worked out anew on every step of panning and zooming, it held up the
+     * frames in Firefox.
+     */
+    function fade_masks(bw: number, bh: number, mw: number, mh: number) {
+        const shape = `${bw}x${bh}`;
+        if (shape === mask_shape) return;
+        mask_shape = shape;
+        const width = bw + 2 * mw;
+        const height = bh + 2 * mh;
+        far_mask.width = near_mask.width = width;
+        far_mask.height = near_mask.height = height;
+        const far = new ImageData(width, height);
+        const near = new ImageData(width, height);
+        far.data.fill(255);
+        near.data.fill(255);
+        const far_reach = Math.min(1.2 * Math.max(bw, bh), 0.95 * Math.min(mw, mh));
+        const near_reach = 0.12 * Math.max(bw, bh);
+        for (let row = 0; row < height; row++) {
+            const cy = row + 0.5;
+            const dy = Math.max(mh - cy, 0, cy - (mh + bh));
+            for (let column = 0; column < width; column++) {
+                const cx = column + 0.5;
+                const dx = Math.max(mw - cx, 0, cx - (mw + bw));
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const i = (row * width + column) * 4 + 3;
+                far.data[i] = 255 * (1 - smoothstep(0, far_reach, distance));
+                near.data[i] = 255 * (1 - smoothstep(0, near_reach, distance));
+            }
+        }
+        far_mask.getContext("2d")!.putImageData(far, 0, 0);
+        near_mask.getContext("2d")!.putImageData(near, 0, 0);
     }
 
     /**
@@ -204,8 +245,9 @@
         ctx.drawImage(base, 0, bh - 1, 1, 1, 0, mh + bh, mw, mh);
         ctx.drawImage(base, bw - 1, bh - 1, 1, 1, mw + bw, mh + bh, mw, mh);
 
-        tint(glow, blur(extended, 4));
-        tint(glow_near, blur(extended, 1));
+        fade_masks(bw, bh, mw, mh);
+        tint(glow, blur(extended, 4), far_mask);
+        tint(glow_near, blur(extended, 1), near_mask);
 
         const average_ctx = average.getContext("2d")!;
         average_ctx.imageSmoothingQuality = "high";
@@ -214,43 +256,9 @@
     }
 
     /**
-     * How strongly the light shows around the map: right beside it the colours of its edge,
-     * fading within a few steps of the map, and its wide glow fading slowly over half the
-     * screen. Worked out by the distance to the map, a blurred box faded too soon and
-     * showed where it ended.
-     */
-    function fade(x: number, y: number, w: number, h: number, width: number, height: number) {
-        if (far_pixels?.width !== width || far_pixels.height !== height) {
-            far_pixels = new ImageData(width, height);
-            near_pixels = new ImageData(width, height);
-            far_pixels.data.fill(255);
-            near_pixels.data.fill(255);
-            far_mask.width = near_mask.width = width;
-            far_mask.height = near_mask.height = height;
-        }
-        const far = far_pixels.data;
-        const near = near_pixels!.data;
-        const far_reach = Math.max(width, height) * 0.55;
-        const near_reach = width * 0.08;
-        for (let row = 0; row < height; row++) {
-            const cy = row + 0.5;
-            const dy = Math.max(y - cy, 0, cy - (y + h));
-            for (let column = 0; column < width; column++) {
-                const cx = column + 0.5;
-                const dx = Math.max(x - cx, 0, cx - (x + w));
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const i = (row * width + column) * 4 + 3;
-                far[i] = 255 * (1 - smoothstep(0, far_reach, distance));
-                near[i] = 255 * (1 - smoothstep(0, near_reach, distance));
-            }
-        }
-        far_mask.getContext("2d")!.putImageData(far_pixels, 0, 0);
-        near_mask.getContext("2d")!.putImageData(near_pixels!, 0, 0);
-    }
-
-    /**
      * Soft clouds of lighter and darker, a few across the screen. Drawn once for the size
-     * of the light, they stay in place while the map moves.
+     * of the light, they stay in place while the map moves. See-through light and dark
+     * instead of a blend mode, which Firefox can't draw on the graphics card.
      */
     function cloud_layer(width: number, height: number) {
         if (clouds.width === width && clouds.height === height) return clouds;
@@ -261,11 +269,11 @@
         const scale = 4.5 / width;
         for (let row = 0; row < height; row++) {
             for (let column = 0; column < width; column++) {
-                const value = billows(column * scale + 11.3, row * scale + 5.7, 3);
-                const grey = Math.max(0, Math.min(255, 128 + (value - 0.5) * 420));
+                const offset = billows(column * scale + 11.3, row * scale + 5.7, 3) - 0.5;
                 const i = (row * width + column) * 4;
-                pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = grey;
-                pixels.data[i + 3] = 255;
+                const shade = offset > 0 ? 255 : 0;
+                pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = shade;
+                pixels.data[i + 3] = Math.min(64, Math.abs(offset) * (offset > 0 ? 130 : 260));
             }
         }
         ctx.putImageData(pixels, 0, 0);
@@ -281,12 +289,6 @@
         if (canvas.width !== width || canvas.height !== height) {
             canvas.width = width;
             canvas.height = height;
-        }
-        for (const layer of [light, near_light]) {
-            if (layer.width !== width || layer.height !== height) {
-                layer.width = width;
-                layer.height = height;
-            }
         }
         // The map in the small picture
         const x = (rect.left / innerWidth) * width;
@@ -304,19 +306,14 @@
         ctx.fillRect(0, 0, width, height);
 
         // Closer its edges glow, fading with the distance. Right beside the map the
-        // colours of its edge, the map seems to go on into its light.
+        // colours of its edge, the map seems to go on into its light. No shadow around
+        // the map, a dark rim showed where the map ended and its light began.
         const mw = (glow.width - base.width) / 2;
         const mh = (glow.height - base.height) / 2;
         const scale_x = w / base.width;
         const scale_y = h / base.height;
-        fade(x, y, w, h, width, height);
-        for (const [layer, source] of [
-            [light, glow],
-            [near_light, glow_near],
-        ]) {
-            const layer_ctx = layer.getContext("2d")!;
-            layer_ctx.globalCompositeOperation = "copy";
-            layer_ctx.drawImage(
+        for (const source of [glow, glow_near]) {
+            ctx.drawImage(
                 source,
                 x - mw * scale_x,
                 y - mh * scale_y,
@@ -324,31 +321,9 @@
                 source.height * scale_y,
             );
         }
-        const near_ctx = near_light.getContext("2d")!;
-        near_ctx.globalCompositeOperation = "destination-in";
-        near_ctx.drawImage(near_mask, 0, 0);
-        const light_ctx = light.getContext("2d")!;
-        light_ctx.globalCompositeOperation = "source-over";
-        light_ctx.drawImage(near_light, 0, 0);
-        light_ctx.globalCompositeOperation = "destination-in";
-        light_ctx.drawImage(far_mask, 0, 0);
-        ctx.drawImage(light, 0, 0);
 
         // Soft clouds in it
-        ctx.globalCompositeOperation = "soft-light";
-        ctx.globalAlpha = 0.5;
         ctx.drawImage(cloud_layer(width, height), 0, 0);
-        ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = "source-over";
-
-        // A faint wide shadow around the map, it floats a little over its light. A dark
-        // rim right at the map showed where the map ended and its light began.
-        ctx.save();
-        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-        ctx.shadowBlur = width / 14;
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(x, y, w, h);
-        ctx.restore();
 
         // Darker towards the corners, the eye stays on the map. Drawn in here instead of
         // as a layer of its own over the whole screen.
@@ -424,7 +399,14 @@
         const look = `${rect.left}|${rect.top}|${rect.width}|${rect.height}|${innerWidth}|${innerHeight}`;
         if (look === last_look) return;
         last_look = look;
-        draw(rect);
+        // Zoomed in the map fills the screen: the light would be drawn for nothing on
+        // every step of panning, and the graphics card would still put it under the map
+        covered =
+            rect.left <= 0 &&
+            rect.top <= 0 &&
+            rect.right >= innerWidth &&
+            rect.bottom >= innerHeight;
+        if (!covered) draw(rect);
     }
 
     // Only when something may have moved the map its place is looked up: on every frame
@@ -519,7 +501,11 @@
 {#if appState.ambient && gameState.scene}
     <!-- Above the page's background, under all that comes after it on the page: a
          negative z-index would put it under the body's background -->
-    <div class="ambient fixed inset-0 pointer-events-none" aria-hidden="true">
+    <div
+        class="ambient fixed inset-0 pointer-events-none"
+        class:covered
+        aria-hidden="true"
+    >
         {#each [0, 1] as index (index)}
             <canvas
                 bind:this={canvases[index]}
@@ -541,6 +527,10 @@
 
     .grain {
         background-size: 128px 128px;
+    }
+
+    .covered {
+        visibility: hidden;
     }
 
     /* The last map's light fades out, then leaves the screen to the graphics card */
