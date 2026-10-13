@@ -47,6 +47,24 @@
 
     let image: ImageData | null = null;
 
+    /**
+     * Stars over the smoke like in the app's icon, a few of them faintly golden. Sharp on
+     * their own layer, the smoke is a small picture stretched over the screen.
+     */
+    const STARS = Array.from({ length: 46 }, () => {
+        const gold = Math.random() < 0.3;
+        return {
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            size: (gold ? 2.2 : 1.4) + Math.random() * 1.6,
+            gold,
+            delay: -Math.random() * 6,
+            duration: 2.5 + Math.random() * 3.5,
+        };
+    });
+    /** Come with the smoke as it closes, go first as it draws back */
+    let starlight = $derived(smoothstep(0.55, 0.95, smoke.current));
+
     /** The smoke in a small picture the browser stretches softly over the screen */
     function draw() {
         if (!canvas) return;
@@ -70,12 +88,14 @@
                 const swirl = billows(x * 0.045 + time * 0.12, y * 0.045 - time * 0.08, 3);
                 const threshold = 0.6 * middle + 0.4 * swirl;
                 const alpha = smoothstep(threshold - 0.12, threshold + 0.12, level);
-                // A lighter rim where the smoke rolls on
+                // A violet rim where the smoke rolls on
                 const rim = (1 - Math.abs(2 * alpha - 1)) * (0.6 + 0.4 * swirl);
+                // The night of the app's icon: deep blue above, purple waves below
+                const purple = smoothstep(0.25, 1.1, y / height) * (0.45 + 0.55 * swirl);
                 const i = (y * width + x) * 4;
-                data[i] = 13 + 62 * rim;
-                data[i + 1] = 11 + 55 * rim;
-                data[i + 2] = 18 + 66 * rim;
+                data[i] = 10 + 56 * purple + 80 * rim;
+                data[i + 1] = 13 + 4 * purple + 42 * rim;
+                data[i + 2] = 36 + 74 * purple + 120 * rim;
                 data[i + 3] = 255 * alpha;
             }
         }
@@ -332,6 +352,27 @@
     aria-hidden="true"
 ></canvas>
 
+{#if starlight > 0}
+    <div
+        class="stars fixed inset-0 pointer-events-none"
+        style:opacity={starlight}
+        style:z-index={above ? 100000 : null}
+        aria-hidden="true"
+    >
+        {#each STARS as star, index (index)}
+            <span
+                class:gold={star.gold}
+                style:left="{star.x}%"
+                style:top="{star.y}%"
+                style:width="{star.size}px"
+                style:height="{star.size}px"
+                style:animation-delay="{star.delay}s"
+                style:animation-duration="{star.duration}s"
+            ></span>
+        {/each}
+    </div>
+{/if}
+
 {#if knocking}
     <!-- The whole screen: any tap enters. Played by the tap, the music doesn't need
          another, see keep_unlocked() -->
@@ -373,6 +414,29 @@
 {/if}
 
 <style>
+    .stars span {
+        position: absolute;
+        border-radius: 50%;
+        background: rgb(255 246 228);
+        box-shadow: 0 0 4px rgb(255 246 228 / 0.6);
+        animation: twinkle ease-in-out infinite;
+    }
+
+    .stars span.gold {
+        background: rgb(255 214 120);
+        box-shadow: 0 0 6px rgb(255 200 90 / 0.7);
+    }
+
+    @keyframes twinkle {
+        0%,
+        100% {
+            opacity: 0.25;
+        }
+        50% {
+            opacity: 0.95;
+        }
+    }
+
     .gate {
         cursor: pointer;
         background: transparent;
