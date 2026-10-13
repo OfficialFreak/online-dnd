@@ -32,14 +32,15 @@
     <script>
       // Safari on iPhones and iPads blurs the top of the page under its toolbar, the
       // title bar moves down out of it. Started from the home screen iOS blurs under the
-      // see-through status bar and about 28px further down (iOS 27).
+      // see-through status bar and fades it out about 30px further down (iOS 27): the
+      // controls reach a little into the fading end, more room looked too low.
       if (navigator.maxTouchPoints > 1 && /iPhone|iPad|Macintosh/.test(navigator.userAgent)) {
         const home_screen =
           navigator.standalone || matchMedia("(display-mode: standalone)").matches;
         document.documentElement.classList.toggle("home-screen", home_screen);
         document.documentElement.style.setProperty(
           home_screen ? "--status-blur" : "--browser-bar",
-          home_screen ? "28px" : "24px",
+          home_screen ? "12px" : "24px",
         );
       }
     </script>
