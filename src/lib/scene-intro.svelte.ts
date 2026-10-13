@@ -70,10 +70,13 @@ export function register_intro(shown: Intro | null) {
  */
 export async function portal_update(apply: () => unknown) {
     try {
+        // The sound fades with the smoke closing, nothing new plays while it is woven
+        hold_sound(1100);
         await intro?.announce("Das Portal wird neu gewoben");
         await apply();
     } catch (e) {
         console.error("Updating failed", e);
+        release_sound();
         intro?.lift(Promise.resolve());
     }
 }

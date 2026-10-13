@@ -644,24 +644,25 @@ export function stop_effect(name: string) {
 /**
  * Silences everything before the microphone records: nothing of it ends up in the
  * recording, and iOS switches its audio over for the microphone and stuttered with sound
- * still playing. The music fades out and pauses, the effects end, new ones stay silent.
+ * still playing. Also while the portal is woven anew for an update. The music fades out
+ * over `duration` milliseconds and pauses, the effects end, new ones stay silent.
  * Resolves once it is quiet.
  */
-export function hold_sound() {
+export function hold_sound(duration = HOLD_FADE) {
     held = true;
     for (const [player] of live_players()) {
         if (player.paused) continue;
         fade(player, () => 0, () => {
             if (held) player.pause();
-        }, HOLD_FADE);
+        }, duration);
     }
     for (const [name, playing] of [...effects]) {
         for (const audio of playing) {
             forget_effect(name, audio);
-            fade(audio, () => 0, () => audio.pause(), HOLD_FADE);
+            fade(audio, () => 0, () => audio.pause(), duration);
         }
     }
-    return new Promise<void>((resolve) => setTimeout(resolve, HOLD_FADE + 50));
+    return new Promise<void>((resolve) => setTimeout(resolve, duration + 50));
 }
 
 const HOLD_FADE = 300;
