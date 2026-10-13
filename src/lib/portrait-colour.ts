@@ -22,8 +22,11 @@ async function work_out(file: string) {
     try {
         const image = new Image();
         const server = `${appState.secure ? "https://" : "http://"}${appState.baseUrl}`;
-        if (new URL(server).origin !== location.origin) image.crossOrigin = "anonymous";
-        image.src = asset_url(`${file}_thumbnail.webp`);
+        const elsewhere = new URL(server).origin !== location.origin;
+        if (elsewhere) image.crossOrigin = "anonymous";
+        // From the desktop app the server has to allow reading it. Its own address: the
+        // same picture shown on a marker was kept without that permission.
+        image.src = asset_url(`${file}_thumbnail.webp`) + (elsewhere ? "&read=1" : "");
         await image.decode();
         const size = 16;
         const canvas = document.createElement("canvas");
