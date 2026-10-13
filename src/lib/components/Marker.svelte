@@ -234,13 +234,13 @@
               : null,
     );
     /**
-     * Shown beside a marker on the map while hovering it: players see the names of others'
-     * markers, the DM every name with its hit points. Not over its open menu.
+     * Shown under a marker on the map while hovering it: players see the names of others'
+     * markers, the DM every name. Not over its open menu.
      */
     let name_tag = $derived.by(() => {
         if (!mapUse || banner || menu_open) return null;
         if (!gameState.dm) return getCharacter(marker.name) ? null : marker.name;
-        return health ? `${marker.name} · ${health.current}/${health.max}` : marker.name;
+        return marker.name;
     });
     let health_degrees = $derived(
         health ? Math.max(0, Math.min(1, health.current / health.max)) * 360 : 360,
@@ -401,19 +401,13 @@
         : ''}"
 >
     {#if name_tag}
+        <!-- Under the marker, below its condition icons, the same size at any zoom -->
         <span
-            class="tooltip-content justify-center items-center flex !absolute"
-            style="border-radius: {1 / tag_scale}rem; padding: 0 {1 /
-                tag_scale}rem; transform: translate({20 /
-                tag_scale}px, -50%) !important; inset: unset !important; top: 50% !important; left: 100% !important;"
+            class="tooltip-content name-tag !absolute"
+            style="inset: unset !important; top: 114% !important; left: 50% !important; transform: translateX(-50%) scale({1 /
+                tag_scale}) !important;"
+            >{name_tag}</span
         >
-            <span
-                style="font-size: {16 / tag_scale}px; height: {40 /
-                    tag_scale}px; line-height: {40 / tag_scale}px;"
-                class="flex justify-center items-center whitespace-nowrap"
-                >{name_tag}</span
-            >
-        </span>
     {/if}
     <!-- While selecting, a tap only selects -->
     <button
@@ -911,6 +905,23 @@
 <style lang="css">
     .tooltip::after {
         content: unset !important;
+    }
+
+    /* A small dark plate with a thin golden rim */
+    .name-tag {
+        transform-origin: 50% 0;
+        white-space: nowrap;
+        padding: 0.15rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        line-height: 1.3;
+        color: #f4ead5;
+        background: rgb(22 18 14 / 0.85) !important;
+        border: 1px solid rgb(214 178 104 / 0.6);
+        box-shadow: 0 2px 8px rgb(0 0 0 / 0.45);
+        text-shadow: 0 1px 1px rgb(0 0 0 / 0.6);
     }
 
     .selection-ring {
