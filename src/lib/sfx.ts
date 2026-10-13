@@ -173,9 +173,30 @@ export const DEFAULT_VOICES: Record<string, () => void> = {
  * at the start and end cut off and as loud as it can be without distorting.
  */
 export async function record(seconds = 3) {
-    const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true },
-    });
+    // Recording needs a session that records too: the app's playback session, which keeps
+    // the music going in silent mode, made an iPhone refuse the microphone without asking
+    const session =
+        "audioSession" in navigator
+            ? (navigator as Navigator & { audioSession: { type: string } }).audioSession
+            : null;
+    const before = session?.type;
+    const restore = () => {
+        try {
+            if (session && before) session.type = before;
+        } catch {}
+    };
+    try {
+        if (session) session.type = "play-and-record";
+    } catch {}
+    let stream: MediaStream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true },
+        });
+    } catch (e) {
+        restore();
+        throw e;
+    }
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
     const processor = ctx.createScriptProcessor(4096, 1, 1);
@@ -196,6 +217,7 @@ export async function record(seconds = 3) {
         processor.disconnect();
         source.disconnect();
         stream.getTracks().forEach((track) => track.stop());
+        restore();
         const rate = ctx.sampleRate;
         ctx.close().catch(() => {});
         finish(to_wav(chunks, rate));

@@ -32,9 +32,17 @@
             recording = key;
             stop = recorder.stop;
             wav = await recorder.result;
-        } catch (e) {
+        } catch (e: any) {
             console.error("Recording failed", e);
-            notify("Kein Zugriff aufs Mikrofon", MessageTypes.Error, 4000);
+            notify(
+                e?.name === "NotAllowedError"
+                    ? "Kein Zugriff aufs Mikrofon, erlaube es in den Einstellungen der Website"
+                    : e?.name === "NotFoundError"
+                      ? "Kein Mikrofon gefunden"
+                      : "Aufnehmen ging nicht",
+                MessageTypes.Error,
+                5000,
+            );
             return;
         } finally {
             recording = null;
