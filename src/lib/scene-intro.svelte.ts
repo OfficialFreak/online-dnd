@@ -39,7 +39,9 @@ export const intro_ready = new Promise<void>((resolve) => (intro_shown = resolve
 export function register_intro(shown: Intro | null) {
     intro = shown;
     if (shown) intro_shown();
-    if (!shown || !opening || !appState.scene_intro || document.hidden) return;
+    // Also hidden: the desktop app loads the page in its window before it shows it, after
+    // the loading screen, and opened without the portal there
+    if (!shown || !opening || !appState.scene_intro) return;
     shown.veil();
     // Every time, the user likes the look of it, also where sound plays without a tap
     shown.knock();
