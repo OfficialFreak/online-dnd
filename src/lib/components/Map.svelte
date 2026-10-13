@@ -144,10 +144,16 @@
     let ruler_size: null | number = $state(null);
     let ruler_angle: null | number = $state(null);
 
-    /** The fog's texture, blurred once, see fog-texture */
+    /**
+     * The fog's texture, blurred once, see fog-texture. Made once there is fog: from a
+     * picture almost 5000 pixels wide, it held up every opening of the app.
+     */
     let fogTexture: HTMLCanvasElement | null = $state(null);
+    let has_fog = $derived(!!fog_squares?.some((word: number) => word !== 0));
     $effect(() => {
-        if (editable) fog_texture().then((texture) => (fogTexture = texture));
+        if (editable && has_fog && !fogTexture) {
+            fog_texture().then((texture) => (fogTexture = texture));
+        }
     });
     let fogPattern: CanvasPattern | null = $state(null);
     $effect(() => {

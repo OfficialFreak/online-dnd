@@ -269,11 +269,15 @@
         document.addEventListener("visibilitychange", on_visibility);
         // Ready before the first scene changes: the font and the parchment
         document.fonts?.load('700 2rem "Cinzel Decorative"').catch(() => {});
-        Promise.all([rasterize(STAINS), rasterize(FIBERS)])
-            .then(([stains, fibers]) => (textures = { stains, fibers }))
-            .catch(() => {});
+        // A moment after the app opened, which has enough to do then
+        const later = setTimeout(() => {
+            Promise.all([rasterize(STAINS), rasterize(FIBERS)])
+                .then(([stains, fibers]) => (textures = { stains, fibers }))
+                .catch(() => {});
+        }, 2500);
         return () => {
             register_intro(null);
+            clearTimeout(later);
             document.removeEventListener("visibilitychange", on_visibility);
             cancelAnimationFrame(frame);
         };
