@@ -474,6 +474,7 @@
             if (
                 !appState.ambient ||
                 !sampled ||
+                covered ||
                 document.hidden ||
                 !(media instanceof HTMLVideoElement) ||
                 media.paused ||
