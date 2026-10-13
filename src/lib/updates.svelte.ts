@@ -7,9 +7,14 @@ let applying = false;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Dragging a marker, painting or a dialog open: the update waits for it, a while */
-function busy() {
-    return appState.dragging || appState.mouseDown || !!document.querySelector("dialog[open]");
+/**
+ * At once, as everyone is kicked out for a few seconds and comes back: open dialogs close,
+ * they would stay over the smoke
+ */
+function close_dialogs() {
+    for (const dialog of document.querySelectorAll<HTMLDialogElement>("dialog[open]")) {
+        dialog.close();
+    }
 }
 
 /**
@@ -38,7 +43,7 @@ export async function look_for_update() {
             const version = await invoke_tauri<string | null>("update_version");
             if (!version) return;
             applying = true;
-            await idle();
+            close_dialogs();
             await portal_update(async () => {
                 await leave();
                 // Not installed, e.g. offline: loaded again it connects again
@@ -47,7 +52,7 @@ export async function look_for_update() {
         } else {
             if (!updated.current && !(await updated.check())) return;
             applying = true;
-            await idle();
+            close_dialogs();
             await portal_update(async () => {
                 await leave();
                 location.reload();
@@ -58,12 +63,6 @@ export async function look_for_update() {
     } finally {
         applying = false;
     }
-}
-
-/** Until nothing is in the middle of something, at most two minutes */
-async function idle() {
-    const start = Date.now();
-    while (busy() && Date.now() - start < 120_000) await wait(1000);
 }
 
 /**
