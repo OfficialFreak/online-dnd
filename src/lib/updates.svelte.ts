@@ -65,6 +65,24 @@ export async function look_for_update() {
     }
 }
 
+let following: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * After the server was updated. The desktop app's own update may still be being built
+ * then, a few minutes: it looks again every two minutes for half an hour, instead of only
+ * at the next half-hourly look.
+ */
+export function follow_server_update() {
+    look_for_update();
+    if (!in_tauri) return;
+    clearInterval(following);
+    const until = Date.now() + 30 * 60 * 1000;
+    following = setInterval(() => {
+        if (Date.now() > until) clearInterval(following);
+        else look_for_update();
+    }, 2 * 60 * 1000);
+}
+
 /**
  * Looks once the app has opened, also in the desktop app, which updated without a word
  * while starting: the update shows over the map then like any other, the smoke covers it

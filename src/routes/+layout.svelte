@@ -29,7 +29,11 @@
         set_motion,
     } from "../lib/state.svelte";
     import { connect, LIVE, message_type } from "../lib/connection.svelte";
-    import { look_for_update, look_for_update_on_opening } from "$lib/updates.svelte";
+    import {
+        follow_server_update,
+        look_for_update,
+        look_for_update_on_opening,
+    } from "$lib/updates.svelte";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
@@ -536,7 +540,7 @@
                     if (message.started) {
                         if (server_started && message.started !== server_started) {
                             notify("Das Portal wurde neu gewoben", MessageTypes.Info, 4000);
-                            look_for_update();
+                            follow_server_update();
                         }
                         server_started = message.started;
                     }
