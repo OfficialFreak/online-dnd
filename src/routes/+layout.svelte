@@ -94,6 +94,7 @@
     import DiceSkinPicker from "$lib/components/DiceSkinPicker.svelte";
     import ReactionRecorder from "$lib/components/ReactionRecorder.svelte";
     import {
+        greet_on_join,
         hear_hidden_roll,
         hear_reaction,
         reactionState,
@@ -544,6 +545,7 @@
                         }
                         server_started = message.started;
                     }
+                    greet_on_join();
 
                     setDiscordStatus(
                         isDev

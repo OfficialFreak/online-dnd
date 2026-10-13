@@ -83,6 +83,25 @@ export function hear_reaction(message: {
     play_reaction(reaction.key, message.file, who);
 }
 
+/** Not on every short reconnect, only after being away for a while */
+const HELLO_AGAIN_AFTER = 10 * 60 * 1000;
+
+/**
+ * Says "Hallo" to the others on joining, in the player's own voice if they recorded it.
+ * Once in a while: the app opening anew for an update or a dropped connection says nothing.
+ */
+export function greet_on_join() {
+    let last = 0;
+    try {
+        last = Number(localStorage.getItem("last_hello")) || 0;
+    } catch {}
+    if (Date.now() - last < HELLO_AGAIN_AFTER) return;
+    try {
+        localStorage.setItem("last_hello", String(Date.now()));
+    } catch {}
+    appState.ws?.send(Reaction.create("hello"));
+}
+
 /** The DM rolled behind the screen: everyone hears the dice, nobody sees them */
 export function hear_hidden_roll() {
     play_clatter();
