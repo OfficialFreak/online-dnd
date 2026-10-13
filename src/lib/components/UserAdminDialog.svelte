@@ -11,6 +11,7 @@
         DeleteUser,
         ListUsers,
         RegenerateKey,
+        RenameUser,
         SetDm,
     } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "$lib/notifications.svelte";
@@ -22,6 +23,34 @@
     /** "delete:Name" or "key:Name" while waiting for the second click */
     let confirm: string | null = $state(null);
     let confirm_timeout: ReturnType<typeof setTimeout> | undefined;
+    /** The user whose name is being changed, and to what */
+    let renaming: string | null = $state(null);
+    let rename_to = $state("");
+    let rename_taken = $derived(
+        adminState.users.some(
+            (user) => user.name === rename_to.trim() && user.name !== renaming,
+        ),
+    );
+
+    function start_rename(name: string) {
+        renaming = name;
+        rename_to = name;
+    }
+
+    function rename() {
+        const name = renaming;
+        const to = rename_to.trim();
+        renaming = null;
+        if (!name || !to || to === name || rename_taken) return;
+        appState.ws?.send(RenameUser.create(name, to));
+        if (shown_key === name) shown_key = to;
+    }
+
+    /** Focused and all selected, to type the new name right away */
+    function select_all(input: HTMLInputElement) {
+        input.focus();
+        input.select();
+    }
 
     let users = $derived(
         adminState.users.toSorted(
@@ -111,9 +140,45 @@
                                             : 'status-neutral'}"
                                         title={user.online ? "Online" : "Offline"}
                                     ></span>
-                                    {user.name}
-                                    {#if self}
-                                        <span class="badge badge-xs">Du</span>
+                                    {#if renaming === user.name}
+                                        <!-- Enter keeps it, Escape or leaving the field doesn't -->
+                                        <input
+                                            type="text"
+                                            class="input input-xs w-40 {rename_taken
+                                                ? 'input-error'
+                                                : ''}"
+                                            maxlength="40"
+                                            aria-label="Neuer Name"
+                                            title={rename_taken
+                                                ? "Den Namen gibt es schon"
+                                                : "Enter speichert, Escape bricht ab"}
+                                            bind:value={rename_to}
+                                            use:select_all
+                                            onkeydown={(event) => {
+                                                if (event.key === "Enter") rename();
+                                                if (event.key === "Escape") {
+                                                    // Not the dialog, only the renaming
+                                                    event.preventDefault();
+                                                    renaming = null;
+                                                }
+                                            }}
+                                            onblur={() => (renaming = null)}
+                                        />
+                                    {:else}
+                                        {user.name}
+                                        {#if self}
+                                            <span class="badge badge-xs">Du</span>
+                                        {/if}
+                                        <button
+                                            class="btn btn-xs btn-ghost btn-square"
+                                            aria-label="Umbenennen"
+                                            title={self
+                                                ? "Umbenennen, du wirst kurz getrennt"
+                                                : "Umbenennen, online wird er kurz getrennt"}
+                                            onclick={() => start_rename(user.name)}
+                                        >
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
                                     {/if}
                                 </div>
                             </td>

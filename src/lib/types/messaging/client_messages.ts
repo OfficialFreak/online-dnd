@@ -585,6 +585,17 @@ export class RegenerateKey {
     }
 }
 
+/** Their password, drawings and character stay theirs */
+export class RenameUser {
+    static create(name: string, new_name: string): string {
+        return JSON.stringify({
+            type: "rename_user",
+            name: name,
+            new_name: new_name
+        });
+    }
+}
+
 export class DeleteUser {
     static create(name: string): string {
         return JSON.stringify({
