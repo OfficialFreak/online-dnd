@@ -2159,6 +2159,8 @@
         thumbnail={!editable}
         alt="Map"
         data-map={editable ? "main" : undefined}
+        fit_video={editable}
+        paused={gesture_scale !== 1}
         decoding="async"
         class="w-full"
         fetchpriority={editable ? "high" : "auto"}
