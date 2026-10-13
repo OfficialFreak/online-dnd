@@ -68,7 +68,6 @@
     import confetti from "canvas-confetti";
     import { billows, smoothstep } from "$lib/noise";
     import { FOG_TEXTURE_SCALE, fog_texture } from "$lib/fog-texture";
-    import { debug } from "$lib/debug";
 
     let {
         file,
@@ -214,7 +213,6 @@
      * the cells, drawn like the fog, torn by drifting noise.
      */
     function fade_fog(cells: number[], adding: boolean, quick: boolean) {
-        if (debug.has("nofog")) return;
         if (!fog_fades || !rows || !w || !h || !cells.length) return;
         // Only around the cells
         const pad = size / 2;
@@ -246,8 +244,7 @@
         }
         ctx.fillStyle = "#cccccc";
         ctx.fill();
-        const pattern =
-            fogTexture && !debug.has("nopattern") && ctx.createPattern(fogTexture, "repeat");
+        const pattern = fogTexture && ctx.createPattern(fogTexture, "repeat");
         if (pattern) {
             ctx.globalCompositeOperation = "source-in";
             pattern.setTransform(new DOMMatrix().scale(layout_zoom * FOG_TEXTURE_SCALE));
@@ -398,7 +395,7 @@
             fogCtx.clearRect(0, 0, w, h);
         }
 
-        if (fogCtx && fog_squares && rows && !debug.has("nofog")) {
+        if (fogCtx && fog_squares && rows) {
 
             // Draw Fog
             fogCtx.beginPath();
@@ -420,7 +417,7 @@
             fogCtx.fillStyle = "#cccccc";
             fogCtx.fill();
 
-            if (fogPattern && !painting && !debug.has("nopattern")) {
+            if (fogPattern && !painting) {
                 fogCtx.globalCompositeOperation = "source-in";
                 // The texture grows with the map, like at the zoom it was made for
                 fogPattern.setTransform(
@@ -1098,8 +1095,6 @@
         const area = Math.max(1, base_w * base_h * ratio * ratio);
         return Math.max(1, Math.sqrt(SHRINKING_PIXELS / area));
     });
-    /** Laid out at most this large, only scaled beyond, see debug */
-    let layout_cap = $derived(debug.has("flatzoom") ? 1 : Infinity);
 
     /**
      * When a gesture starts shrinking a map laid out larger than shrinking_cap, it is
@@ -1127,7 +1122,7 @@
         if (pinching) return;
         const scroll_x = window.scrollX - shift_x;
         const scroll_y = window.scrollY - shift_y;
-        const layout = Math.min(appState.zoom, layout_cap);
+        const layout = appState.zoom;
         if (layout !== appState.layout_zoom) {
             // The new size right away, the browser measures it only after the next frame,
             // and markers placed by the old one would flash in the wrong spot
@@ -1521,9 +1516,7 @@
 
     // Sight: walls and closed doors block what the players' figures see. It is worked
     // out in cells, the walls are stored as fractions of the map.
-    let vision_on = $derived(
-        editable && !!gameState.scene?.state.vision && !debug.has("novision"),
-    );
+    let vision_on = $derived(editable && !!gameState.scene?.state.vision);
     /** The map's height in cells */
     /**
      * Rows of the map, from its shape. The sizes rounded after a zoom changed it in the
@@ -2234,10 +2227,7 @@
         ? ''
         : 'overflow-hidden'} {appState.selectedTool === Tools.Select
         ? 'touch-none'
-        : ''} {zooming ? 'zooming' : ''} {editable &&
-    debug.has('nooverlays')
-        ? 'debug-bare'
-        : ''}"
+        : ''} {zooming ? 'zooming' : ''}"
     bind:this={map_element}
     use:dropTarget={editable && gameState.dm
         ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
@@ -2267,7 +2257,7 @@
         draggable="false"
     />
     <div
-        class="map-measure absolute top-0 left-0 w-full h-full pointer-events-none"
+        class="absolute top-0 left-0 w-full h-full pointer-events-none"
         bind:clientWidth={w}
         bind:clientHeight={h}
     ></div>
@@ -2275,9 +2265,7 @@
          card repeats, nothing changing during a gesture. The lines' edges are soft, hard
          ones jumped between pixels while zooming. They are a pixel of the map wide and grow
          with a gesture until the map is laid out again. -->
-    {#if debug.has("nogrid")}
-        <!-- No grid, see debug -->
-    {:else if !gradient_grid}
+    {#if !gradient_grid}
         <!-- One screen pixel wide at any zoom -->
         <svg
             class="absolute top-0 left-0 w-full h-full z-0 opacity-50 pointer-events-none"
@@ -2323,7 +2311,7 @@
         <div
             class="absolute top-0 left-0 w-full h-full pointer-events-none"
         >
-            {#each debug.has("nomarkers") ? [] : non_player_markers as marker}
+            {#each non_player_markers as marker}
                 {@const hidden = !gameState.dm && in_fog(marker)}
                 <!-- Looking as a player, the DM doesn't see what they don't get -->
                 {#if !out_of_sight(marker) && !(viewer && gameState.dm && marker.hidden)}
@@ -2445,7 +2433,7 @@
         <div
             class="absolute top-0 left-0 w-full h-full z-0 has-[.menu-open]:z-30 pointer-events-none"
         >
-            {#each debug.has("nomarkers") ? [] : player_markers as marker}
+            {#each player_markers as marker}
                 <Marker
                     {marker}
                     dragOptions={{

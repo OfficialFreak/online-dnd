@@ -1,6 +1,5 @@
 <script lang="ts">
     import { appState } from "$lib/state.svelte";
-    import { debug } from "$lib/debug";
 
     let {
         asset,
@@ -84,7 +83,7 @@
         {/if}
     {:else if toUrl(asset)}
         {#if video}
-            {#if fit_video && !debug.has("still")}
+            {#if fit_video}
                 <div
                     class={props.class}
                     style="position: relative; aspect-ratio: {native
@@ -110,7 +109,7 @@
                             : 'width: 100%;'}"
                     ></video>
                 </div>
-            {:else if (!hoverVideoOnly || hovering) && !debug.has("still")}
+            {:else if !hoverVideoOnly || hovering}
                 <!-- onloadeddata doesn't fire on mobile with data-saver enabled (code is removed on mobile) -->
                 <!-- Inline and muted: without them an iPhone opens the video full screen
                      when a tap on a marker plays it, and plays nothing on its own -->
