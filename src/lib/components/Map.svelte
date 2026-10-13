@@ -17,6 +17,7 @@
     import { dropTarget, type DragPayload } from "$lib/drag.svelte";
     // @ts-ignore
     import throttle from "just-throttle";
+    import { in_webkit } from "$lib/platform";
     import debounce from "just-debounce-it";
     import { send_marker_position, send_pointer } from "$lib/live";
     import { fade } from "svelte/transition";
@@ -1023,6 +1024,22 @@
         settle_timer = setTimeout(settle, 200);
     }
 
+    /**
+     * Zooming out in one gesture, the map laid out at the old zoom is only scaled down.
+     * Safari keeps all of it drawn at full sharpness then: zoomed in fully on a phone and
+     * out again, hundreds of megabytes, and iOS closed the page. In Safari the map is laid
+     * out anew on the way whenever it would be scaled to less than half. It stays where
+     * it is: its box doesn't move, the shift stays, and the page keeps its size.
+     */
+    function relayout_if_shrunk() {
+        if (!in_webkit) return;
+        const ratio = appState.zoom / appState.layout_zoom;
+        if (ratio >= 0.5) return;
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+        appState.layout_zoom = appState.zoom;
+    }
+
     function settle() {
         if (pinching) return;
         const scroll_x = window.scrollX - shift_x;
@@ -1170,6 +1187,7 @@
         };
         appState.zoom = new_zoom;
         keep_under(point, client_x, client_y, unshifted);
+        relayout_if_shrunk();
         settle_later();
     }
 
@@ -1245,6 +1263,7 @@
             // The map point that was between the fingers stays between them
             const center = middle(event.touches);
             keep_under(pinch.point, center.x, center.y, pinch.unshifted);
+            relayout_if_shrunk();
         };
         const on_touch_end = (event: TouchEvent) => {
             if (event.touches.length >= 2) return;
