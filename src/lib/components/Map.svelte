@@ -68,7 +68,6 @@
     import confetti from "canvas-confetti";
     import { billows, smoothstep } from "$lib/noise";
     import { FOG_TEXTURE_SCALE, fog_texture } from "$lib/fog-texture";
-    import { screen_height, viewport } from "$lib/viewport.svelte";
 
     let {
         file,
@@ -1174,9 +1173,7 @@
         });
     });
     let zoom_offset_x = $derived(centered(base_w, window_w));
-    let zoom_offset_y = $derived(
-        centered(base_h, window_h + viewport.gap - titlebar_room),
-    );
+    let zoom_offset_y = $derived(centered(base_h, window_h - titlebar_room));
     let map_element: HTMLDivElement | null = $state(null);
 
     $effect(() => {
@@ -1254,7 +1251,7 @@
         new_zoom = Math.min(Math.max(new_zoom, MIN_ZOOM), max_zoom);
         // The tolerance keeps rounding errors from stopping again right after a stop
         const titlebar = titlebar_room;
-        const fit_height = (screen_height() - titlebar) / base_h;
+        const fit_height = (window.innerHeight - titlebar) / base_h;
         for (const stop of [1, fit_height]) {
             const at_stop = Math.abs(old_zoom - stop) < 0.001;
             const passes = (old_zoom - stop) * (new_zoom - stop) < 0;

@@ -155,7 +155,7 @@
 {:else if appState.ws && gameState.users.length > 0}
     <!-- The server sends the users after the scene, so there is none -->
     <div
-        class="full-screen flex items-center justify-center pointer-events-none"
+        class="fixed inset-0 flex items-center justify-center pointer-events-none"
         in:fade={{ duration: 300 }}
     >
         <div
