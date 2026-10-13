@@ -466,6 +466,26 @@
      */
     let drag_step: { x: number; y: number; name: string } | null = null;
     let drag_frame = 0;
+    /** Where the dragged marker was when the drag began, see cancel_marker_drag */
+    let drag_start: { name: string; x: number; y: number } | null = null;
+    let drag_cancelled = false;
+
+    /**
+     * A second finger turns a drag into a pinch: a finger on a marker dragged it along
+     * while the map zoomed, and it landed somewhere far off. The drag ends, the marker
+     * goes back where it was. The drag library ends its drags on any pointerup of the
+     * window, also of markers only touched and not yet dragged.
+     */
+    function cancel_marker_drag() {
+        drag_cancelled = appState.dragging;
+        cancelAnimationFrame(drag_frame);
+        drag_frame = 0;
+        drag_step = null;
+        window.dispatchEvent(new PointerEvent("pointerup", { pointerId: -1 }));
+        // After a drag it swallows the next click, which would be the next real tap
+        if (drag_cancelled) window.dispatchEvent(new MouseEvent("click"));
+        drag_cancelled = false;
+    }
 
     function on_marker_drag({ offsetX, offsetY, currentNode }: any) {
         drag_step = { x: offsetX / w, y: offsetY / h, name: currentNode.id };
@@ -966,6 +986,12 @@
 
     let dragOptions: DragOptions = $derived({
         onDragStart: ({ currentNode }) => {
+            const dragged = gameState.scene?.state.markers.find(
+                (marker) => marker.name === currentNode.id,
+            );
+            drag_start = dragged
+                ? { name: dragged.name, x: dragged.x.target, y: dragged.y.target }
+                : null;
             appState.dragging = true;
             appState.open_marker_menu = null;
             record_undo();
@@ -980,16 +1006,19 @@
             // Reset first: the marker may have been deleted or renamed mid-drag,
             // and the hidden UI and the lock for others must not get stuck
             appState.dragging = false;
+            const back =
+                drag_cancelled && drag_start?.name === currentNode.id ? drag_start : null;
+            drag_start = null;
+            const x = back ? back.x : offsetX / w;
+            const y = back ? back.y : offsetY / h;
             let marker = gameState.scene?.state.markers.find(
                 (marker) => marker.name === currentNode.id,
             );
-            marker?.x.set(offsetX / w, { duration: 0 });
-            marker?.y.set(offsetY / h, { duration: 0 });
+            marker?.x.set(x, { duration: 0 });
+            marker?.y.set(y, { duration: 0 });
 
-            appState.ws?.send(
-                MarkerFreed.create(currentNode.id, offsetX / w, offsetY / h),
-            );
-            move_group(offsetX / w, offsetY / h, true);
+            appState.ws?.send(MarkerFreed.create(currentNode.id, x, y));
+            move_group(x, y, true);
         },
         bounds: "parent",
         // Selecting text or clicking in a marker's menu doesn't move the marker
@@ -1220,6 +1249,7 @@
         });
         const on_touch_start = (event: TouchEvent) => {
             if (event.touches.length !== 2 || !map_element) return;
+            cancel_marker_drag();
             const unshifted = unshifted_position();
             const center = middle(event.touches);
             pinch = {
