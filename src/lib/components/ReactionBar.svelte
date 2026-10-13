@@ -1,6 +1,11 @@
 <script lang="ts">
     import { fly } from "svelte/transition";
-    import { REACTIONS, reactionState, send_reaction } from "$lib/reactions.svelte";
+    import {
+        REACTIONS,
+        reactionState,
+        send_reaction,
+        VOICELINE,
+    } from "$lib/reactions.svelte";
     import ReactionRecorder from "./ReactionRecorder.svelte";
 
     /**
@@ -43,6 +48,12 @@
                     {reaction.label}
                 </button>
             {/each}
+            {#each reactionState.voicelines as line (line.id)}
+                <button class="btn btn-sm" onclick={() => send_reaction(VOICELINE + line.id)}>
+                    <span class="text-lg leading-none">🗣️</span>
+                    {line.name}
+                </button>
+            {/each}
             <button
                 class="btn btn-sm btn-ghost"
                 title="Mit deiner eigenen Stimme einsprechen"
@@ -66,7 +77,9 @@
     <div class="modal-box w-fit max-w-[calc(100vw-2rem)]">
         <h3 class="text-lg font-bold">Reaktionen einsprechen</h3>
         <p class="text-sm text-base-content/60 mt-1 mb-3">
-            Bis zu 3 Sekunden mit deiner Stimme. Alle hören sie, wenn du sie drückst.
+            Mit deiner Stimme, die Reaktionen bis zu 3 Sekunden. Eigene Sprüche kannst du
+            so viele anlegen, wie du willst. Alle hören sie, wenn du sie drückst, dein „Hallo“
+            auch, wenn du dazukommst.
         </p>
         {#if recording}
             <ReactionRecorder />

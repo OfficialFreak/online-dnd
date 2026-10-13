@@ -377,12 +377,18 @@ export interface ReactionMessage extends BaseServerMessage {
     character?: string | null;
     reaction: string;
     file?: string | null;
+    /** The name of a line of the player's own, null for the standard ones */
+    label?: string | null;
 }
 
-/** This player's recordings, by reaction */
+/** A line a player recorded and named themselves */
+export type Voiceline = { id: string; name: string; file: string };
+
+/** This player's recordings, by reaction, and their own lines */
 export interface Reactions extends BaseServerMessage {
     type: MessageType.REACTIONS;
     reactions: Record<string, string>;
+    voicelines?: Voiceline[];
 }
 
 /** The DM rolled behind the screen */

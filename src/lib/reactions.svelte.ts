@@ -6,6 +6,7 @@ import { appState } from "$lib/state.svelte";
 import { play_effect } from "$lib/audio.svelte";
 import { DEFAULT_VOICES, play_clatter } from "$lib/sfx";
 import { Reaction } from "$lib/types/messaging/client_messages";
+import type { Voiceline } from "$lib/types/messaging/server_messages";
 
 export const REACTIONS = [
     { key: "hello", label: "Hallo", emoji: "👋", text: "Hallo!" },
@@ -16,11 +17,18 @@ export const REACTIONS = [
 
 export type ReactionKey = (typeof REACTIONS)[number]["key"];
 
+/** A line of the player's own is called out by this and its id */
+export const VOICELINE = "voice:";
+/** The bubble of a line of the player's own */
+const VOICELINE_EMOJI = "🗣️";
+
 type Bubble = { id: number; emoji: string; text: string; who?: string };
 
 export const reactionState = $state({
     /** The recordings of this player, by reaction */
     mine: {} as Record<string, string>,
+    /** The lines this player recorded and named, as many as they like */
+    voicelines: [] as Voiceline[],
     /** What was just called out, shown for a moment */
     bubbles: [] as Bubble[],
 });
@@ -28,7 +36,8 @@ export const reactionState = $state({
 let next_bubble = 0;
 let last_sent = 0;
 
-export function send_reaction(key: ReactionKey) {
+/** A standard reaction, or a line of the player's own as VOICELINE and its id */
+export function send_reaction(key: string) {
     // The server drops quicker ones anyway
     if (Date.now() - last_sent < 900) return;
     last_sent = Date.now();
@@ -44,7 +53,11 @@ function show_bubble(emoji: string, text: string, who?: string) {
 }
 
 /** Plays a reaction like the others hear it, the recording or the cartoon voice */
-export function play_reaction(key: string, file?: string | null, who = "") {
+export function play_reaction(key: string, file?: string | null, who = "", label?: string | null) {
+    if (key.startsWith(VOICELINE)) {
+        if (file) play_effect(`${who}: ${label ?? key}`.trim(), file);
+        return;
+    }
     const reaction = REACTIONS.find((reaction) => reaction.key === key);
     if (!reaction) return;
     if (file) play_effect(`${who}: ${reaction.label}`.trim(), file);
@@ -56,10 +69,16 @@ export function hear_reaction(message: {
     character?: string | null;
     reaction: string;
     file?: string | null;
+    label?: string | null;
 }) {
+    const who = message.character || message.person;
+    if (message.reaction.startsWith(VOICELINE)) {
+        show_bubble(VOICELINE_EMOJI, message.label ?? "…", who);
+        play_reaction(message.reaction, message.file, who, message.label);
+        return;
+    }
     const reaction = REACTIONS.find((reaction) => reaction.key === message.reaction);
     if (!reaction) return;
-    const who = message.character || message.person;
     show_bubble(reaction.emoji, reaction.text, who);
     play_reaction(reaction.key, message.file, who);
 }

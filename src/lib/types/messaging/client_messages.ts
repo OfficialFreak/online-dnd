@@ -500,6 +500,19 @@ export class SetReaction {
     }
 }
 
+/** A line of the player's own, new without an id, recorded anew with one */
+export class SetVoiceline {
+    static create(id: string | null, name: string, file: string): string {
+        return JSON.stringify({ type: "set_voiceline", id: id, name: name, file: file });
+    }
+}
+
+export class DeleteVoiceline {
+    static create(id: string): string {
+        return JSON.stringify({ type: "delete_voiceline", id: id });
+    }
+}
+
 export class GetReactions {
     static create(): string {
         return JSON.stringify({ type: "get_reactions" });
