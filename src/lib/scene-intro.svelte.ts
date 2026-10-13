@@ -20,9 +20,10 @@ type Intro = {
     announce(text: string): Promise<void>;
     /**
      * Asks for a tap over the covered screen, which also lets the browser play sound. The
-     * smoke draws back only after it, resolved by it.
+     * smoke draws back only after it. True once tapped, false if the ask made way for an
+     * update's scroll.
      */
-    knock(): Promise<void>;
+    knock(): Promise<boolean>;
 };
 
 let intro: Intro | null = null;
@@ -48,7 +49,7 @@ export function register_intro(shown: Intro | null) {
     // Nothing plays before, also where it could, as in the desktop app: the music comes
     // in as the portal opens.
     hold_sound();
-    shown.knock().then(release_sound);
+    shown.knock().then((tapped) => tapped && release_sound());
     // The scene came first: the desktop app connects behind its loading screen, before
     // the page with the map is there
     if (gameState.scene) {

@@ -176,20 +176,27 @@
      */
     let knocking = $state(false);
     /** Resolved once there is no tap to wait for, or it came */
-    let knocked: Promise<void> = Promise.resolve();
+    let knocked: Promise<boolean> = Promise.resolve(true);
     let enter = () => {};
+    /** Ends the ask without a tap, for an update's scroll in its place */
+    let withdraw = () => {};
     const touch =
         typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
 
     function knock() {
         above = true;
         knocking = true;
-        knocked = new Promise<void>((resolve) => {
+        knocked = new Promise<boolean>((resolve) => {
             enter = () => {
                 if (!knocking) return;
                 knocking = false;
                 above = false;
-                resolve();
+                resolve(true);
+            };
+            withdraw = () => {
+                if (!knocking) return;
+                knocking = false;
+                resolve(false);
             };
         });
         return knocked;
@@ -217,6 +224,8 @@
 
     /** The smoke closes and the scroll unrolls with this, and stays */
     async function announce(text: string) {
+        // In place of the ask to enter, which would show through the scroll
+        withdraw();
         above = true;
         await cover();
         if (document.hidden) return;
@@ -234,6 +243,9 @@
             return;
         }
         const mine = run;
+        // Not over the ask to enter, the new scene shows after the tap
+        await knocked;
+        if (mine !== run) return;
         name = scene_name;
         unrolled = 0;
         scroll_shown = true;
