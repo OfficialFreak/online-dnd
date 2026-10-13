@@ -514,6 +514,7 @@ export function play_music(
     clocks.set(player, clock);
     music = player;
     audioState.music = { name, file, started_at, level };
+    show_now_playing();
     play_or_wait(player);
     // Slowly, music coming in at once is a jump scare
     fade(player, playing_music_volume, undefined, 3000);
@@ -546,6 +547,30 @@ export function stop_music() {
         });
     }
     audioState.music = null;
+    show_now_playing();
+}
+
+/**
+ * What the phone shows for the sound, in the Dynamic Island and on the lock screen: the
+ * song and the ambience by name, with the icon on black, which matches the island. Without
+ * it iOS showed the see-through favicon on white.
+ */
+function show_now_playing() {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    if (typeof MediaMetadata === "undefined") return;
+    const names = [audioState.music, ...audioState.ambience].flatMap((playing) =>
+        playing ? [playing.name] : [],
+    );
+    navigator.mediaSession.metadata = names.length
+        ? new MediaMetadata({
+              title: names[0],
+              artist: names.length > 1 ? `mit ${names.slice(1).join(", ")}` : "DND Online",
+              album: "DND Online",
+              artwork: [
+                  { src: "/pwa/now-playing-512.png", sizes: "512x512", type: "image/png" },
+              ],
+          })
+        : null;
 }
 
 /**
@@ -577,6 +602,7 @@ export function play_ambience(
     audioState.ambience = known
         ? audioState.ambience.map((other) => (other.name === name ? playing : other))
         : [...audioState.ambience, playing];
+    show_now_playing();
     play_or_wait(player);
     fade(player, () => ambience_volume(name), undefined, 3000);
     if (current) fade_out(current, 2000);
@@ -593,6 +619,7 @@ export function stop_ambience(name: string) {
     const player = ambience.get(name);
     ambience.delete(name);
     audioState.ambience = audioState.ambience.filter((playing) => playing.name !== name);
+    show_now_playing();
     if (player) fade_out(player, 2000);
 }
 
