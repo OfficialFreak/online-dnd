@@ -36,6 +36,7 @@
       if (navigator.maxTouchPoints > 1 && /iPhone|iPad|Macintosh/.test(navigator.userAgent)) {
         const home_screen =
           navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+        document.documentElement.classList.toggle("home-screen", home_screen);
         document.documentElement.style.setProperty(
           home_screen ? "--status-blur" : "--browser-bar",
           home_screen ? "28px" : "24px",

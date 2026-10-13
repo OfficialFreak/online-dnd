@@ -46,6 +46,13 @@ html, body {
     overscroll-behavior: none;
 }
 
+/* From the home screen with the see-through status bar iOS ends the window a status bar
+   above the screen's bottom, and cuts off what is fixed to it there, while the page is no
+   taller than the window. A page taller by the status bar reaches down. Zero sideways. */
+html.home-screen {
+    min-height: calc(100% + env(safe-area-inset-top, 0px));
+}
+
 /* With the controls folded away the title bar is transparent, the page starts at the top */
 html.controls-folded body {
     margin-top: var(--safe-top);
