@@ -213,9 +213,11 @@
         </div>
     {/if}
     <Toolbar />
-    <!-- Above the conditions on the right, the dice reach there on phones -->
+    <!-- Above the conditions on the right, the dice reach there on phones. Wrapped from
+         the bottom up, so items-start keeps the buttons at the bottom: with items-end the
+         dice rose to the top when the reactions' menu took two lines. -->
     <div
-        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000] flex flex-wrap-reverse items-end gap-1 max-w-[calc(100vw-1rem-var(--safe-left))]"
+        class="fixed bottom-[calc(0.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000] flex flex-wrap-reverse items-start gap-1 max-w-[calc(100vw-1rem-var(--safe-left))]"
     >
         <DiceChooser roll_callback={roll} />
         <ReactionBar />
