@@ -4,7 +4,8 @@
     import { goto } from "$app/navigation";
     import { appState, ensureStore } from "../lib/state.svelte";
     import { connect } from "../lib/connection.svelte";
-    import { invoke_tauri } from "$lib/platform";
+    import { in_tauri, invoke_tauri } from "$lib/platform";
+    import { entering_after_login } from "$lib/scene-intro.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
 
     let token: string = $state("");
@@ -32,6 +33,8 @@
             error = false;
             appState.token = token;
             await appState.store.save();
+            // The desktop app plays sound without a tap and opens straight away
+            if (!in_tauri) entering_after_login();
             goto("/app");
         } else {
             notify("Verbindung fehlgeschlagen", MessageTypes.Error, 3000);

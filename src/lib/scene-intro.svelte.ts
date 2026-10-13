@@ -32,6 +32,16 @@ let intro: Intro | null = null;
  */
 let opening = true;
 
+/**
+ * Logged in just now: the click on the button let the sound play already, the portal asks
+ * for its tap all the same, as on every other opening in a browser
+ */
+let after_login = false;
+
+export function entering_after_login() {
+    after_login = true;
+}
+
 let intro_shown: () => void;
 /** Resolved once the page with the map can show the intro */
 export const intro_ready = new Promise<void>((resolve) => (intro_shown = resolve));
@@ -43,10 +53,12 @@ export function register_intro(shown: Intro | null) {
     if (!shown || !opening || !appState.scene_intro || document.hidden) return;
     shown.veil();
     // Where the music would wait for a tap anyway, the portal opens with one
+    const asked = after_login;
+    after_login = false;
     shown.knock(
         sound_needs_tap().then((needed) => {
             if (needed) tap_asked();
-            return needed;
+            return needed || asked;
         }),
     );
     // Without a scene to show, e.g. none is active, it draws back on its own
