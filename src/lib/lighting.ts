@@ -110,8 +110,6 @@ export type Sight = {
     grey: ImageData | null;
     /** The glow of coloured lights where they are seen, null if none */
     tint: ImageData | null;
-    /** How bright the lights and the scene make each spot, without the figures */
-    lit: Uint8ClampedArray;
 };
 
 /** About 12 pixels per cell, the browser stretches the picture softly over the map */
@@ -303,12 +301,12 @@ export function compute_sight(
         seen_ctx.drawImage(eye_ctx.canvas, 0, 0);
     }
     const seen = seen_ctx.getImageData(0, 0, width, height).data;
-    const lit = light.getImageData(0, 0, width, height).data;
     const tint = glow_of(glow_ctx, base, carried, sx, sy, seen_ctx.canvas);
 
+    // Worked out on every step of a figure seeing while it is dragged: no picture is read
+    // back that nothing uses, and the grey one only once something is grey
     const shade = new ImageData(width, height);
-    const grey = new ImageData(width, height);
-    let any_grey = false;
+    let grey: ImageData | null = null;
     for (let i = 0; i < seen.length; i += 4) {
         const alpha = seen[i + 3] / 255;
         const level = seen[i] * alpha;
@@ -318,9 +316,9 @@ export function compute_sight(
         shade.data[i + 3] = Math.round(UNSEEN * (1 - level / 255));
         // Colour unweighted: soft edges are faint, not grey
         if (level > SEEN && seen[i + 1] < 128) {
+            grey ??= new ImageData(width, height);
             grey.data[i] = grey.data[i + 1] = grey.data[i + 2] = 128;
             grey.data[i + 3] = 255;
-            any_grey = true;
         }
     }
     return {
@@ -330,9 +328,8 @@ export function compute_sight(
         scale_y: sy,
         seen,
         shade,
-        grey: any_grey ? grey : null,
+        grey,
         tint,
-        lit,
     };
 }
 
@@ -354,13 +351,6 @@ export function compute_tint(base: LightBase, columns: number, rows: number, car
     const [, , , glow_ctx] = contexts(width, height);
     const tint = glow_of(glow_ctx, base, carried, sx, sy, null);
     return tint && { width, height, tint };
-}
-
-/** How bright the lights make this spot without the figures, in cells */
-export function lit_at(sight: Sight, [x, y]: Point) {
-    const px = Math.min(sight.width - 1, Math.max(0, Math.floor(x * sight.scale_x)));
-    const py = Math.min(sight.height - 1, Math.max(0, Math.floor(y * sight.scale_y)));
-    return sight.lit[(py * sight.width + px) * 4];
 }
 
 /** How bright this spot is seen, in cells: 0 unseen, about 128 dim, 255 bright */

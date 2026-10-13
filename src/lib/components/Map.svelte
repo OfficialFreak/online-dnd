@@ -45,7 +45,6 @@
         compute_tint,
         light_base,
         LIGHT_PRESETS,
-        lit_at,
         preset_of,
         scene_lights,
         SEEN,
@@ -427,21 +426,33 @@
         { leading: false, trailing: true },
     );
 
-    let throttledMarkerDrag = throttle(
-        ({ offsetX, offsetY, currentNode }) => {
-            if (!gameState.scene) return;
-            let marker = gameState.scene.state.markers.find(
-                (marker) => marker.name === currentNode.id,
-            );
-            if (!appState.ws || !marker) return;
-            marker.x.set(offsetX / w, { duration: 0 });
-            marker.y.set(offsetY / h, { duration: 0 });
-            send_marker_position(offsetX / w, offsetY / h, currentNode.id);
-            move_group(offsetX / w, offsetY / h, false);
-        },
-        11, // 90 Hz
-        { leading: false, trailing: true },
-    );
+    /**
+     * Where a dragged marker is, taken over once a frame: the sight of a figure that sees
+     * was worked out anew for each step, up to 90 times a second, more often than drawn.
+     * At the end of the drag what is left over is dropped, it would put the marker back.
+     */
+    let drag_step: { x: number; y: number; name: string } | null = null;
+    let drag_frame = 0;
+
+    function on_marker_drag({ offsetX, offsetY, currentNode }: any) {
+        drag_step = { x: offsetX / w, y: offsetY / h, name: currentNode.id };
+        drag_frame ||= requestAnimationFrame(take_drag_step);
+    }
+
+    function take_drag_step() {
+        drag_frame = 0;
+        const step = drag_step;
+        drag_step = null;
+        if (!step || !gameState.scene) return;
+        const marker = gameState.scene.state.markers.find(
+            (marker) => marker.name === step.name,
+        );
+        if (!appState.ws || !marker) return;
+        marker.x.set(step.x, { duration: 0 });
+        marker.y.set(step.y, { duration: 0 });
+        send_marker_position(step.x, step.y, step.name);
+        move_group(step.x, step.y, false);
+    }
 
     function saveSceneFog() {
         if (!appState.ws || !gameState.scene) return;
@@ -930,6 +941,9 @@
             appState.ws.send(MarkerLocked.create(currentNode.id));
         },
         onDragEnd: ({ offsetX, offsetY, currentNode }) => {
+            cancelAnimationFrame(drag_frame);
+            drag_frame = 0;
+            drag_step = null;
             // Reset first: the marker may have been deleted or renamed mid-drag,
             // and the hidden UI and the lock for others must not get stuck
             appState.dragging = false;
@@ -947,7 +961,7 @@
         bounds: "parent",
         // Selecting text or clicking in a marker's menu doesn't move the marker
         cancel: ".dropdown-content",
-        onDrag: throttledMarkerDrag,
+        onDrag: on_marker_drag,
         legacyTranslate: false,
         grid: appState.ctrlPressed ? grid : undefined,
     });
@@ -1428,10 +1442,18 @@
      * hides things from the player.
      */
     let fog_key = $derived(fog_squares ? fog_squares.join(",") : "");
+    /**
+     * The last edges and what they came from: a zoom changes the size of a cell but not
+     * the edges in cells, new ones each time made all the figures' sight worked out anew
+     * at the end of every zoom
+     */
+    let edges_made = { key: "", edges: [] as Segment[] };
     let fog_edges: Segment[] = $derived.by(() => {
         if (!wall_index || !fog_key || !size) return [];
         const ox = grid_x_offset / size;
         const oy = grid_y_offset / size;
+        const key = `${fog_key}|${grid_columns}|${rows}|${ox}|${oy}`;
+        if (key === edges_made.key) return edges_made.edges;
         const fog = untrack(() => fog_squares);
         const fogged = (x: number, y: number) =>
             x >= 0 && y >= 0 && x < grid_columns && y < rows && isFogAt(fog, x, y);
@@ -1459,6 +1481,7 @@
                 }
             }
         }
+        edges_made = { key, edges };
         return edges;
     });
     /** The walls and the viewer's fog, for what the viewer's figures see */
@@ -1552,6 +1575,27 @@
         );
     });
     /** The lights on the map, what they reach only changes with the walls and doors */
+    /**
+     * Each light's polygon by where it is and how far it reaches, for the same walls:
+     * changing one light, even only its colour while picking it, worked out every light's
+     * anew, on a big map most of 70 ms each time
+     */
+    let lamp_polygons = new globalThis.Map<string, ReturnType<typeof visibility_polygon>>();
+    let lamp_polygons_index: WallIndex | null = null;
+    function lamp_polygon(index: WallIndex, point: Point, reach: number) {
+        if (lamp_polygons_index !== index || lamp_polygons.size > 500) {
+            lamp_polygons = new globalThis.Map();
+            lamp_polygons_index = index;
+        }
+        const key = `${point[0]}|${point[1]}|${reach}`;
+        let polygon = lamp_polygons.get(key);
+        if (!polygon) {
+            polygon = visibility_polygon(index, point, reach);
+            lamp_polygons.set(key, polygon);
+        }
+        return polygon;
+    }
+
     let placed_lamps: Lamp[] = $derived(
         wall_index
             ? lights
@@ -1560,11 +1604,7 @@
                       const point: Point = [light.x * grid_columns, light.y * map_rows];
                       return {
                           point,
-                          polygon: visibility_polygon(
-                              wall_index!,
-                              point,
-                              light.dim / 5,
-                          ),
+                          polygon: lamp_polygon(wall_index!, point, light.dim / 5),
                           bright: light.bright / 5,
                           dim: light.dim / 5,
                           color: light.color,
@@ -1604,6 +1644,9 @@
             : null,
     );
 
+    /** Placed and carried lights together, once and not for every figure */
+    let all_lamps = $derived([...placed_lamps, ...carried_lamps]);
+
     /** The DM sees everything, the coloured glow of the lights too */
     let dm_tint = $derived(
         gameState.dm && !viewer && base
@@ -1628,7 +1671,7 @@
         ];
         // How many cells inside the best light or darkvision it stands
         let inside = -Infinity;
-        for (const lamp of [...placed_lamps, ...carried_lamps]) {
+        for (const lamp of all_lamps) {
             const distance = Math.hypot(
                 center[0] - lamp.point[0],
                 center[1] - lamp.point[1],
