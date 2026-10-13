@@ -163,7 +163,7 @@
         </button>
         <span class="flex-1 truncate" title={sound.name}>{sound.name}</span>
         <button
-            class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+            class="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
             title={BECOME[NEXT_KIND[sound.kind]]}
             onclick={() => switch_kind(sound)}
         >
@@ -172,7 +172,7 @@
         <button
             class="btn btn-xs {confirm_delete === sound.name
                 ? 'btn-error'
-                : 'btn-ghost btn-square opacity-0 group-hover:opacity-100 focus-visible:opacity-100'}"
+                : 'btn-ghost btn-square opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100'}"
             aria-label="Sound löschen"
             onclick={() => request_delete(sound.name)}
         >
