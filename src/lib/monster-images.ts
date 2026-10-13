@@ -1,5 +1,5 @@
-// Pictures for markers made from monsters. The 5e API has one for every monster of the
-// SRD, the others get a token with the symbol of their creature type.
+// Pictures for markers to choose from. The 5e API has one for every monster of the SRD,
+// every creature type has a token with its symbol, and Openverse has free pictures.
 import { CREATURE_ICONS } from "./creature-icons";
 
 const API = "https://www.dnd5eapi.co";
@@ -41,18 +41,6 @@ function load_api_monsters() {
             throw e;
         });
     return api_monsters;
-}
-
-/** The picture the 5e API has of a monster with this name, null if it has none */
-async function api_picture(name: string): Promise<Picture | null> {
-    const index = (await load_api_monsters()).get(comparable(name));
-    if (!index) return null;
-    const response = await fetch(`${API}/api/images/monsters/${index}.png`);
-    if (!response.ok) return null;
-    return {
-        bytes: new Uint8Array(await response.arrayBuffer()),
-        file_name: `monster-${index}.png`,
-    };
 }
 
 const TOKEN_SIZE = 512;
@@ -106,16 +94,95 @@ export async function type_token(type: string): Promise<Picture> {
     };
 }
 
-/** A picture for a marker made from a monster, its own if the 5e API has one */
-export async function monster_picture(
+/** A picture the DM may choose for a marker, shown small until chosen */
+export type Suggestion = {
+    id: string;
+    /** Shown in the choice, a small version or the picture itself */
+    preview: string;
+    label: string;
+    /** The picture to upload, fetched once chosen */
+    picture: () => Promise<Picture>;
+};
+
+/** Fetches a picture of another server, which allows reading it */
+async function fetched(url: string, file_name: string): Promise<Picture> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+    return { bytes: new Uint8Array(await response.arrayBuffer()), file_name };
+}
+
+type OpenverseImage = { id: string; title?: string; creator?: string; thumbnail?: string };
+
+/** Freely licensed pictures from Openverse, mostly photos and drawings from Flickr */
+async function openverse(query: string, count: number): Promise<OpenverseImage[]> {
+    const response = await fetch(
+        `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=${count}&mature=false`,
+    );
+    if (!response.ok) throw new Error(`Openverse answered ${response.status}`);
+    return (await response.json()).results ?? [];
+}
+
+/** The 5e API's picture of the monster and the symbol of its creature type, quick to get */
+export async function quick_suggestions(
     name: string,
-    type: string,
-): Promise<Picture> {
-    try {
-        const picture = await api_picture(name);
-        if (picture) return picture;
-    } catch (e) {
-        console.error("Loading the monster's picture failed", e);
+    type: string | null,
+): Promise<Suggestion[]> {
+    const suggestions: Suggestion[] = [];
+    const index = await load_api_monsters()
+        .then((monsters) => monsters.get(comparable(name)) ?? null)
+        .catch(() => null);
+    if (index) {
+        const url = `${API}/api/images/monsters/${index}.png`;
+        suggestions.push({
+            id: `api-${index}`,
+            preview: url,
+            label: "Bild aus dem Monsterhandbuch (5e-API)",
+            picture: () => fetched(url, `monster-${index}.png`),
+        });
     }
-    return type_token(type);
+    if (type) {
+        const token = await type_token(type).catch(() => null);
+        if (token) {
+            suggestions.push({
+                id: `type-${token.file_name}`,
+                preview: URL.createObjectURL(
+                    new Blob([token.bytes as BlobPart], { type: "image/png" }),
+                ),
+                label: `Symbol der Kreaturart (${type})`,
+                picture: async () => token,
+            });
+        }
+    }
+    return suggestions;
+}
+
+/**
+ * Free pictures from Openverse, which takes a few seconds. Mostly painted miniatures and
+ * players' drawings: "dnd" and "miniature" keep out goblin sharks, planes and premieres of
+ * fantasy films. The name alone only when those find little.
+ */
+export async function openverse_suggestions(name: string): Promise<Suggestion[]> {
+    const search = (query: string) =>
+        openverse(query, 8).catch((e) => {
+            console.warn("Searching Openverse failed", e);
+            return [] as OpenverseImage[];
+        });
+    let found = (await Promise.all([search(`${name} dnd`), search(`${name} miniature`)])).flat();
+    if (found.length < 4) found = [...found, ...(await search(name))];
+    const seen = new Set<string>();
+    const suggestions: Suggestion[] = [];
+    for (const image of found) {
+        if (!image.thumbnail || seen.has(image.id)) continue;
+        seen.add(image.id);
+        suggestions.push({
+            id: `openverse-${image.id}`,
+            preview: image.thumbnail,
+            // Titles of photos can be whole stories
+            label:
+                [image.title?.slice(0, 60), image.creator].filter(Boolean).join(" · ") ||
+                "Openverse",
+            picture: () => fetched(image.thumbnail!, `openverse-${image.id}.jpg`),
+        });
+    }
+    return suggestions.slice(0, 12);
 }

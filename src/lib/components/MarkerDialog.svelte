@@ -14,7 +14,11 @@
         upload_bytes,
         uploadState,
     } from "$lib/upload.svelte";
-    import { monster_picture } from "$lib/monster-images";
+    import {
+        openverse_suggestions,
+        quick_suggestions,
+        type Suggestion,
+    } from "$lib/monster-images";
     import Marker from "./Marker.svelte";
 
     let dialog: HTMLDialogElement | null = $state(null);
@@ -40,11 +44,22 @@
 
     /** Counts the times the dialog opened, a picture found for an earlier marker is dropped */
     let opened = 0;
-    let finding_picture = $state(false);
+    /** Pictures to choose from, for a monster or the marker's name */
+    let suggestions: Suggestion[] = $state([]);
+    let finding_pictures = $state(false);
+    /** The suggestion being uploaded, and the one that is the marker's picture */
+    let choosing: string | null = $state(null);
+    let chosen: string | null = $state(null);
 
     function reset() {
         opened++;
-        finding_picture = false;
+        for (const suggestion of suggestions) {
+            if (suggestion.preview.startsWith("blob:")) URL.revokeObjectURL(suggestion.preview);
+        }
+        suggestions = [];
+        finding_pictures = false;
+        choosing = null;
+        chosen = null;
         editing = null;
         marker_name = "";
         marker_size = 1;
@@ -81,26 +96,42 @@
         marker_monster = template.monster ?? null;
         dialog?.showModal();
         if (template.monster) {
-            find_picture(template.name ?? "", template.monster.type);
+            find_pictures(template.name ?? "", template.monster.type);
         }
     }
 
-    /** Puts the monster's picture on the server, or a token for its creature type */
-    async function find_picture(name: string, type: string) {
+    /** Looks for pictures to choose from, the DM picks one or uploads their own */
+    async function find_pictures(name: string, type: string | null) {
+        if (!name.trim()) return;
         const this_opening = opened;
-        finding_picture = true;
+        finding_pictures = true;
+        // The quick ones first, Openverse's come after a few seconds
+        await Promise.allSettled([
+            quick_suggestions(name.trim(), type).then((found) => {
+                if (this_opening === opened) suggestions = [...found, ...suggestions];
+            }),
+            openverse_suggestions(name.trim()).then((found) => {
+                if (this_opening === opened) suggestions = [...suggestions, ...found];
+            }),
+        ]);
+        if (this_opening === opened) finding_pictures = false;
+    }
+
+    /** Uploads the chosen suggestion, only that one ends up on the server */
+    async function choose(suggestion: Suggestion) {
+        const this_opening = opened;
+        choosing = suggestion.id;
         try {
-            const picture = await monster_picture(name, type);
-            if (this_opening !== opened) return;
+            const picture = await suggestion.picture();
             const asset = await upload_bytes(picture.bytes, picture.file_name);
-            // Unless the DM chose another one meanwhile
-            if (this_opening === opened && asset && !marker_file) {
-                marker_file = asset;
-            }
+            if (this_opening !== opened || !asset) return;
+            marker_file = asset;
+            chosen = suggestion.id;
         } catch (e) {
-            console.error("Making the monster's picture failed", e);
+            console.error("Loading the picture failed", e);
+            notify("Das Bild ließ sich nicht laden", MessageTypes.Error, 3000);
         } finally {
-            if (this_opening === opened) finding_picture = false;
+            if (this_opening === opened) choosing = null;
         }
     }
 
@@ -113,12 +144,16 @@
 
     async function upload_image(path?: string) {
         const asset = await upload(path);
-        if (asset) marker_file = asset;
+        if (!asset) return;
+        marker_file = asset;
+        chosen = null;
     }
 
     async function pick_image() {
         const asset = await dialogs.assets?.pick(["image", "video"]);
-        if (asset) marker_file = asset;
+        if (!asset) return;
+        marker_file = asset;
+        chosen = null;
     }
 
     async function save_marker() {
@@ -241,36 +276,83 @@
                 Trefferpunkte.
             </p>
 
-            {#if !marker_file && finding_picture}
-                <div
-                    class="flex flex-row items-center gap-2 mt-4 text-sm text-base-content/60"
-                >
+            <legend class="fieldset-legend">Bild</legend>
+            {#if finding_pictures}
+                <div class="flex flex-row items-center gap-2 text-sm text-base-content/60">
                     <span class="loading loading-spinner loading-sm"></span>
-                    Bild des Monsters wird geholt…
+                    {suggestions.length ? "Weitere Bilder werden gesucht…" : "Bilder werden gesucht…"}
                 </div>
-            {:else if !marker_file}
-                <div class="grid grid-cols-2 gap-2 mt-4">
+            {/if}
+            {#if suggestions.length}
+                <div class="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                    {#each suggestions as suggestion (suggestion.id)}
+                        <button
+                            type="button"
+                            class="relative aspect-square rounded-box overflow-hidden bg-base-300 border-2 {chosen ===
+                            suggestion.id
+                                ? 'border-primary'
+                                : 'border-transparent hover:border-base-content/30'}"
+                            title={suggestion.label}
+                            aria-label={suggestion.label}
+                            disabled={choosing !== null}
+                            onclick={() => choose(suggestion)}
+                        >
+                            <img
+                                src={suggestion.preview}
+                                alt=""
+                                class="w-full h-full object-cover"
+                                loading="lazy"
+                                referrerpolicy="no-referrer"
+                            />
+                            {#if choosing === suggestion.id}
+                                <span
+                                    class="absolute inset-0 grid place-items-center bg-base-100/60"
+                                >
+                                    <span class="loading loading-spinner"></span>
+                                </span>
+                            {/if}
+                        </button>
+                    {/each}
+                </div>
+                <p class="fieldset-label">
+                    Tippe ein Bild an. Vorschläge aus dem Monsterhandbuch, das Symbol der
+                    Kreaturart und freie Bilder von Openverse.
+                </p>
+            {/if}
+            <div class="grid grid-cols-2 gap-2">
+                <button
+                    class="btn {marker_file ? 'btn-sm btn-soft' : 'btn-neutral'}"
+                    disabled={uploadState.uploading}
+                    onclick={() => {
+                        upload_image();
+                    }}
+                >
+                    {#if uploadState.uploading && choosing === null}
+                        <span class="loading loading-spinner loading-xs"></span>
+                        Wird hochgeladen…
+                    {:else}
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                        Eigenes hochladen
+                    {/if}
+                </button>
+                <button
+                    class="btn btn-soft {marker_file ? 'btn-sm' : ''}"
+                    onclick={pick_image}
+                >
+                    <i class="fa-solid fa-folder-open"></i>
+                    Aus den Dateien
+                </button>
+                {#if !suggestions.length && !finding_pictures && marker_name.trim()}
                     <button
-                        class="btn btn-neutral"
-                        disabled={uploadState.uploading}
-                        onclick={() => {
-                            upload_image();
-                        }}
+                        class="btn btn-ghost btn-sm col-span-2"
+                        onclick={() => find_pictures(marker_name, marker_monster?.type ?? null)}
                     >
-                        {#if uploadState.uploading}
-                            <span class="loading loading-spinner"></span>
-                            Wird hochgeladen…
-                        {:else}
-                            <i class="fa-solid fa-arrow-up-from-bracket"></i>
-                            Marker-Bild
-                        {/if}
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        Bilder zu „{marker_name.trim()}“ vorschlagen
                     </button>
-                    <button class="btn btn-soft" onclick={pick_image}>
-                        <i class="fa-solid fa-folder-open"></i>
-                        Aus den Dateien
-                    </button>
-                </div>
-            {:else}
+                {/if}
+            </div>
+            {#if marker_file}
                 <div class="flex flex-row items-center gap-4 mt-2">
                     <div class="w-28 shrink-0">
                         <Marker
@@ -284,28 +366,9 @@
                             mapUse={false}
                         />
                     </div>
-                    <div class="flex-1 flex flex-col gap-2">
-                        <button
-                            class="btn btn-sm btn-soft"
-                            disabled={uploadState.uploading}
-                            onclick={() => {
-                                upload_image();
-                            }}
-                        >
-                            {#if uploadState.uploading}
-                                <span class="loading loading-spinner loading-xs"
-                                ></span>
-                            {:else}
-                                <i class="fa-solid fa-arrow-up-from-bracket"
-                                ></i>
-                            {/if}
-                            Anderes Bild hochladen
-                        </button>
-                        <button class="btn btn-sm btn-soft" onclick={pick_image}>
-                            <i class="fa-solid fa-folder-open"></i>
-                            Anderes Bild aus den Dateien
-                        </button>
-                    </div>
+                    <p class="text-sm text-base-content/60">
+                        So sieht der Marker aus.
+                    </p>
                 </div>
                 {#if editing}
                     <p class="fieldset-label">
