@@ -609,6 +609,13 @@ export class RenameUser {
     }
 }
 
+/** Their reactions for everyone who recorded none, null for the cartoon voices again */
+export class SetDefaultVoice {
+    static create(name: string | null): string {
+        return JSON.stringify({ type: "set_default_voice", name: name });
+    }
+}
+
 export class DeleteUser {
     static create(name: string): string {
         return JSON.stringify({

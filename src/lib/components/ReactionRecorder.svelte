@@ -144,7 +144,11 @@
                     <i class="fa-solid fa-trash"></i>
                 </button>
             {:else}
-                <span class="text-xs text-base-content/50">Standardstimme</span>
+                <span class="text-xs text-base-content/50"
+                    >{reactionState.default_voice
+                        ? `Stimme von ${reactionState.default_voice}`
+                        : "Standardstimme"}</span
+                >
             {/if}
         </div>
     {/each}

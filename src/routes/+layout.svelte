@@ -833,6 +833,7 @@
                 case MessageType.REACTIONS:
                     reactionState.mine = message.reactions ?? {};
                     reactionState.voicelines = message.voicelines ?? [];
+                    reactionState.default_voice = message.default_voice ?? null;
                     break;
                 case MessageType.HIDDEN_ROLL:
                     hear_hidden_roll();
@@ -858,6 +859,7 @@
                 }
                 case MessageType.USER_ADMIN:
                     adminState.users = message.users;
+                    adminState.default_voice = message.default_voice ?? null;
                     break;
                 case MessageType.ASSET_LIST:
                     assetState.assets = message.assets;

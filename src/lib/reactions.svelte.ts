@@ -29,6 +29,8 @@ export const reactionState = $state({
     mine: {} as Record<string, string>,
     /** The lines this player recorded and named, as many as they like */
     voicelines: [] as Voiceline[],
+    /** Whose voice the reactions without a recording have, null for the cartoon voices */
+    default_voice: null as string | null,
     /** What was just called out, shown for a moment */
     bubbles: [] as Bubble[],
 });

@@ -12,6 +12,7 @@
         ListUsers,
         RegenerateKey,
         RenameUser,
+        SetDefaultVoice,
         SetDm,
     } from "$lib/types/messaging/client_messages";
     import { MessageTypes, notify } from "$lib/notifications.svelte";
@@ -246,6 +247,26 @@
                                         <span class="w-6 shrink-0"></span>
                                         <span class="w-6 shrink-0"></span>
                                     {/if}
+                                    <button
+                                        class="btn btn-xs btn-square {adminState.default_voice ===
+                                        user.name
+                                            ? 'btn-primary'
+                                            : 'btn-ghost'}"
+                                        aria-label="Standardstimme"
+                                        title={adminState.default_voice === user.name
+                                            ? "Standardstimme für alle ohne eigene Aufnahmen, klicken für die Comicstimmen"
+                                            : "Die Reaktionen dieses Spielers als Standardstimme für alle ohne eigene Aufnahmen"}
+                                        onclick={() =>
+                                            appState.ws?.send(
+                                                SetDefaultVoice.create(
+                                                    adminState.default_voice === user.name
+                                                        ? null
+                                                        : user.name,
+                                                ),
+                                            )}
+                                    >
+                                        <i class="fa-solid fa-microphone-lines"></i>
+                                    </button>
                                     <button
                                         class="btn btn-xs {confirm ===
                                         `key:${user.name}`

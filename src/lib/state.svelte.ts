@@ -211,7 +211,11 @@ export type AdminUser = {
 };
 
 /** All users with their keys, only DMs get them */
-export const adminState = $state({ users: [] as AdminUser[] });
+export const adminState = $state({
+    users: [] as AdminUser[],
+    /** Whose recordings everyone hears who recorded none of their own */
+    default_voice: null as string | null,
+});
 
 /** The files on the server, the DM asks for them in the file browser */
 export const assetState = $state({ assets: [] as AssetInfo[] });

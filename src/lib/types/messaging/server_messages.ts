@@ -389,6 +389,8 @@ export interface Reactions extends BaseServerMessage {
     type: MessageType.REACTIONS;
     reactions: Record<string, string>;
     voicelines?: Voiceline[];
+    /** Whose voice the reactions without a recording have, null for the cartoon voices */
+    default_voice?: string | null;
 }
 
 /** The DM rolled behind the screen */
@@ -418,6 +420,8 @@ export interface EffectsEnded extends BaseServerMessage {
 export interface UserAdmin extends BaseServerMessage {
     type: MessageType.USER_ADMIN;
     users: AdminUser[];
+    /** Whose recordings everyone hears who recorded none, null for the cartoon voices */
+    default_voice?: string | null;
 }
 
 export interface TabletopAudio extends BaseServerMessage {
