@@ -29,6 +29,7 @@
         set_motion,
     } from "../lib/state.svelte";
     import { connect, LIVE, message_type } from "../lib/connection.svelte";
+    import { debug } from "$lib/debug";
     import { in_tauri, invoke_tauri, listen_tauri } from "$lib/platform";
     import { file_stem_of, upload_path } from "$lib/upload.svelte";
     import {
@@ -394,6 +395,7 @@
     }
 
     onMount(async () => {
+        if (debug.size) notify(`Debug: ${[...debug].join(", ")}`, MessageTypes.Warning, 6000);
         html = document.getElementsByTagName("html")[0];
         await ensureStore();
         appState.store = appState.store;

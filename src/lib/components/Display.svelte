@@ -1,5 +1,6 @@
 <script lang="ts">
     import { appState } from "$lib/state.svelte";
+    import { debug } from "$lib/debug";
 
     let {
         asset,
@@ -53,7 +54,7 @@
         {/if}
     {:else if toUrl(asset)}
         {#if video}
-            {#if !hoverVideoOnly || hovering}
+            {#if (!hoverVideoOnly || hovering) && !debug.has("still")}
                 <!-- onloadeddata doesn't fire on mobile with data-saver enabled (code is removed on mobile) -->
                 <!-- Inline and muted: without them an iPhone opens the video full screen
                      when a tap on a marker plays it, and plays nothing on its own -->
