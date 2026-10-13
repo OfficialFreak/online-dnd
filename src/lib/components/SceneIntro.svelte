@@ -5,7 +5,6 @@
     import { cubicIn, cubicOut, linear } from "svelte/easing";
     import { register_intro } from "$lib/scene-intro.svelte";
     import { billows, smoothstep } from "$lib/noise";
-    import { screen_height } from "$lib/viewport.svelte";
 
     /** Stains and fibres of the parchment, noise drawn by SVG filters */
     const STAINS = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='240'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.03' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.27 0 0 0 0 0.1 0 0 0 -1.6 1.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E";
@@ -51,7 +50,7 @@
     function draw() {
         if (!canvas) return;
         const width = 160;
-        const height = Math.max(1, Math.round((width * screen_height()) / Math.max(1, innerWidth)));
+        const height = Math.max(1, Math.round((width * innerHeight) / Math.max(1, innerWidth)));
         if (canvas.width !== width || canvas.height !== height || !image) {
             canvas.width = width;
             canvas.height = height;
@@ -294,7 +293,7 @@
 
 <canvas
     bind:this={canvas}
-    class="full-screen pointer-events-none"
+    class="fixed inset-0 w-full h-full pointer-events-none"
     style:display={smoke.current > 0 ? "block" : "none"}
     style:z-index={above ? 100000 : null}
     aria-hidden="true"
@@ -302,7 +301,7 @@
 
 {#if scroll_shown}
     <div
-        class="full-screen z-[999] flex items-center justify-center pointer-events-none px-8"
+        class="fixed inset-0 z-[999] flex items-center justify-center pointer-events-none px-8"
         style:z-index={above ? 100001 : null}
         role="status"
     >

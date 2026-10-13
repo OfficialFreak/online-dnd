@@ -2,8 +2,6 @@
     let { children } = $props();
     import { getVersion } from "@tauri-apps/api/app";
     import "../app.css";
-    // Measures early how short iOS lays the page out, before anything is fixed to the bottom
-    import { viewport } from "$lib/viewport.svelte";
     import "@fortawesome/fontawesome-free/css/all.min.css";
 
     import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -1370,12 +1368,6 @@
                     />
                     Stumm
                 </label>
-                {#if viewport.report}
-                    <!-- TEMPORARY: finds the gap at the bottom on the iPhone -->
-                    <p class="text-[10px] leading-tight opacity-60 font-mono max-w-56 select-text">
-                        {viewport.report}
-                    </p>
-                {/if}
             </div>
         </div>
         </div>
@@ -1636,7 +1628,7 @@
 {/if}
 <canvas
     bind:this={confetti_canvas}
-    class="full-screen pointer-events-none z-20"
+    class="fixed top-0 left-0 w-screen h-screen pointer-events-none z-20"
 ></canvas>
 <div
     class="fixed bottom-[var(--safe-bottom)] left-0 pr-[var(--safe-right)] w-screen z-[9999] overflow-hidden scrollbar-gutter-affected flex justify-end pointer-events-none"

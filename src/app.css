@@ -25,8 +25,7 @@
         var(--browser-bar, 0px)
     );
     --safe-right: env(safe-area-inset-right, 0px);
-    /* Below the end of the window on iOS, see viewport.svelte.ts */
-    --safe-bottom: calc(env(safe-area-inset-bottom, 0px) - var(--viewport-gap, 0px));
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
 }
 
@@ -34,17 +33,6 @@
     :root {
         --titlebar: 44px;
     }
-}
-
-/* Over the whole screen. On iOS the window ends above the screen's bottom, these reach
-   down anyway, see viewport.svelte.ts. A canvas needs its height set, it wouldn't stretch
-   between top and bottom. */
-.full-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: calc(100% + var(--viewport-gap, 0px));
 }
 
 body {

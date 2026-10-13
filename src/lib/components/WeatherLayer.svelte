@@ -3,7 +3,6 @@
     import { appState } from "$lib/state.svelte";
     import type { Weather } from "$lib/types/messaging/server_messages";
     import { CLEAR, flashes_between, WeatherRenderer } from "$lib/weather";
-    import { viewport } from "$lib/viewport.svelte";
 
     /** The weather of the active scene, over the map and its markers but under the controls */
     let { weather }: { weather: Weather | null | undefined } = $props();
@@ -30,7 +29,7 @@
     });
 
     $effect(() => {
-        renderer?.resize(width, height + viewport.gap);
+        renderer?.resize(width, height);
     });
 
     $effect(() => {
@@ -69,7 +68,7 @@
 
 <canvas
     bind:this={canvas}
-    class="full-screen z-0 pointer-events-none"
+    class="fixed inset-0 z-0 w-full h-full pointer-events-none"
     style:display={active ? null : "none"}
     aria-hidden="true"
 ></canvas>
