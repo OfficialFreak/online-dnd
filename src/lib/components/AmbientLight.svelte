@@ -3,6 +3,7 @@
     import { appState, gameState } from "$lib/state.svelte";
     import { asset_url } from "$lib/assets";
     import { billows, smoothstep } from "$lib/noise";
+    import { screen_height } from "$lib/viewport.svelte";
 
     /**
      * The map's colours around it, like the ambient mode of YouTube: its edges stretched
@@ -285,16 +286,17 @@
         const canvas = canvases[front];
         if (!canvas) return;
         const width = 160;
-        const height = Math.max(1, Math.round((width * innerHeight) / Math.max(1, innerWidth)));
+        const screen_h = screen_height();
+        const height = Math.max(1, Math.round((width * screen_h) / Math.max(1, innerWidth)));
         if (canvas.width !== width || canvas.height !== height) {
             canvas.width = width;
             canvas.height = height;
         }
         // The map in the small picture
         const x = (rect.left / innerWidth) * width;
-        const y = (rect.top / innerHeight) * height;
+        const y = (rect.top / screen_h) * height;
         const w = (rect.width / innerWidth) * width;
-        const h = (rect.height / innerHeight) * height;
+        const h = (rect.height / screen_h) * height;
 
         // Far from the map its average colour, dark. Without transparency the graphics
         // card can leave out what lies under it.
@@ -352,7 +354,7 @@
         if (!media) return;
         watch(media);
         const rect = media.getBoundingClientRect();
-        const look = `${rect.left}|${rect.top}|${rect.width}|${rect.height}|${innerWidth}|${innerHeight}`;
+        const look = `${rect.left}|${rect.top}|${rect.width}|${rect.height}|${innerWidth}|${screen_height()}`;
         if (look === last_look) return;
         last_look = look;
         // Zoomed in the map fills the screen: the light would be drawn for nothing on
@@ -361,7 +363,7 @@
             rect.left <= 0 &&
             rect.top <= 0 &&
             rect.right >= innerWidth &&
-            rect.bottom >= innerHeight;
+            rect.bottom >= screen_height();
         if (!covered) draw(rect);
     }
 
@@ -459,7 +461,7 @@
     <!-- Above the page's background, under all that comes after it on the page: a
          negative z-index would put it under the body's background -->
     <div
-        class="ambient fixed inset-0 pointer-events-none"
+        class="ambient full-screen pointer-events-none"
         class:covered
         aria-hidden="true"
     >
