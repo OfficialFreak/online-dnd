@@ -13,9 +13,10 @@ export type Sound = {
 };
 
 export const audioState = $state({
-    // Quiet to begin with, louder ones startled when the music came in
-    music_volume: 0.15,
-    effect_volume: 0.5,
+    // Silent until load_volume() brings the ones saved on this device: music that began
+    // before that blared for a moment for someone who had turned it off
+    music_volume: 0,
+    effect_volume: 0,
     muted: false,
     /** What is playing for everyone right now */
     music: null as { name: string; file: string; started_at: number } | null,
@@ -539,10 +540,23 @@ export function set_volume(
 
 let save_timeout: ReturnType<typeof setTimeout> | undefined;
 
+/** Without saved ones: quiet, louder ones startled when the music came in */
+const DEFAULT_VOLUME = { music_volume: 0.15, effect_volume: 0.5 };
+
 export async function load_volume() {
-    await ensureStore();
-    const saved = await appState.store.get("audio");
-    if (saved) Object.assign(audioState, saved);
+    let saved: unknown;
+    try {
+        await ensureStore();
+        saved = await appState.store.get("audio");
+    } catch (e) {
+        console.error("Loading the volume failed", e);
+    }
+    Object.assign(audioState, DEFAULT_VOLUME, saved);
     // Saved before the music got quieter at most
     audioState.music_volume = Math.min(MAX_MUSIC_VOLUME, audioState.music_volume);
+    // What already plays comes up to it
+    if (music) fade(music, playing_music_volume);
+    for (const playing of effects.values()) {
+        for (const audio of playing) set_audio_level(audio, effect_volume());
+    }
 }
