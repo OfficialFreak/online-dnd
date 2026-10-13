@@ -752,7 +752,13 @@
                     break;
                 case MessageType.UPDATE_FOG:
                     if (!gameState.scene) return;
-                    gameState.scene.state.fog_squares = message.fog_squares;
+                    // Only the players whose fog changed get it anew, the others' isn't
+                    // drawn again
+                    if (gameState.scene.state.fog_squares) {
+                        merge_fields(gameState.scene.state.fog_squares, message.fog_squares);
+                    } else {
+                        gameState.scene.state.fog_squares = message.fog_squares;
+                    }
                     break;
                 case MessageType.MARKER_LIB:
                     gameState.markerLib = message.markers;
@@ -1033,28 +1039,89 @@
         ch;
         scrollbar_visible = html.scrollHeight > html.clientHeight;
     });
+    /** A marker as the server sends it, with tweened positions */
+    function tweened(marker: any) {
+        return {
+            ...marker,
+            status_effects: (marker.status_effects ?? []).map(normalize_condition),
+            x: new Tween(marker.x, {
+                duration: 50,
+                easing: circOut,
+            }),
+            y: new Tween(marker.y, {
+                duration: 50,
+                easing: circOut,
+            }),
+        };
+    }
+
+    /** Same content, compared as text */
+    function same(a: unknown, b: unknown) {
+        return a === b || JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    /**
+     * Gives the target the source's fields: equal ones stay untouched, so nothing that
+     * reads them works anew, missing ones go
+     */
+    function merge_fields(target: any, source: any, skip: string[] = []) {
+        for (const key of Object.keys(target)) {
+            if (!skip.includes(key) && !(key in source)) delete target[key];
+        }
+        for (const [key, value] of Object.entries(source)) {
+            if (!skip.includes(key) && !same(target[key], value)) target[key] = value;
+        }
+    }
+
+    /**
+     * The server sends the whole scene anew on every change, e.g. each figure put down.
+     * Replaced whole, every figure was built anew with its animation, the fog drawn anew
+     * all over and everything worked out from the scene again, on every client. Within
+     * the same scene only what changed is changed now.
+     */
+    function update_scene(shown: any, message: SceneData) {
+        const { state, ...settings } = message;
+        merge_fields(shown, settings, ["state"]);
+        const { markers, fog_squares, ...rest } = state;
+        merge_fields(shown.state, rest, ["markers", "fog_squares"]);
+        if (shown.state.fog_squares) merge_fields(shown.state.fog_squares, fog_squares ?? {});
+        else shown.state.fog_squares = fog_squares;
+
+        const known = new Map<string, any>(
+            shown.state.markers.map((marker: any) => [marker.name, marker]),
+        );
+        let reordered = shown.state.markers.length !== markers.length;
+        const next = markers.map((incoming, index) => {
+            const marker = known.get(incoming.name);
+            if (!marker || !(marker.x instanceof Tween)) {
+                reordered = true;
+                return tweened(incoming);
+            }
+            if (shown.state.markers[index] !== marker) reordered = true;
+            merge_fields(
+                marker,
+                {
+                    ...incoming,
+                    status_effects: (incoming.status_effects ?? []).map(normalize_condition),
+                },
+                ["x", "y"],
+            );
+            if (marker.x.target !== incoming.x) marker.x.target = incoming.x;
+            if (marker.y.target !== incoming.y) marker.y.target = incoming.y;
+            return marker;
+        });
+        if (reordered) shown.state.markers = next;
+    }
+
     /** Shows a scene the server sent, with tweened marker positions */
     function show_scene(message: SceneData) {
-        let new_markers = message.state.markers.map((marker) => {
-            return {
-                ...marker,
-                status_effects: (marker.status_effects ?? []).map(
-                    normalize_condition,
-                ),
-                x: new Tween(marker.x, {
-                    duration: 50,
-                    easing: circOut,
-                }),
-                y: new Tween(marker.y, {
-                    duration: 50,
-                    easing: circOut,
-                }),
-            };
-        });
-        // Markers selected in another scene may share names with these
-        if (gameState.scene?.name !== message.name) {
-            selection.clear();
+        if (gameState.scene && gameState.scene.name === message.name) {
+            update_scene(gameState.scene, message);
+            return;
         }
+        const new_markers = message.state.markers.map(tweened);
+        // Markers selected in another scene may share names with these
+        selection.clear();
         gameState.scene = message;
         gameState.scene.state.markers = new_markers;
     }
