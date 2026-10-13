@@ -1048,6 +1048,39 @@
     let base_h = $derived(h / layout_zoom);
     let pinching = false;
     let settle_timer: ReturnType<typeof setTimeout> | undefined;
+    /**
+     * The zoom the last gesture ended at. Mostly the zoom the map is laid out at, further
+     * in on iPhones the map is only scaled beyond its layout, see layout_cap.
+     */
+    let settled_zoom = $state(untrack(() => appState.zoom));
+    /** A gesture is going on, the map is only scaled meanwhile */
+    let zooming = $derived(editable && appState.zoom !== settled_zoom);
+    /**
+     * How wide the box around the map is, by the zoom the last gesture ended at: as wide
+     * as the map on the screen also where it is scaled beyond its layout, so the page
+     * scrolls to its right edge
+     */
+    let wrapper_zoom = $derived(editable ? settled_zoom : 1);
+
+    /**
+     * How far in the map is laid out, further in it is only scaled. Laid out as large as
+     * the zoom, its layers over the picture grew to thirty thousand pixels a side on an
+     * iPhone, and scaled down while zooming out Safari kept all of them at full size: it
+     * ran out of memory and reloaded the page. Up to about twelve million pixels of the
+     * screen there, the picture stays as sharp, lines and figures soften a little beyond.
+     */
+    const LAYOUT_PIXELS = 12_000_000;
+    const safari_touch =
+        typeof navigator !== "undefined" &&
+        navigator.vendor === "Apple Computer, Inc." &&
+        matchMedia("(pointer: coarse)").matches;
+    let layout_cap = $derived.by(() => {
+        if (debug.has("flatzoom")) return 1;
+        if (!safari_touch) return Infinity;
+        const ratio = window.devicePixelRatio || 1;
+        const area = Math.max(1, base_w * base_h * ratio * ratio);
+        return Math.max(1, Math.sqrt(LAYOUT_PIXELS / area));
+    });
 
     /** Lays the map out at the zoom and turns the shift into scrolling, after a gesture */
     function settle_later() {
@@ -1057,21 +1090,18 @@
 
     function settle() {
         if (pinching) return;
-        // Zoomed only by scaling, as before the map was laid out at its zoom, see debug
-        if (editable && debug.has("flatzoom")) {
-            keep_page = null;
-            return;
-        }
         const scroll_x = window.scrollX - shift_x;
         const scroll_y = window.scrollY - shift_y;
-        if (appState.zoom !== appState.layout_zoom) {
+        const layout = Math.min(appState.zoom, layout_cap);
+        if (layout !== appState.layout_zoom) {
             // The new size right away, the browser measures it only after the next frame,
             // and markers placed by the old one would flash in the wrong spot
-            const ratio = appState.zoom / appState.layout_zoom;
+            const ratio = layout / appState.layout_zoom;
             w = Math.round(w * ratio);
             h = Math.round(h * ratio);
-            appState.layout_zoom = appState.zoom;
+            appState.layout_zoom = layout;
         }
+        settled_zoom = appState.zoom;
         keep_page = null;
         if (shift_x === 0 && shift_y === 0) return;
         shift_x = 0;
@@ -1081,8 +1111,7 @@
     }
 
     $effect(() => {
-        if (!editable) return;
-        if (appState.zoom !== appState.layout_zoom) settle_later();
+        if (zooming) settle_later();
     });
 
     // Zooming in makes the page scrollable to the right and bottom. Below 100% the map
@@ -2164,7 +2193,7 @@
      edge, is cut off there, it would make the page scroll sideways. -->
 <div
     class={editable ? "overflow-x-clip" : ""}
-    style="width: {Math.max(1, layout_zoom) * 100}%"
+    style="width: {Math.max(1, wrapper_zoom) * 100}%"
 >
 <!-- With the selection tool a finger draws a box instead of panning. -->
 <div
@@ -2172,7 +2201,7 @@
         ? ''
         : 'overflow-hidden'} {appState.selectedTool === Tools.Select
         ? 'touch-none'
-        : ''} {gesture_scale !== 1 ? 'zooming' : ''} {editable &&
+        : ''} {zooming ? 'zooming' : ''} {editable &&
     debug.has('nooverlays')
         ? 'debug-bare'
         : ''}"
@@ -2185,7 +2214,7 @@
     onpointermove={pan}
     onpointerup={end_pan}
     onpointercancel={end_pan}
-    style="width: {(layout_zoom / Math.max(1, layout_zoom)) *
+    style="width: {(layout_zoom / Math.max(1, wrapper_zoom)) *
         100}%; transform-origin: 0 0; transform: {editable
         ? `translate(${zoom_offset_x + shift_x}px, ${zoom_offset_y + shift_y}px) scale(${gesture_scale})`
         : 'none'}"
@@ -2198,7 +2227,7 @@
         alt="Map"
         data-map={editable ? "main" : undefined}
         fit_video={editable}
-        paused={gesture_scale !== 1}
+        paused={zooming}
         decoding="async"
         class="w-full"
         fetchpriority={editable ? "high" : "auto"}
