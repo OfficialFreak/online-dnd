@@ -369,6 +369,30 @@ if (typeof document !== "undefined") {
 
 let told_to_tap = false;
 
+/**
+ * Whether the browser plays no sound before a tap or click, as on iPhones: a moment of
+ * silence it refuses to play tells
+ */
+export async function sound_needs_tap() {
+    if (typeof Audio === "undefined") return false;
+    const probe = new Audio(SILENCE);
+    const answer = probe.play().then(
+        () => {
+            probe.pause();
+            return false;
+        },
+        (e) => (e as Error)?.name === "NotAllowedError",
+    );
+    // Without an answer the app opens anyway
+    const late = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1500));
+    return Promise.race([answer, late]);
+}
+
+/** The opening asks for the tap itself, the music needn't ask for one too */
+export function tap_asked() {
+    told_to_tap = true;
+}
+
 /** iOS plays sound only after a tap, then the next tap starts it */
 function play_or_wait(audio: HTMLAudioElement) {
     // Comes back when the recording ends

@@ -3,6 +3,7 @@
     import { onMount, tick } from "svelte";
     import { Tween } from "svelte/motion";
     import { cubicIn, cubicOut, linear } from "svelte/easing";
+    import { fade } from "svelte/transition";
     import { register_intro } from "$lib/scene-intro.svelte";
     import { billows, smoothstep } from "$lib/noise";
 
@@ -143,9 +144,37 @@
         start_smoke();
     }
 
+    /**
+     * Opening where the browser plays no sound before a tap, the smoke covers everything
+     * and asks for one: it lets the music play, a hint to tap came while it did before
+     */
+    let knocking = $state(false);
+    /** Resolved once there is no tap to wait for, or it came */
+    let knocked: Promise<void> = Promise.resolve();
+    let enter = () => {};
+    const touch =
+        typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches;
+
+    function knock(needed: Promise<boolean>) {
+        knocked = needed.then((needed) => {
+            if (!needed) return;
+            above = true;
+            knocking = true;
+            return new Promise<void>((resolve) => {
+                enter = () => {
+                    if (!knocking) return;
+                    knocking = false;
+                    above = false;
+                    resolve();
+                };
+            });
+        });
+    }
+
     /** The smoke draws back without a scroll once ready, a scroll still shown rolls up */
     async function lift(ready: Promise<unknown>) {
         const mine = run;
+        await knocked;
         await Promise.race([ready, wait(6000)]);
         if (mine !== run) return;
         start_smoke();
@@ -192,6 +221,8 @@
             wait(1500 + scene_name.length * 25),
             Promise.race([ready, wait(4000)]),
         ]);
+        if (mine !== run) return;
+        await knocked;
         if (mine !== run) return;
         start_smoke();
         smoke.set(0, { duration: 1700, easing: linear });
@@ -266,13 +297,15 @@
     }
 
     function on_visibility() {
+        // Still waiting for the tap when it comes back
+        if (knocking) return;
         if (document.hidden && (smoke.current > 0 || smoke.target > 0 || scroll_shown)) {
             skip();
         }
     }
 
     onMount(() => {
-        register_intro({ cover, reveal, veil, lift, announce });
+        register_intro({ cover, reveal, veil, lift, announce, knock });
         document.addEventListener("visibilitychange", on_visibility);
         // Ready before the first scene changes: the font and the parchment
         document.fonts?.load('700 2rem "Cinzel Decorative"').catch(() => {});
@@ -298,6 +331,21 @@
     style:z-index={above ? 100000 : null}
     aria-hidden="true"
 ></canvas>
+
+{#if knocking}
+    <!-- The whole screen: any tap enters. Played by the tap, the music doesn't need
+         another, see keep_unlocked() -->
+    <button
+        class="gate fixed inset-0 flex flex-col items-center justify-center gap-4 px-8"
+        style:z-index="100002"
+        onclick={() => enter()}
+        transition:fade={{ duration: 500 }}
+    >
+        <span class="gate-flourish" aria-hidden="true">✦</span>
+        <span class="gate-text">{touch ? "Tippe" : "Klicke"}, um das Portal zu betreten</span>
+        <span class="gate-flourish" aria-hidden="true">✦</span>
+    </button>
+{/if}
 
 {#if scroll_shown}
     <div
@@ -325,6 +373,43 @@
 {/if}
 
 <style>
+    .gate {
+        cursor: pointer;
+        background: transparent;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .gate-text {
+        font-family: "Cinzel Decorative", "Cinzel", Georgia, serif;
+        font-weight: 700;
+        font-size: clamp(1.25rem, 3vw, 2rem);
+        line-height: 1.3;
+        letter-spacing: 0.04em;
+        text-align: center;
+        color: #e8d09b;
+        text-shadow:
+            0 0 18px rgba(232, 208, 155, 0.45),
+            0 2px 6px rgba(0, 0, 0, 0.8);
+        animation: gate-glow 2.8s ease-in-out infinite;
+    }
+
+    .gate-flourish {
+        color: rgba(232, 208, 155, 0.7);
+        font-size: 0.8rem;
+        animation: gate-glow 2.8s ease-in-out infinite;
+    }
+
+    /* Breathes softly, so it reads as something to do */
+    @keyframes gate-glow {
+        0%,
+        100% {
+            opacity: 0.65;
+        }
+        50% {
+            opacity: 1;
+        }
+    }
+
     .scroll {
         position: relative;
         max-width: min(46rem, 100%);

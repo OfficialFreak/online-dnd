@@ -4,6 +4,7 @@
  */
 import { tick } from "svelte";
 import { appState, gameState } from "./state.svelte";
+import { sound_needs_tap, tap_asked } from "./audio.svelte";
 import type { SceneData } from "./types/messaging/server_messages";
 
 type Intro = {
@@ -17,6 +18,11 @@ type Intro = {
     lift(ready: Promise<unknown>): void;
     /** Closes the smoke and unrolls the scroll with this, which stays */
     announce(text: string): Promise<void>;
+    /**
+     * Asks for a tap over the covered screen if needed, which lets the browser play
+     * sound. The smoke draws back only after it.
+     */
+    knock(needed: Promise<boolean>): void;
 };
 
 let intro: Intro | null = null;
@@ -36,6 +42,13 @@ export function register_intro(shown: Intro | null) {
     if (shown) intro_shown();
     if (!shown || !opening || !appState.scene_intro || document.hidden) return;
     shown.veil();
+    // Where the music would wait for a tap anyway, the portal opens with one
+    shown.knock(
+        sound_needs_tap().then((needed) => {
+            if (needed) tap_asked();
+            return needed;
+        }),
+    );
     // Without a scene to show, e.g. none is active, it draws back on its own
     setTimeout(() => {
         if (!opening) return;
