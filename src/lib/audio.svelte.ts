@@ -34,11 +34,13 @@ export const audioState = $state({
 let music: HTMLAudioElement | null = null;
 /** Pressure plays its own music, the DM's waits silently underneath */
 let ducked = false;
+/** While the microphone records nothing plays, see hold_sound() */
+let held = false;
 /** An effect the DM plays again before it ends plays twice at once */
 const effects = new Map<string, Set<HTMLAudioElement>>();
 
 export function music_volume() {
-    return audioState.muted ? 0 : audioState.music_volume;
+    return audioState.muted || held ? 0 : audioState.music_volume;
 }
 
 /**
@@ -61,7 +63,7 @@ export function music_volume_at(slider: number) {
 }
 
 export function effect_volume() {
-    return audioState.muted ? 0 : audioState.effect_volume;
+    return audioState.muted || held ? 0 : audioState.effect_volume;
 }
 
 function playing_music_volume() {
@@ -369,6 +371,8 @@ let told_to_tap = false;
 
 /** iOS plays sound only after a tap, then the next tap starts it */
 function play_or_wait(audio: HTMLAudioElement) {
+    // Comes back when the recording ends
+    if (held) return;
     wake_audio();
     audio.play().catch((e) => {
         console.error("Playing music failed", e);
@@ -383,7 +387,7 @@ function play_or_wait(audio: HTMLAudioElement) {
         document.addEventListener(
             "pointerdown",
             () => {
-                if (audio !== music || !audio.paused) return;
+                if (audio !== music || !audio.paused || held) return;
                 audio.play().catch(() => {});
             },
             { once: true },
@@ -455,6 +459,7 @@ export function stop_music() {
 
 /** Loudness below 1 plays it quieter than the effect volume, e.g. a distant thunder */
 export function play_effect(name: string, file: string, loudness = 1) {
+    if (held) return;
     const audio = free_effect_player();
     clearInterval(fades.get(audio));
     audio.src = asset_url(file);
@@ -485,6 +490,49 @@ export function stop_effect(name: string) {
         forget_effect(name, audio);
         fade(audio, () => 0, () => audio.pause());
     }
+}
+
+/**
+ * Silences everything before the microphone records: nothing of it ends up in the
+ * recording, and iOS switches its audio over for the microphone and stuttered with sound
+ * still playing. The music fades out and pauses, the effects end, new ones stay silent.
+ * Resolves once it is quiet.
+ */
+export function hold_sound() {
+    held = true;
+    const player = music;
+    if (player && !player.paused) {
+        fade(player, () => 0, () => {
+            if (held) player.pause();
+        }, HOLD_FADE);
+    }
+    for (const [name, playing] of [...effects]) {
+        for (const audio of playing) {
+            forget_effect(name, audio);
+            fade(audio, () => 0, () => audio.pause(), HOLD_FADE);
+        }
+    }
+    return new Promise<void>((resolve) => setTimeout(resolve, HOLD_FADE + 50));
+}
+
+const HOLD_FADE = 300;
+
+/**
+ * After recording the music comes back where everyone else is, slowly. A moment later:
+ * iOS switches its audio back first.
+ */
+export function release_sound() {
+    if (!held) return;
+    held = false;
+    setTimeout(() => {
+        wake_audio();
+        if (held || !music || !audioState.music || document.hidden) return;
+        const player = music;
+        set_audio_level(player, 0);
+        // Once it plays it catches up with the others, see keep_in_step()
+        play_or_wait(player);
+        fade(player, playing_music_volume, undefined, 1500);
+    }, 150);
 }
 
 export function stop_all_sounds() {

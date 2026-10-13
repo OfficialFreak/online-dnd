@@ -3,7 +3,7 @@
  * DM's screen and the reactions of players who didn't record their own voice. And the
  * recording of a player's voice for their reactions.
  */
-import { effect_volume } from "$lib/audio.svelte";
+import { effect_volume, hold_sound, release_sound } from "$lib/audio.svelte";
 
 let context: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
@@ -173,6 +173,8 @@ export const DEFAULT_VOICES: Record<string, () => void> = {
  * at the start and end cut off and as loud as it can be without distorting.
  */
 export async function record(seconds = 3) {
+    // Quiet first, then the microphone
+    await hold_sound();
     // Recording needs a session that records too: the app's playback session, which keeps
     // the music going in silent mode, made an iPhone refuse the microphone without asking
     const session =
@@ -184,6 +186,7 @@ export async function record(seconds = 3) {
         try {
             if (session && before) session.type = before;
         } catch {}
+        release_sound();
     };
     try {
         if (session) session.type = "play-and-record";
