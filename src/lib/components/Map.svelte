@@ -1049,8 +1049,8 @@
     let pinching = false;
     let settle_timer: ReturnType<typeof setTimeout> | undefined;
     /**
-     * The zoom the last gesture ended at. Mostly the zoom the map is laid out at, further
-     * in on iPhones the map is only scaled beyond its layout, see layout_cap.
+     * The zoom the last gesture ended at, the zoom the map is laid out at but during a
+     * gesture that shrinks it on an iPhone, see shrink_layout
      */
     let settled_zoom = $state(untrack(() => appState.zoom));
     /** A gesture is going on, the map is only scaled meanwhile */
@@ -1063,24 +1063,43 @@
     let wrapper_zoom = $derived(editable ? settled_zoom : 1);
 
     /**
-     * How far in the map is laid out, further in it is only scaled. Laid out as large as
-     * the zoom, its layers over the picture grew to thirty thousand pixels a side on an
-     * iPhone, and scaled down while zooming out Safari kept all of them at full size: it
-     * ran out of memory and reloaded the page. Up to about twelve million pixels of the
-     * screen there, the picture stays as sharp, lines and figures soften a little beyond.
+     * How large the map may be laid out while a gesture shrinks it on an iPhone or iPad.
+     * Laid out as large as a deep zoom, its layers over the picture grew to thirty
+     * thousand pixels a side there, and scaled down while zooming out Safari kept all of
+     * them at full size: it ran out of memory and reloaded the page. Neither the layout
+     * at the zoom nor the layers alone did it. Kept laid out at most this large since,
+     * everything was pixelated further in; now only during such a gesture, and laid out
+     * at the zoom again once it ends.
      */
-    const LAYOUT_PIXELS = 12_000_000;
+    const SHRINKING_PIXELS = 12_000_000;
     const safari_touch =
         typeof navigator !== "undefined" &&
         navigator.vendor === "Apple Computer, Inc." &&
         matchMedia("(pointer: coarse)").matches;
-    let layout_cap = $derived.by(() => {
-        if (debug.has("flatzoom")) return 1;
+    let shrinking_cap = $derived.by(() => {
         if (!safari_touch) return Infinity;
         const ratio = window.devicePixelRatio || 1;
         const area = Math.max(1, base_w * base_h * ratio * ratio);
-        return Math.max(1, Math.sqrt(LAYOUT_PIXELS / area));
+        return Math.max(1, Math.sqrt(SHRINKING_PIXELS / area));
     });
+    /** Laid out at most this large, only scaled beyond, see debug */
+    let layout_cap = $derived(debug.has("flatzoom") ? 1 : Infinity);
+
+    /**
+     * When a gesture starts shrinking a map laid out larger than shrinking_cap, it is
+     * laid out at that size first, before a frame shows it shrunk. It stays where it is:
+     * its box doesn't move, the shift stays, and the page keeps its size.
+     */
+    function shrink_layout() {
+        // Read once: it follows the size, which changes here
+        const cap = shrinking_cap;
+        if (appState.zoom >= appState.layout_zoom) return;
+        if (appState.layout_zoom <= cap) return;
+        const ratio = cap / appState.layout_zoom;
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+        appState.layout_zoom = cap;
+    }
 
     /** Lays the map out at the zoom and turns the shift into scrolling, after a gesture */
     function settle_later() {
@@ -1236,6 +1255,7 @@
         };
         appState.zoom = new_zoom;
         keep_under(point, client_x, client_y, unshifted);
+        shrink_layout();
         settle_later();
     }
 
@@ -1312,6 +1332,7 @@
             // The map point that was between the fingers stays between them
             const center = middle(event.touches);
             keep_under(pinch.point, center.x, center.y, pinch.unshifted);
+            shrink_layout();
         };
         const on_touch_end = (event: TouchEvent) => {
             if (event.touches.length >= 2) return;
