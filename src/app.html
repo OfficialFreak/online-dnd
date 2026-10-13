@@ -10,9 +10,10 @@
     <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="%sveltekit.assets%/pwa/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- Not black-translucent: under a translucent status bar iOS 26 blurs the top of the
-         app and makes it a status bar shorter, the bottom of the app ended above the screen's -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <!-- See-through, the map's light shows behind it instead of a grey bar. The page keeps
+         the status bar's room free at the top (--safe-top in app.css). Under it iOS makes the
+         app a status bar shorter, the bottom ends above the screen's: the user takes that. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="DND Online" />
     <meta name="theme-color" content="#1d232a" />
     <!-- Shown by iOS while the app starts from the home screen -->
