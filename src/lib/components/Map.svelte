@@ -42,7 +42,6 @@
     import VisionLayer from "./VisionLayer.svelte";
     import {
         compute_sight,
-        compute_tint,
         light_base,
         LIGHT_PRESETS,
         preset_of,
@@ -1780,13 +1779,6 @@
     /** Placed and carried lights together, once and not for every figure */
     let all_lamps = $derived([...placed_lamps, ...carried_lamps]);
 
-    /** The DM sees everything, the coloured glow of the lights too */
-    let dm_tint = $derived(
-        gameState.dm && !viewer && base
-            ? compute_tint(base, grid_columns, map_rows, carried_lamps)
-            : null,
-    );
-
     function seen(point: Point) {
         return !!sight && seen_at(sight, point) > SEEN;
     }
@@ -2408,19 +2400,7 @@
         </svg>
         {#if sight}
             <!-- What the figures don't see is darker, under the fog the DM lays -->
-            <VisionLayer
-                width={sight.width}
-                height={sight.height}
-                shade={sight.shade}
-                grey={sight.grey}
-                tint={sight.tint}
-            />
-        {:else if dm_tint}
-            <VisionLayer
-                width={dm_tint.width}
-                height={dm_tint.height}
-                tint={dm_tint.tint}
-            />
+            <VisionLayer width={sight.width} height={sight.height} shade={sight.shade} />
         {/if}
         <!-- Fog -->
         <canvas

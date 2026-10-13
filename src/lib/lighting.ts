@@ -1,7 +1,8 @@
 /**
- * Light and darkness by the rules of 5e: a spot shows in colour if a figure sees it and
- * a light or the scene lights it at least dimly. In darkvision, darkness counts as dim
- * light and shows in grey, dim light as bright light.
+ * Light and darkness by the rules of 5e: a figure sees a spot if a light or the scene
+ * lights it at least dimly, or its darkvision reaches it, where darkness counts as dim
+ * light. What is seen keeps the map's own look, lights don't colour or brighten it; what
+ * nobody sees is dark. The colours of the lights stay with them, unused.
  */
 import type { Point } from "$lib/vision";
 
@@ -104,12 +105,8 @@ export type Sight = {
     scale_x: number;
     scale_y: number;
     seen: Uint8ClampedArray;
-    /** The darkening over the map */
+    /** The darkening over what nobody sees, what is seen keeps the map's own look */
     shade: ImageData;
-    /** Grey over what only darkvision sees, null if nothing */
-    grey: ImageData | null;
-    /** The glow of coloured lights where they are seen, null if none */
-    tint: ImageData | null;
 };
 
 /** About 12 pixels per cell, the browser stretches the picture softly over the map */
@@ -122,7 +119,7 @@ export const SEEN = 60;
 let canvases: HTMLCanvasElement[] | null = null;
 
 function contexts(width: number, height: number) {
-    canvases ??= [0, 1, 2, 3].map(() => document.createElement("canvas"));
+    canvases ??= [0, 1, 2].map(() => document.createElement("canvas"));
     return canvases.map((canvas) => {
         if (canvas.width !== width) canvas.width = width;
         if (canvas.height !== height) canvas.height = height;
@@ -169,29 +166,6 @@ function draw_light(ctx: CanvasRenderingContext2D, lamp: Lamp, sx: number, sy: n
     ctx.restore();
 }
 
-/** A faint glow in the light's colour, overlapping lights don't add up to white */
-function draw_glow(ctx: CanvasRenderingContext2D, lamp: Lamp, sx: number, sy: number) {
-    if (!lamp.color || lamp.polygon.length < 3 || lamp.dim <= 0) return;
-    const cx = lamp.point[0] * sx;
-    const cy = lamp.point[1] * sy;
-    const radius = lamp.dim * sx;
-    // Nearly white light hardly colours anything, many of them would only wash it out
-    const strength = Math.min(1, Math.max(0.15, saturation(lamp.color) * 1.5));
-    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-    gradient.addColorStop(0, colour_alpha(lamp.color, 0.32 * strength));
-    gradient.addColorStop(
-        Math.min(0.95, lamp.bright / lamp.dim),
-        colour_alpha(lamp.color, 0.18 * strength),
-    );
-    gradient.addColorStop(1, colour_alpha(lamp.color, 0));
-    ctx.save();
-    trace(ctx, lamp.polygon, sx, sy);
-    ctx.clip();
-    ctx.fillStyle = gradient;
-    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
-    ctx.restore();
-}
-
 /**
  * The scene's own light and its placed lights, drawn only when those or the walls change.
  * A big map has a hundred and more, drawing them on every step of a figure was slow.
@@ -200,7 +174,6 @@ export type LightBase = {
     width: number;
     height: number;
     light: HTMLCanvasElement;
-    glow: HTMLCanvasElement | null;
 };
 
 export function light_base(
@@ -223,40 +196,7 @@ export function light_base(
     light.fillRect(0, 0, width, height);
     light.globalCompositeOperation = "lighten";
     for (const lamp of lamps) draw_light(light, lamp, sx, sy);
-
-    let glow_canvas: HTMLCanvasElement | null = null;
-    if (lamps.some((lamp) => lamp.color)) {
-        glow_canvas = document.createElement("canvas");
-        glow_canvas.width = width;
-        glow_canvas.height = height;
-        const glow = glow_canvas.getContext("2d")!;
-        glow.globalCompositeOperation = "lighten";
-        for (const lamp of lamps) draw_glow(glow, lamp, sx, sy);
-    }
-    return { width, height, light: light_canvas, glow: glow_canvas };
-}
-
-/** The placed lights and those the figures carry, glowing where the mask lets them */
-function glow_of(
-    ctx: CanvasRenderingContext2D,
-    base: LightBase,
-    carried: Lamp[],
-    sx: number,
-    sy: number,
-    mask: HTMLCanvasElement | null,
-) {
-    if (!base.glow && !carried.some((lamp) => lamp.color)) return null;
-    ctx.globalCompositeOperation = "source-over";
-    ctx.clearRect(0, 0, base.width, base.height);
-    if (base.glow) ctx.drawImage(base.glow, 0, 0);
-    ctx.globalCompositeOperation = "lighten";
-    for (const lamp of carried) draw_glow(ctx, lamp, sx, sy);
-    if (mask) {
-        ctx.globalCompositeOperation = "destination-in";
-        ctx.drawImage(mask, 0, 0);
-    }
-    ctx.globalCompositeOperation = "source-over";
-    return ctx.getImageData(0, 0, base.width, base.height);
+    return { width, height, light: light_canvas };
 }
 
 export function compute_sight(
@@ -267,7 +207,7 @@ export function compute_sight(
     eyes: Eye[],
 ): Sight {
     const { width, height, sx, sy } = picture_size(columns, rows);
-    const [light, eye_ctx, seen_ctx, glow_ctx] = contexts(width, height);
+    const [light, eye_ctx, seen_ctx] = contexts(width, height);
 
     // How bright the map is without the figures: the scene and its lights, then the
     // lights the figures carry
@@ -301,56 +241,24 @@ export function compute_sight(
         seen_ctx.drawImage(eye_ctx.canvas, 0, 0);
     }
     const seen = seen_ctx.getImageData(0, 0, width, height).data;
-    const tint = glow_of(glow_ctx, base, carried, sx, sy, seen_ctx.canvas);
 
-    // Worked out on every step of a figure seeing while it is dragged: no picture is read
-    // back that nothing uses, and the grey one only once something is grey
+    // Lights and darkvision only decide what is seen: that keeps the map's own colours and
+    // brightness, a glow in the lights' colours, grey for darkvision and darker dim light
+    // washed the map out. What nobody sees is dark, with a soft edge.
     const shade = new ImageData(width, height);
-    let grey: ImageData | null = null;
     for (let i = 0; i < seen.length; i += 4) {
-        const alpha = seen[i + 3] / 255;
-        const level = seen[i] * alpha;
+        const level = seen[i] * (seen[i + 3] / 255);
         shade.data[i] = 6;
         shade.data[i + 1] = 8;
         shade.data[i + 2] = 14;
-        shade.data[i + 3] = Math.round(UNSEEN * (1 - level / 255));
-        // Colour unweighted: soft edges are faint, not grey
-        if (level > SEEN && seen[i + 1] < 128) {
-            grey ??= new ImageData(width, height);
-            grey.data[i] = grey.data[i + 1] = grey.data[i + 2] = 128;
-            grey.data[i + 3] = 255;
-        }
+        shade.data[i + 3] = Math.round(UNSEEN * (1 - smoothstep(SEEN - 30, SEEN + 30, level)));
     }
-    return {
-        width,
-        height,
-        scale_x: sx,
-        scale_y: sy,
-        seen,
-        shade,
-        grey,
-        tint,
-    };
+    return { width, height, scale_x: sx, scale_y: sy, seen, shade };
 }
 
-/** 0 for grey and white, 1 for a pure colour */
-function saturation(hex: string) {
-    const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    const max = Math.max(...channels);
-    return max === 0 ? 0 : (max - Math.min(...channels)) / max;
-}
-
-function colour_alpha(hex: string, alpha: number) {
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-/** The glow of the lights for the DM, who sees everything */
-export function compute_tint(base: LightBase, columns: number, rows: number, carried: Lamp[]) {
-    const { width, height, sx, sy } = picture_size(columns, rows);
-    const [, , , glow_ctx] = contexts(width, height);
-    const tint = glow_of(glow_ctx, base, carried, sx, sy, null);
-    return tint && { width, height, tint };
+function smoothstep(edge0: number, edge1: number, value: number) {
+    const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
 }
 
 /** How bright this spot is seen, in cells: 0 unseen, about 128 dim, 255 bright */
