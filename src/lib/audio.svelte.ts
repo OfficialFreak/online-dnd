@@ -8,8 +8,22 @@ import { MessageTypes, notify } from "./notifications.svelte";
 export type Sound = {
     name: string;
     file: string;
-    /** Music loops until the DM stops it, an effect plays once */
-    kind: "music" | "effect";
+    /**
+     * Music loops until the DM stops it, a new song replaces it. Ambience loops alongside,
+     * like rain, as many as the DM likes. An effect plays once.
+     */
+    kind: "music" | "ambience" | "effect";
+    /** How loud it plays relative to the others, from 0 to 1 */
+    level?: number;
+};
+
+/** A song or ambience playing for everyone */
+export type Playing = {
+    name: string;
+    file: string;
+    started_at: number;
+    /** How loud relative to the others, from 0 to 1, the DM sets it */
+    level: number;
 };
 
 export const audioState = $state({
@@ -18,8 +32,10 @@ export const audioState = $state({
     music_volume: 0,
     effect_volume: 0,
     muted: false,
-    /** What is playing for everyone right now */
-    music: null as { name: string; file: string; started_at: number } | null,
+    /** The song playing for everyone right now */
+    music: null as Playing | null,
+    /** The ambience playing alongside, like rain */
+    ambience: [] as Playing[],
     /** The sound library, only DMs get it */
     sounds: [] as Sound[],
     /** The tracks of Tabletop Audio, once the DM opened the library */
@@ -38,6 +54,21 @@ let ducked = false;
 let held = false;
 /** An effect the DM plays again before it ends plays twice at once */
 const effects = new Map<string, Set<HTMLAudioElement>>();
+/** The players of the ambience playing, by the sound's name */
+const ambience = new Map<string, HTMLAudioElement>();
+
+/** Whether this player loops music or ambience for everyone right now */
+function is_live(audio: HTMLAudioElement) {
+    return audio === music || [...ambience.values()].includes(audio);
+}
+
+/** The song's player and the ambience's, each with how loud it should play */
+function live_players(): [HTMLAudioElement, () => number][] {
+    const live: [HTMLAudioElement, () => number][] = [];
+    if (music && audioState.music) live.push([music, playing_music_volume]);
+    for (const [name, player] of ambience) live.push([player, () => ambience_volume(name)]);
+    return live;
+}
 
 export function music_volume() {
     return audioState.muted || held ? 0 : audioState.music_volume;
@@ -67,7 +98,13 @@ export function effect_volume() {
 }
 
 function playing_music_volume() {
-    return ducked ? 0 : music_volume();
+    return ducked ? 0 : music_volume() * (audioState.music?.level ?? 1);
+}
+
+/** Pressure leaves the ambience on, it only takes the place of the song */
+function ambience_volume(name: string) {
+    const playing = audioState.ambience.find((playing) => playing.name === name);
+    return music_volume() * (playing?.level ?? 1);
 }
 
 // The app plays music, as a music app: iOS mutes Web Audio with the switch on its side,
@@ -175,7 +212,7 @@ function unlock() {
         // Refused, e.g. as the finger only came down, it tries again when it lifts
         const retry = () => unlocked.delete(audio);
         // A song waiting for this tap plays, the others play a moment of silence
-        if (audio === music) {
+        if (is_live(audio)) {
             audio.play().catch(retry);
             continue;
         }
@@ -229,10 +266,15 @@ function fade(
 }
 
 /**
- * How far the song was when the server sent it, by the server's clock, and when that
- * arrived here. The clocks of phones and computers may be off by seconds.
+ * How far each song or ambience was when the server sent it, by the server's clock, and
+ * when that arrived here. The clocks of phones and computers may be off by seconds.
  */
-let song_clock = { elapsed: 0, received: 0 };
+const clocks = new WeakMap<HTMLAudioElement, { elapsed: number; received: number }>();
+
+/** started_at and sent_at by the server's clock, older servers send no sent_at */
+function clock_from(started_at: number, sent_at?: number) {
+    return { elapsed: (sent_at ?? Date.now()) - started_at, received: performance.now() };
+}
 
 /**
  * The length of the song in seconds, null while unknown. iOS loads a song only once it
@@ -251,9 +293,9 @@ function song_length(audio: HTMLAudioElement) {
  */
 function song_position(audio: HTMLAudioElement) {
     const length = song_length(audio);
-    if (length === null) return null;
-    const seconds =
-        (song_clock.elapsed + performance.now() - song_clock.received) / 1000;
+    const clock = clocks.get(audio);
+    if (length === null || !clock) return null;
+    const seconds = (clock.elapsed + performance.now() - clock.received) / 1000;
     return seconds % length;
 }
 
@@ -310,7 +352,7 @@ function keep_in_step(audio: HTMLAudioElement) {
     let corrections = 0;
     const correct = () => {
         // A jump loads again, so only a few times in a row
-        if (audio !== music || corrections >= 3) return;
+        if (!is_live(audio) || corrections >= 3) return;
         const position = song_position(audio);
         if (position !== null && drift(audio, position) > 0.3) {
             corrections++;
@@ -323,7 +365,7 @@ function keep_in_step(audio: HTMLAudioElement) {
         audio.addEventListener(type, correct);
     }
     setInterval(() => {
-        if (audio !== music || audio.paused) return;
+        if (!is_live(audio) || audio.paused) return;
         const position = song_position(audio);
         if (position !== null && drift(audio, position) > 1) catch_up(audio);
     }, 15_000);
@@ -346,6 +388,28 @@ function get_music_player() {
     return free.find((player) => player.paused) ?? free[0] ?? music_players[0];
 }
 
+/** Players for the ambience, reused like the others so the first tap unlocks them */
+const loop_players: HTMLAudioElement[] = [];
+
+function new_loop_player() {
+    const player = new Audio();
+    player.loop = true;
+    route_audio(player);
+    keep_unlocked(player);
+    keep_in_step(player);
+    loop_players.push(player);
+    return player;
+}
+
+/** One that plays no ambience and has faded out, a new one if all do */
+function free_loop_player() {
+    const busy = new Set(ambience.values());
+    return (
+        loop_players.find((player) => !busy.has(player) && player.paused) ??
+        new_loop_player()
+    );
+}
+
 const effect_players: HTMLAudioElement[] = [];
 
 /** One that plays no effect right now, a new one if all do */
@@ -365,6 +429,7 @@ function free_effect_player() {
 if (typeof document !== "undefined") {
     get_music_player();
     for (let i = 0; i < 3; i++) free_effect_player();
+    for (let i = 0; i < 3; i++) new_loop_player();
 }
 
 let told_to_tap = false;
@@ -411,7 +476,7 @@ function play_or_wait(audio: HTMLAudioElement) {
         document.addEventListener(
             "pointerdown",
             () => {
-                if (audio !== music || !audio.paused || held) return;
+                if (!is_live(audio) || !audio.paused || held) return;
                 audio.play().catch(() => {});
             },
             { once: true },
@@ -428,17 +493,17 @@ export function play_music(
     file: string,
     started_at: number,
     sent_at?: number,
+    level = 1,
 ) {
-    song_clock = {
-        elapsed: (sent_at ?? Date.now()) - started_at,
-        received: performance.now(),
-    };
+    const clock = clock_from(started_at, sent_at);
     // The same song again, after connecting anew, plays on instead of starting over
     if (
         music &&
         audioState.music?.file === file &&
         audioState.music.started_at === started_at
     ) {
+        clocks.set(music, clock);
+        set_sound_level(name, level);
         if (music.paused && !document.hidden) play_or_wait(music);
         return;
     }
@@ -446,8 +511,9 @@ export function play_music(
     const player = get_music_player();
     player.src = asset_url(file);
     set_audio_level(player, 0);
+    clocks.set(player, clock);
     music = player;
-    audioState.music = { name, file, started_at };
+    audioState.music = { name, file, started_at, level };
     play_or_wait(player);
     // Slowly, music coming in at once is a jump scare
     fade(player, playing_music_volume, undefined, 3000);
@@ -463,9 +529,10 @@ export function play_music(
 // where everyone else is when it comes back. The desktop keeps playing in other windows.
 if (typeof document !== "undefined" && !in_tauri && navigator.maxTouchPoints > 0) {
     document.addEventListener("visibilitychange", () => {
-        if (!music || !audioState.music) return;
-        if (document.hidden) music.pause();
-        else play_or_wait(music);
+        for (const [player] of live_players()) {
+            if (document.hidden) player.pause();
+            else play_or_wait(player);
+        }
     });
 }
 
@@ -479,6 +546,69 @@ export function stop_music() {
         });
     }
     audioState.music = null;
+}
+
+/**
+ * Ambience loops alongside the song, as many as the DM plays. Played again it starts
+ * over, after connecting anew the same one plays on.
+ */
+export function play_ambience(
+    name: string,
+    file: string,
+    started_at: number,
+    sent_at?: number,
+    level = 1,
+) {
+    const clock = clock_from(started_at, sent_at);
+    const known = audioState.ambience.find((playing) => playing.name === name);
+    const current = ambience.get(name);
+    if (current && known?.file === file && known.started_at === started_at) {
+        clocks.set(current, clock);
+        set_sound_level(name, level);
+        if (current.paused && !document.hidden) play_or_wait(current);
+        return;
+    }
+    const player = free_loop_player();
+    player.src = asset_url(file);
+    set_audio_level(player, 0);
+    clocks.set(player, clock);
+    ambience.set(name, player);
+    const playing = { name, file, started_at, level };
+    audioState.ambience = known
+        ? audioState.ambience.map((other) => (other.name === name ? playing : other))
+        : [...audioState.ambience, playing];
+    play_or_wait(player);
+    fade(player, () => ambience_volume(name), undefined, 3000);
+    if (current) fade_out(current, 2000);
+}
+
+/** Fades a song or ambience out and pauses it, unless it plays something new by then */
+function fade_out(player: HTMLAudioElement, duration = 1200) {
+    fade(player, () => 0, () => {
+        if (!is_live(player)) player.pause();
+    }, duration);
+}
+
+export function stop_ambience(name: string) {
+    const player = ambience.get(name);
+    ambience.delete(name);
+    audioState.ambience = audioState.ambience.filter((playing) => playing.name !== name);
+    if (player) fade_out(player, 2000);
+}
+
+/** The DM made a sound louder or quieter relative to the others */
+export function set_sound_level(name: string, level: number) {
+    if (audioState.music?.name === name) {
+        audioState.music.level = level;
+        // A fade going on reads the new level itself
+        if (music && !fades.has(music)) set_audio_level(music, playing_music_volume());
+    }
+    const playing = audioState.ambience.find((playing) => playing.name === name);
+    const player = ambience.get(name);
+    if (playing) playing.level = level;
+    if (player && !fades.has(player)) set_audio_level(player, ambience_volume(name));
+    const sound = audioState.sounds.find((sound) => sound.name === name);
+    if (sound) sound.level = level;
 }
 
 /** Loudness below 1 plays it quieter than the effect volume, e.g. a distant thunder */
@@ -524,8 +654,8 @@ export function stop_effect(name: string) {
  */
 export function hold_sound() {
     held = true;
-    const player = music;
-    if (player && !player.paused) {
+    for (const [player] of live_players()) {
+        if (player.paused) continue;
         fade(player, () => 0, () => {
             if (held) player.pause();
         }, HOLD_FADE);
@@ -550,17 +680,19 @@ export function release_sound() {
     held = false;
     setTimeout(() => {
         wake_audio();
-        if (held || !music || !audioState.music || document.hidden) return;
-        const player = music;
-        set_audio_level(player, 0);
-        // Once it plays it catches up with the others, see keep_in_step()
-        play_or_wait(player);
-        fade(player, playing_music_volume, undefined, 1500);
+        if (held || document.hidden) return;
+        for (const [player, volume] of live_players()) {
+            set_audio_level(player, 0);
+            // Once it plays it catches up with the others, see keep_in_step()
+            play_or_wait(player);
+            fade(player, volume, undefined, 1500);
+        }
     }, 150);
 }
 
 export function stop_all_sounds() {
     stop_music();
+    for (const name of [...ambience.keys()]) stop_ambience(name);
     for (const name of [...effects.keys()]) stop_effect(name);
 }
 
@@ -593,7 +725,7 @@ export function set_volume(
     >,
 ) {
     Object.assign(audioState, change);
-    if (music) set_audio_level(music, playing_music_volume());
+    for (const [player, volume] of live_players()) set_audio_level(player, volume());
     for (const playing of effects.values()) {
         for (const audio of playing) set_audio_level(audio, effect_volume());
     }
@@ -627,7 +759,7 @@ export async function load_volume() {
     // Saved before the music got quieter at most
     audioState.music_volume = Math.min(MAX_MUSIC_VOLUME, audioState.music_volume);
     // What already plays comes up to it
-    if (music) fade(music, playing_music_volume);
+    for (const [player, volume] of live_players()) fade(player, volume);
     for (const playing of effects.values()) {
         for (const audio of playing) set_audio_level(audio, effect_volume());
     }

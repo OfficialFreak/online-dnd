@@ -119,7 +119,7 @@
                     {#if active}
                         <span class="badge badge-info badge-xs">Aktiv</span>
                     {/if}
-                    {#if scene.music || weather_icons(scene.weather).length}
+                    {#if scene.music || scene.ambience?.length || weather_icons(scene.weather).length}
                         <span
                             class="flex items-center gap-1.5 text-xs text-base-content/60 min-w-0"
                         >
@@ -141,9 +141,20 @@
                                         ? scene.music.name
                                         : "Stille"}
                                 </span>
+                            {/if}
+                            {#if scene.ambience?.length}
+                                <span
+                                    class="truncate"
+                                    title="Läuft daneben, wenn du zu der Szene wechselst"
+                                >
+                                    <i class="fa-solid fa-cloud-rain"></i>
+                                    {scene.ambience.join(", ")}
+                                </span>
+                            {/if}
+                            {#if scene.music || scene.ambience?.length}
                                 <button
                                     class="btn btn-ghost btn-xs btn-square -my-1"
-                                    aria-label="Musik der Szene vergessen"
+                                    aria-label="Musik und Ambiente der Szene vergessen"
                                     title="Nicht mehr mit der Szene starten"
                                     onclick={() =>
                                         appState.ws?.send(

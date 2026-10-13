@@ -428,7 +428,7 @@ export class DeleteSound {
 }
 
 export class PlaySound {
-    /** Music replaces what is playing, effects play on top */
+    /** Music replaces the song playing, ambience and effects play on top */
     static create(name: string): string {
         return JSON.stringify({
             type: "play_sound",
@@ -526,7 +526,18 @@ export class ForgetSceneMusic {
     }
 }
 
-/** Cuts an effect short for everyone */
+/** How loud a sound plays relative to the others, from 0 to 1, for everyone */
+export class SetSoundLevel {
+    static create(name: string, level: number): string {
+        return JSON.stringify({
+            type: "sound_level",
+            name: name,
+            level: level
+        });
+    }
+}
+
+/** Cuts an effect or an ambience short for everyone */
 export class StopSound {
     static create(name: string): string {
         return JSON.stringify({

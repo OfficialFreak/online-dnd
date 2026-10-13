@@ -39,6 +39,7 @@ export enum MessageType {
     PLAY_SOUND = "play_sound",
     STOP_MUSIC = "stop_music",
     STOP_SOUND = "stop_sound",
+    SOUND_LEVEL = "sound_level",
     USER_ADMIN = "user_admin",
     TABLETOP_AUDIO = "tabletop_audio",
     SOUND_IMPORT_FAILED = "sound_import_failed",
@@ -225,6 +226,8 @@ export interface Scene {
     x_offset: number;
     y_offset: number;
     music?: SceneMusic | null;
+    /** The ambience that plays alongside, by the names of the sounds */
+    ambience?: string[] | null;
     weather?: Weather | null;
 }
 
@@ -342,6 +345,8 @@ export interface PlaySound extends BaseServerMessage {
     started_at: number;
     /** When the server sent this, by its clock, newer servers only */
     sent_at?: number;
+    /** How loud relative to the others, from 0 to 1, newer servers only */
+    level?: number;
 }
 
 export interface StopMusic extends BaseServerMessage {
@@ -351,6 +356,13 @@ export interface StopMusic extends BaseServerMessage {
 export interface StopSound extends BaseServerMessage {
     type: MessageType.STOP_SOUND;
     name: string;
+}
+
+/** The DM made a sound louder or quieter relative to the others */
+export interface SoundLevel extends BaseServerMessage {
+    type: MessageType.SOUND_LEVEL;
+    name: string;
+    level: number;
 }
 
 export interface WeatherChanged extends BaseServerMessage {
@@ -466,6 +478,7 @@ export type ServerMessage =
     | PlaySound
     | StopMusic
     | StopSound
+    | SoundLevel
     | WeatherChanged
     | EffectsEnded
     | DoorChanged
@@ -549,6 +562,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as StopMusic;
         case MessageType.STOP_SOUND:
             return data as StopSound;
+        case MessageType.SOUND_LEVEL:
+            return data as SoundLevel;
         case MessageType.USER_ADMIN:
             return data as UserAdmin;
         case MessageType.TABLETOP_AUDIO:

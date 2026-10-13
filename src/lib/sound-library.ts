@@ -154,10 +154,13 @@ export async function search_openverse(
                     .filter(Boolean)
                     .join(" · "),
                 url: result.url!,
+                // A long recording of rain or a crowd plays alongside the music
                 kind:
-                    source === "music" || (seconds ?? 0) >= EFFECT_SECONDS
+                    source === "music"
                         ? "music"
-                        : "effect",
+                        : (seconds ?? 0) >= EFFECT_SECONDS
+                          ? "ambience"
+                          : "effect",
             };
         });
 }
@@ -188,6 +191,9 @@ export function search_tabletop(
             title: clean_title(track.title),
             detail: track.flavor,
             url: track.link,
-            kind: "music",
+            // "ambience + music", "music + minimal ambience", ...: what comes first
+            kind: track.type?.trim().toLowerCase().startsWith("music")
+                ? "music"
+                : "ambience",
         }));
 }

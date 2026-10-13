@@ -44,6 +44,9 @@
         music_volume_at,
         play_effect,
         play_music,
+        play_ambience,
+        stop_ambience,
+        set_sound_level,
         keep_unlocked,
         route_audio,
         set_audio_level,
@@ -788,16 +791,29 @@
                             message.file,
                             message.started_at,
                             message.sent_at,
+                            message.level,
+                        );
+                    } else if (message.kind === "ambience") {
+                        play_ambience(
+                            message.name,
+                            message.file,
+                            message.started_at,
+                            message.sent_at,
+                            message.level,
                         );
                     } else {
-                        play_effect(message.name, message.file);
+                        play_effect(message.name, message.file, message.level);
                     }
                     break;
                 case MessageType.STOP_MUSIC:
                     stop_music();
                     break;
                 case MessageType.STOP_SOUND:
+                    stop_ambience(message.name);
                     stop_effect(message.name);
+                    break;
+                case MessageType.SOUND_LEVEL:
+                    set_sound_level(message.name, message.level);
                     break;
                 case MessageType.WEATHER:
                     if (gameState.scene) gameState.scene.weather = message.weather;
@@ -1285,8 +1301,11 @@
                 tabindex="0"
                 class="btn btn-soft btn-primary !text-xs px-2 h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
                 aria-label="Lautstärke"
-                title={audioState.music
-                    ? `Läuft: ${audioState.music.name}`
+                title={audioState.music || audioState.ambience.length
+                    ? `Läuft: ${[audioState.music, ...audioState.ambience]
+                          .filter((playing) => playing)
+                          .map((playing) => playing!.name)
+                          .join(", ")}`
                     : "Lautstärke"}
             >
                 <i
@@ -1294,7 +1313,7 @@
                         ? 'fa-volume-xmark'
                         : 'fa-volume-high'}"
                 ></i>
-                {#if audioState.music}
+                {#if audioState.music || audioState.ambience.length}
                     <i class="fa-solid fa-music animate-pulse"></i>
                 {/if}
             </button>
@@ -1324,6 +1343,12 @@
                         </p>
                     {/if}
                 {/if}
+                {#each audioState.ambience as playing (playing.name)}
+                    <p class="text-sm truncate">
+                        <i class="fa-solid fa-cloud-rain"></i>
+                        {playing.name}
+                    </p>
+                {/each}
                 <label class="text-xs">
                     Musik
                     <input
