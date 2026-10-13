@@ -1057,6 +1057,11 @@
 
     function settle() {
         if (pinching) return;
+        // Zoomed only by scaling, as before the map was laid out at its zoom, see debug
+        if (editable && debug.has("flatzoom")) {
+            keep_page = null;
+            return;
+        }
         const scroll_x = window.scrollX - shift_x;
         const scroll_y = window.scrollY - shift_y;
         if (appState.zoom !== appState.layout_zoom) {
@@ -2167,7 +2172,10 @@
         ? ''
         : 'overflow-hidden'} {appState.selectedTool === Tools.Select
         ? 'touch-none'
-        : ''} {gesture_scale !== 1 ? 'zooming' : ''}"
+        : ''} {gesture_scale !== 1 ? 'zooming' : ''} {editable &&
+    debug.has('nooverlays')
+        ? 'debug-bare'
+        : ''}"
     bind:this={map_element}
     use:dropTarget={editable && gameState.dm
         ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
@@ -2197,7 +2205,7 @@
         draggable="false"
     />
     <div
-        class="absolute top-0 left-0 w-full h-full pointer-events-none"
+        class="map-measure absolute top-0 left-0 w-full h-full pointer-events-none"
         bind:clientWidth={w}
         bind:clientHeight={h}
     ></div>

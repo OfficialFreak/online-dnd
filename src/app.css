@@ -228,6 +228,11 @@ html.controls-folded body {
     animation-play-state: paused !important;
 }
 
+/* Only the map's picture, every layer over it left out, see src/lib/debug.ts */
+.debug-bare > :not(.contents):not(.map-measure) {
+    display: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .condition-animated {
         animation: none !important;

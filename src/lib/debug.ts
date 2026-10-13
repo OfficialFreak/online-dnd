@@ -8,6 +8,8 @@
  * - novision: no sight and lights over the map
  * - nomarkers: no figures on the map
  * - nogrid: no grid
+ * - flatzoom: the map is only scaled when zooming, not laid out at its zoom
+ * - nooverlays: only the map's picture, no layer over it
  */
 export const debug: ReadonlySet<string> = new Set(
     typeof location === "undefined"
