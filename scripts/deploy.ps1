@@ -128,8 +128,15 @@ if (-not $NoRelease) {
         if (-not $run) { Start-Sleep -Seconds 5 }
     }
     if (-not $run) { throw "No release run for $head" }
-    gh run watch $run.databaseId --exit-status --interval 30 | Out-Null
-    Check "The desktop release"
+    # Asked every half minute: gh run watch gave up on a passing error of GitHub's API
+    # while the build went on
+    $result = $null
+    while (-not $result) {
+        Start-Sleep -Seconds 30
+        $state = gh run view $run.databaseId --json status,conclusion 2>$null | ConvertFrom-Json
+        if ($state.status -eq "completed") { $result = $state.conclusion }
+    }
+    if ($result -ne "success") { throw "The desktop release failed: $result" }
     Write-Host "Published"
 }
 
