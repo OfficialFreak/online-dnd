@@ -92,6 +92,36 @@
     });
 
     /**
+     * Firefox gets the grid as gradients, the other browsers as an SVG path. Firefox drew
+     * the SVG anew on the processor at every step of a zoom gesture, a dozen frames of
+     * 50 ms per pinch. The gradients as tiles crashed Safari on iPhones zooming in, and
+     * their lines jumped between pixels there, so Safari and the desktop app keep the SVG.
+     */
+    const gradient_grid =
+        typeof CSS !== "undefined" && CSS.supports("-moz-appearance", "none");
+
+    // Lines instead of a canvas, they stay sharp when zoomed and on high-DPI screens
+    let grid_path = $derived.by(() => {
+        if (gradient_grid || !size || !rows) return "";
+        let path = "";
+        for (let i = 1; i < columns; i++) {
+            path += `M${size * i + x_offset} ${y_offset}V${(rows - 1) * size + y_offset}`;
+        }
+        for (let i = 1; i < rows - 1; i++) {
+            path += `M${x_offset} ${size * i + y_offset}H${w + x_offset}`;
+        }
+        return path;
+    });
+
+    /** A grid line across, in pixels of the map: soft edges, see the grid below */
+    const GRID_LINE_WIDTH = 1.4;
+    const GRID_LINE_MIDDLE = 0.7;
+    function grid_line() {
+        const ink = "rgb(0 0 0 / 0.5)";
+        return `transparent 0px, ${ink} 0.4px, ${ink} 1px, transparent ${GRID_LINE_WIDTH}px`;
+    }
+
+    /**
      * Pixels of the fog canvas per pixel of the map: sharp on high-DPI screens, but small
      * enough for phones, whose browsers refuse very large canvases
      */
@@ -2134,12 +2164,25 @@
         bind:clientWidth={w}
         bind:clientHeight={h}
     ></div>
-    <!-- The grid, one screen pixel wide at any zoom and sharp on high-DPI screens. Lines
-         repeated by gradients, which the graphics card draws: as an SVG path over the whole
-         map, Firefox drew it anew on the processor at every step of a zoom gesture, which
-         alone cost a dozen frames of 50 ms per pinch. -->
-    {#if size > 0}
-        {@const line = 1 / gesture_scale}
+    <!-- The grid, see gradient_grid. In Firefox gradients in tiles of a cell the graphics
+         card repeats, nothing changing during a gesture. The lines' edges are soft, hard
+         ones jumped between pixels while zooming. They are a pixel of the map wide and grow
+         with a gesture until the map is laid out again. -->
+    {#if !gradient_grid}
+        <!-- One screen pixel wide at any zoom -->
+        <svg
+            class="absolute top-0 left-0 w-full h-full z-0 opacity-50 pointer-events-none"
+            viewBox="0 0 {w || 1} {h || 1}"
+            aria-hidden="true"
+        >
+            <path
+                d={grid_path}
+                fill="none"
+                stroke="black"
+                stroke-width={1 / gesture_scale}
+            />
+        </svg>
+    {:else if size > 0}
         <div
             class="absolute top-0 left-0 w-full h-full z-0 overflow-hidden pointer-events-none"
             aria-hidden="true"
@@ -2147,13 +2190,13 @@
             {#if columns > 1}
                 <div
                     class="absolute"
-                    style="left: {x_offset + size - line / 2}px; top: {y_offset}px; width: {(columns - 2) * size + line}px; height: {(rows - 1) * size}px; background: linear-gradient(to right, rgb(0 0 0 / 0.5) {line}px, transparent {line}px) 0 0 / {size}px 100% repeat-x"
+                    style="left: {x_offset + size - GRID_LINE_MIDDLE}px; top: {y_offset}px; width: {(columns - 2) * size + GRID_LINE_WIDTH}px; height: {(rows - 1) * size}px; background: linear-gradient(to right, {grid_line()}) 0 0 / {size}px {size}px"
                 ></div>
             {/if}
             {#if rows > 2}
                 <div
                     class="absolute"
-                    style="left: {x_offset}px; top: {y_offset + size - line / 2}px; width: {w}px; height: {(rows - 3) * size + line}px; background: linear-gradient(to bottom, rgb(0 0 0 / 0.5) {line}px, transparent {line}px) 0 0 / 100% {size}px repeat-y"
+                    style="left: {x_offset}px; top: {y_offset + size - GRID_LINE_MIDDLE}px; width: {w}px; height: {(rows - 3) * size + GRID_LINE_WIDTH}px; background: linear-gradient(to bottom, {grid_line()}) 0 0 / {size}px {size}px"
                 ></div>
             {/if}
         </div>
