@@ -194,6 +194,8 @@ export interface Weather {
      * that weather starts.
      */
     sounds?: Partial<Record<WeatherSound, string>> | null;
+    /** How loud each of those plays relative to the others, from 0 to 1, as if 1 if missing */
+    sound_levels?: Partial<Record<WeatherSound, number>> | null;
 }
 
 /** What weather an ambience can go with */

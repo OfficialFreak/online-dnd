@@ -1,4 +1,4 @@
-import type { Weather, WeatherMomentKind } from "$lib/types/messaging/server_messages";
+import type { Weather, WeatherMomentKind, WeatherSound } from "$lib/types/messaging/server_messages";
 import {
     cloud_sprite,
     gusty,
@@ -130,6 +130,28 @@ export function flashes_between(from: number, to: number, rate?: number | null) 
         });
     }
     return flashes;
+}
+
+/** What weather an ambience can go with, and its icon */
+export const WEATHER_SOUNDS: { kind: WeatherSound; icon: string }[] = [
+    { kind: "rain", icon: "fa-cloud-rain" },
+    { kind: "wind", icon: "fa-wind" },
+    { kind: "fire", icon: "fa-fire" },
+];
+
+/**
+ * How loud the ambience going with a weather plays, from 0 to 1, before the DM's level
+ * for it: the rain harder while a storm passes, the wind in its gusts or a sandstorm, the
+ * fire with the ash
+ */
+export function sound_strength(weather: Weather, kind: WeatherSound, time = Date.now()) {
+    if (kind === "rain") {
+        const closeness = weather.lightning ? storm_closeness(time) : 0;
+        const rain = weather.rain * (weather.lightning ? 0.7 + 0.3 * closeness : 1);
+        return rain >= NONE ? Math.min(1, 0.25 + 0.75 * rain) : 0;
+    }
+    if (kind === "wind") return Math.max(Math.min(1, Math.abs(gusty(weather.wind, time))), weather.sand ?? 0);
+    return weather.ash ?? 0;
 }
 
 /** The thunders a flash picks from, also of scenes from before there were several */

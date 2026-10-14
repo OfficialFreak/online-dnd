@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { appState } from "$lib/state.svelte";
+    import { appState, gameState, record_undo } from "$lib/state.svelte";
     import {
         audioState,
         guess_sound_kind,
@@ -18,6 +18,9 @@
     import { file_stem_of, pick_file, upload_picked } from "$lib/upload.svelte";
     import { uploadState } from "$lib/upload.svelte";
     import SoundLibrary from "./SoundLibrary.svelte";
+    import { sound_strength, WEATHER_SOUNDS } from "$lib/weather";
+    import { scene_weather, set_scene_weather, set_weather_sound_level } from "$lib/weather-edit";
+    import type { WeatherSound } from "$lib/types/messaging/server_messages";
     import WeatherControls from "./WeatherControls.svelte";
 
     /** The DM's own sounds or the libraries to find new ones in */
@@ -70,6 +73,29 @@
      * the quiet levels finely
      */
     let level_timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+    /**
+     * The ambience playing along with the weather, see WeatherLayer.svelte: with its level
+     * relative to the others, as for the DM's own ambience
+     */
+    let weather_playing = $derived.by(() => {
+        const weather = gameState.scene?.weather;
+        if (!weather) return [];
+        return WEATHER_SOUNDS.flatMap(({ kind, icon }) => {
+            const file = weather.sounds?.[kind];
+            // Played as ambience it isn't played again with the weather
+            if (!file || audioState.ambience.some((playing) => playing.file === file)) return [];
+            if (sound_strength(weather, kind) < 0.01) return [];
+            const name = audioState.sounds.find((sound) => sound.file === file)?.name ?? file_stem_of(file);
+            return [{ kind, icon, name, level: weather.sound_levels?.[kind] ?? 1 }];
+        });
+    });
+
+    /** No ambience with this weather any more, until the DM picks one again */
+    function stop_weather_sound(kind: WeatherSound) {
+        const weather = scene_weather();
+        set_scene_weather({ ...weather, sounds: { ...(weather.sounds ?? {}), [kind]: "" } });
+    }
     function change_level(name: string, slider: number, done = false) {
         const level = slider * slider;
         set_sound_level(name, level);
@@ -184,6 +210,39 @@
     </li>
 {/snippet}
 
+{#snippet weather_row(row: (typeof weather_playing)[number])}
+    <div class="flex flex-row items-center gap-2 min-w-0">
+        <i class="fa-solid {row.icon} w-4 text-center opacity-70"></i>
+        <span class="flex flex-col flex-1 min-w-0">
+            <span class="truncate text-sm font-semibold" title="{row.name}, mit dem Wetter"
+                >{row.name}</span
+            >
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                class="range range-xs"
+                aria-label="Lautstärke von {row.name} im Vergleich"
+                title="Wie laut, im Vergleich zu den anderen, für alle"
+                value={Math.sqrt(row.level)}
+                onpointerdown={record_undo}
+                onkeydown={record_undo}
+                oninput={(event) =>
+                    set_weather_sound_level(row.kind, Number(event.currentTarget.value) ** 2)}
+            />
+        </span>
+        <button
+            class="btn btn-sm btn-square"
+            aria-label="{row.name} stoppen"
+            title="Mit diesem Wetter nicht mehr spielen"
+            onclick={() => stop_weather_sound(row.kind)}
+        >
+            <i class="fa-solid fa-stop"></i>
+        </button>
+    </div>
+{/snippet}
+
 {#snippet playing_row(playing: Playing, icon: string)}
     <div class="flex flex-row items-center gap-2 min-w-0">
         <i class="fa-solid {icon} w-4 text-center opacity-70"></i>
@@ -238,7 +297,7 @@
             <i class="fa-solid fa-compass mr-1.5"></i> Bibliothek
         </button>
     </div>
-    {#if audioState.music || audioState.ambience.length}
+    {#if audioState.music || audioState.ambience.length || weather_playing.length}
         <div class="flex flex-col gap-1.5 p-2 rounded-box bg-info/15">
             <span class="flex items-center gap-2 text-xs text-base-content/60">
                 <span class="equalizer" aria-hidden="true"
@@ -251,6 +310,9 @@
             {/if}
             {#each audioState.ambience as playing (playing.name)}
                 {@render playing_row(playing, "fa-cloud-rain")}
+            {/each}
+            {#each weather_playing as row (row.kind)}
+                {@render weather_row(row)}
             {/each}
         </div>
     {/if}

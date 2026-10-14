@@ -1,20 +1,12 @@
 <script lang="ts">
-    import { appState, gameState, record_undo } from "$lib/state.svelte";
+    import { gameState, record_undo } from "$lib/state.svelte";
     import { audioState } from "$lib/audio.svelte";
     import { MOMENTS, send_moment } from "$lib/moments";
-    import { SetWeather } from "$lib/types/messaging/client_messages";
     import type { Weather, WeatherSound } from "$lib/types/messaging/server_messages";
     import { CLEAR, flashes_per_minute, PRESETS, thunder_files } from "$lib/weather";
-    import throttle from "just-throttle";
+    import { set_scene_weather } from "$lib/weather-edit";
 
     let weather: Weather = $derived({ ...CLEAR, ...(gameState.scene?.weather ?? {}) });
-
-    // Dragging a slider sends a few times a second, not on every step
-    const send = throttle(
-        (weather: Weather) => appState.ws?.send(SetWeather.create(weather)),
-        150,
-        { trailing: true },
-    );
 
     let effect_sounds = $derived(
         audioState.sounds
@@ -47,15 +39,21 @@
             fire: next.ash ?? 0,
         };
         const sounds = { ...(next.sounds ?? {}) };
+        const levels = { ...(next.sound_levels ?? {}) };
         let picked = false;
         for (const kind of ["rain", "wind", "fire"] as const) {
             if (strength[kind] < 0.01 || sounds[kind] !== undefined) continue;
             const found = ambience_sounds.find((sound) => SOUND_NAMES[kind].test(sound.name));
             if (!found) continue;
             sounds[kind] = found.file;
+            // As loud as it was set to play as ambience
+            levels[kind] = found.level ?? 1;
             picked = true;
         }
-        if (picked) next.sounds = sounds;
+        if (picked) {
+            next.sounds = sounds;
+            next.sound_levels = levels;
+        }
     }
 
     /** A slider records the undo step when it is grabbed, not on every step */
@@ -72,9 +70,7 @@
             next.thunder = next.thunders[0] ?? null;
         }
         pick_sounds(next);
-        // Here right away, for everyone once the server sends it on
-        gameState.scene.weather = next;
-        send(next);
+        set_scene_weather(next, false);
     }
 
     /** The first stays in `thunder` too, for players whose app is older */
@@ -82,8 +78,13 @@
         change({ thunders: files, thunder: files[0] ?? null });
     }
 
+    /** As loud as it was set to play as ambience */
     function set_sound(kind: WeatherSound, file: string) {
-        change({ sounds: { ...(weather.sounds ?? {}), [kind]: file } });
+        const level = audioState.sounds.find((sound) => sound.file === file)?.level ?? 1;
+        change({
+            sounds: { ...(weather.sounds ?? {}), [kind]: file },
+            sound_levels: { ...(weather.sound_levels ?? {}), [kind]: level },
+        });
     }
 
     function sound_name(file: string) {

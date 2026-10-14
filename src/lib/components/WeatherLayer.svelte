@@ -10,12 +10,13 @@
     import {
         CLEAR,
         flashes_between,
-        storm_closeness,
+        sound_strength,
         thunder_files,
+        WEATHER_SOUNDS,
         WeatherRenderer,
         type Flash,
     } from "$lib/weather";
-    import { gusty, NONE, quake_strength, seeded } from "$lib/weather-common";
+    import { quake_strength, seeded } from "$lib/weather-common";
     import { QUAKE_FOR } from "$lib/weather-moments";
     import { play_clink, play_rumble, prepare_clinks } from "$lib/weather-sounds";
 
@@ -162,22 +163,13 @@
     let heard = $derived(weather ?? CLEAR);
     $effect(() => {
         const sounds = heard.sounds ?? {};
+        const levels = heard.sound_levels ?? {};
         const file = (kind: WeatherSound) => sounds[kind] || null;
-        const strengths = () => {
-            const time = Date.now();
-            const closeness = heard.lightning ? storm_closeness(time) : 0;
-            const rain = heard.rain * (heard.lightning ? 0.7 + 0.3 * closeness : 1);
-            const wind = Math.abs(gusty(heard.wind, time));
-            return {
-                rain: rain >= NONE ? Math.min(1, 0.25 + 0.75 * rain) : 0,
-                wind: Math.max(Math.min(1, wind), heard.sand ?? 0),
-                fire: heard.ash ?? 0,
-            };
-        };
         const play = () => {
-            const now = strengths();
-            for (const kind of ["rain", "wind", "fire"] as const) {
-                weather_sound(kind, file(kind), now[kind]);
+            const time = Date.now();
+            // As loud as its weather, and as the DM set it relative to the others
+            for (const { kind } of WEATHER_SOUNDS) {
+                weather_sound(kind, file(kind), sound_strength(heard, kind, time) * (levels[kind] ?? 1));
             }
         };
         play();
