@@ -6,7 +6,7 @@
     import { fade } from "svelte/transition";
     import { register_intro } from "$lib/scene-intro.svelte";
     import { billows, smoothstep } from "$lib/noise";
-    import { play_portal_enter } from "$lib/portal-sounds";
+    import { play_portal_enter, play_scene_open, play_scene_scroll } from "$lib/portal-sounds";
 
     /** Stains and fibres of the parchment, noise drawn by SVG filters */
     const STAINS = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='240'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.03' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.27 0 0 0 0 0.1 0 0 0 -1.6 1.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E";
@@ -248,13 +248,16 @@
             return;
         }
         const mine = run;
-        // Not over the ask to enter, the new scene shows after the tap
+        // Not over the ask to enter, the new scene shows after the tap. Then without the
+        // scene change's sounds: the tap had its own.
+        const sounding = !knocking;
         await knocked;
         if (mine !== run) return;
         name = scene_name;
         unrolled = 0;
         scroll_shown = true;
         await tick();
+        if (sounding) play_scene_scroll();
         await roll(1, 900, cubicOut);
         if (mine !== run) return;
         // Long enough to read, longer while the map loads, but not forever
@@ -266,6 +269,7 @@
         await knocked;
         if (mine !== run) return;
         start_smoke();
+        if (sounding) play_scene_open();
         smoke.set(0, { duration: 1700, easing: linear });
         await roll(0, 650, cubicIn);
         if (mine !== run) return;

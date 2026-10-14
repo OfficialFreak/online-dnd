@@ -2,12 +2,13 @@
  * The portal's own sounds, made on the spot with Web Audio: entering it with the tap at the
  * gate, and being cut off as it is woven anew for an update. A worn tape of a deep chord,
  * cracking ice and crackle around the portal's boom, after which the starry void rings on.
- * Stars glint at the gate while it waits for the tap.
+ * Stars glint at the gate while it waits for the tap. A scene change plays a quieter mix of
+ * both as the smoke closes and draws back.
  *
  * Bred in a page of ideas, from "genes" the user picked: the enter is "Band·1·1·3·2·2",
  * the leave "Eisband", both tuned to D and brought a little closer to each other.
  */
-import { audioState } from "./audio.svelte";
+import { audioState, effect_volume } from "./audio.svelte";
 import { audio } from "./sfx";
 
 /** The smoke closing in, in seconds, as SceneIntro.svelte does it */
@@ -451,14 +452,8 @@ function tape(T: Tools, t: number, until: number, g: Genes) {
     return { pitch: speed.offset, cutoff: filter.frequency, level: env.gain };
 }
 
-/** The tap: the boom, the tape catching and coming up to speed as the smoke draws back */
-function enter(T: Tools, t: number, g: Genes) {
-    portal_boom(T, t);
-    // The void rings around the tap and falls silent as the smoke parts
-    T.void_level.setValueAtTime(g.space, t);
-    T.void_level.setTargetAtTime(0.15 * g.space, t + 0.25, 0.5);
-    starlight(T, t, t + 0.9, 7, (x) => 0.045 * (1 - x));
-    // Reality cracks open from the middle, outwards with the smoke
+/** Reality cracks open from the middle, outwards with the smoke drawing back */
+function cracks_open(T: Tools, t: number, g: Genes, ice = g.ice) {
     const count = Math.round(g.ice_count);
     for (let i = 0; i < count; i++) {
         const x = count > 1 ? i / (count - 1) : 0;
@@ -466,7 +461,7 @@ function enter(T: Tools, t: number, g: Genes) {
             from: g.ice_high * (1 - 0.45 * x + Math.random() * 0.15),
             to: g.ice_low * (0.85 + Math.random() * 0.45),
             length: g.ice_length * (0.7 + Math.random() * 0.6),
-            amp: g.ice * (0.11 - 0.05 * x),
+            amp: ice * (0.11 - 0.05 * x),
             pan: (i % 2 ? 1 : -1) * (0.1 + 0.8 * x),
             void: (0.35 - 0.25 * x) * g.space,
         });
@@ -475,28 +470,10 @@ function enter(T: Tools, t: number, g: Genes) {
         loud: (x) => g.crackle * 0.12 * (1 - x),
         spread: (x) => 0.2 + 0.8 * x,
     });
-    const { pitch, cutoff, level } = tape(T, t, t + 3, g);
-    pitch.setValueAtTime(-2400, t);
-    pitch.setTargetAtTime(0, t + 0.02, g.spin);
-    cutoff.setValueAtTime(110, t);
-    cutoff.exponentialRampToValueAtTime(g.bright, t + 0.9);
-    cutoff.setTargetAtTime(g.bright * 0.47, t + 1.1, 0.5);
-    level.setValueAtTime(0, t);
-    level.linearRampToValueAtTime(0.42 * g.tape, t + 0.06);
-    level.setValueAtTime(0.42 * g.tape, t + 1.0);
-    level.setTargetAtTime(0, t + 1.0, 0.4);
 }
 
-/**
- * The smoke closing: cracks running into the middle, the tape running down, and the boom as
- * the scroll unrolls
- */
-function leave(T: Tools, t: number, g: Genes) {
-    const end = t + CLOSE;
-    // The void opens as the smoke closes, stars after the boom
-    T.void_level.setValueAtTime(0.35 * g.space, t);
-    T.void_level.linearRampToValueAtTime(g.space, end);
-    starlight(T, end + 0.2, t + 3.3, 6, (x) => 0.05 * Math.min(1, x * 4) * (1 - x));
+/** The cracks run back into the middle and heal shut as the smoke closes */
+function cracks_close(T: Tools, t: number, g: Genes) {
     const count = Math.round(g.ice_count) + 2;
     for (let i = 0; i < count; i++) {
         const x = i / (count - 1);
@@ -513,13 +490,37 @@ function leave(T: Tools, t: number, g: Genes) {
         loud: (x) => g.crackle * (0.04 + 0.1 * x),
         spread: (x) => 1 - x,
     });
-    // Running down like a tape that stops, `stop` bends how the speed falls
+}
+
+/**
+ * The tape catches at a quarter of its speed and comes up to speed, then gives way after
+ * `hold` seconds
+ */
+function tape_up(T: Tools, t: number, g: Genes, hold: number) {
+    const { pitch, cutoff, level } = tape(T, t, t + hold + 2, g);
+    pitch.setValueAtTime(-2400, t);
+    pitch.setTargetAtTime(0, t + 0.02, g.spin);
+    cutoff.setValueAtTime(110, t);
+    cutoff.exponentialRampToValueAtTime(g.bright, t + 0.9);
+    cutoff.setTargetAtTime(g.bright * 0.47, t + hold + 0.1, 0.5);
+    level.setValueAtTime(0, t);
+    level.linearRampToValueAtTime(0.42 * g.tape, t + 0.06);
+    level.setValueAtTime(0.42 * g.tape, t + hold);
+    level.setTargetAtTime(0, t + hold, 0.4);
+}
+
+/**
+ * The tape running down over CLOSE like a tape that stops, until `lowest` of its speed.
+ * `stop` bends how the speed falls.
+ */
+function tape_down(T: Tools, t: number, g: Genes, lowest: number) {
+    const end = t + CLOSE;
     const { pitch, cutoff, level } = tape(T, t, end + 0.1, g);
     const steps = 128;
     const cents = new Float32Array(steps);
     const cutoffs = new Float32Array(steps);
     for (let i = 0; i < steps; i++) {
-        const speed = Math.max(0.035, 1 - (i / (steps - 1)) ** g.stop);
+        const speed = 1 - (1 - lowest) * (i / (steps - 1)) ** g.stop;
         cents[i] = 1200 * Math.log2(speed);
         cutoffs[i] = 60 + g.bright * speed ** 1.3;
     }
@@ -529,6 +530,31 @@ function leave(T: Tools, t: number, g: Genes) {
     level.linearRampToValueAtTime(0.45 * g.tape, t + 0.06);
     level.setValueAtTime(0.45 * g.tape, t + CLOSE * 0.85);
     level.linearRampToValueAtTime(0, end);
+}
+
+/** The tap: the boom, the tape catching and coming up to speed as the smoke draws back */
+function enter(T: Tools, t: number, g: Genes) {
+    portal_boom(T, t);
+    // The void rings around the tap and falls silent as the smoke parts
+    T.void_level.setValueAtTime(g.space, t);
+    T.void_level.setTargetAtTime(0.15 * g.space, t + 0.25, 0.5);
+    starlight(T, t, t + 0.9, 7, (x) => 0.045 * (1 - x));
+    cracks_open(T, t, g);
+    tape_up(T, t, g, 1);
+}
+
+/**
+ * The smoke closing: cracks running into the middle, the tape running down, and the boom as
+ * the scroll unrolls
+ */
+function leave(T: Tools, t: number, g: Genes) {
+    const end = t + CLOSE;
+    // The void opens as the smoke closes, stars after the boom
+    T.void_level.setValueAtTime(0.35 * g.space, t);
+    T.void_level.linearRampToValueAtTime(g.space, end);
+    starlight(T, end + 0.2, t + 3.3, 6, (x) => 0.05 * Math.min(1, x * 4) * (1 - x));
+    cracks_close(T, t, g);
+    tape_down(T, t, g, 0.035);
     // The mechanism catches, the portal falls shut
     thump(T, end, { lp: 300, amp: 0.25 * g.tape, decay: 0.035 });
     portal_boom(T, end);
@@ -536,9 +562,37 @@ function leave(T: Tools, t: number, g: Genes) {
     T.to_void(seal, 0.5);
 }
 
-function play(sound: (T: Tools, t: number, g: Genes) => void, genes: Genes, reload = false) {
+/**
+ * A scene change is quieter than entering or leaving, the music has the stage then. Time
+ * slows and the cracks run in as the smoke closes over the old scene, the boom falls as the
+ * name of the new one unrolls, and time speeds up again as the smoke draws back from it.
+ */
+const SCENE = 0.5;
+
+function scene_close(T: Tools, t: number) {
+    T.void_level.setValueAtTime(0.35 * LEAVE.space, t);
+    T.void_level.linearRampToValueAtTime(0.7 * LEAVE.space, t + CLOSE);
+    cracks_close(T, t, LEAVE);
+    // Slowing to a quarter without stopping, where the tape picks up again as it opens
+    tape_down(T, t, LEAVE, 0.25);
+}
+
+function scene_scroll(T: Tools, t: number) {
+    portal_boom(T, t);
+    starlight(T, t + 0.2, t + 2.5, 5, (x) => 0.045 * Math.min(1, x * 4) * (1 - x));
+}
+
+function scene_open(T: Tools, t: number) {
+    T.void_level.setValueAtTime(0.6 * ENTER.space, t);
+    T.void_level.setTargetAtTime(0.15 * ENTER.space, t + 0.25, 0.5);
+    // The new scene breaks through clearly
+    cracks_open(T, t, ENTER, LEAVE.ice);
+    // Up to speed from where the closing left it, and soon out of the way of the new music
+    tape_up(T, t, ENTER, 0.6);
+}
+
+function play(sound: (T: Tools, t: number) => void, loud: number, reload = false) {
     const ctx = audio();
-    const loud = volume();
     if (!ctx || !loud) return;
     const at = ctx.currentTime + 0.02;
     const bus = ctx.createGain();
@@ -552,7 +606,7 @@ function play(sound: (T: Tools, t: number, g: Genes) => void, genes: Genes, relo
     const out = ctx.createGain();
     out.gain.value = loud;
     bus.connect(into).connect(limit).connect(out).connect(ctx.destination);
-    sound(T, at, genes);
+    sound(T, at);
     // Gone before the app loads anew, which would break it off
     if (reload) {
         bus.gain.setValueAtTime(LEVEL, at + RELOAD - 0.45);
@@ -562,7 +616,7 @@ function play(sound: (T: Tools, t: number, g: Genes) => void, genes: Genes, relo
 
 /** Entering the portal with the tap at the gate, the smoke draws back over OPEN */
 export function play_portal_enter() {
-    play(enter, ENTER);
+    play((T, t) => enter(T, t, ENTER), volume());
 }
 
 /**
@@ -570,7 +624,22 @@ export function play_portal_enter() {
  * before the app loads anew, at RELOAD.
  */
 export function play_portal_leave() {
-    play(leave, LEAVE, true);
+    play((T, t) => leave(T, t, LEAVE), volume(), true);
+}
+
+/** A scene change: the smoke closes over the old scene, over CLOSE */
+export function play_scene_close() {
+    play(scene_close, effect_volume() * SCENE);
+}
+
+/** A scene change: the name of the new scene unrolls */
+export function play_scene_scroll() {
+    play(scene_scroll, effect_volume() * SCENE);
+}
+
+/** A scene change: the smoke draws back from the new scene */
+export function play_scene_open() {
+    play(scene_open, effect_volume() * SCENE);
 }
 
 /**

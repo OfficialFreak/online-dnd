@@ -5,7 +5,12 @@
 import { tick } from "svelte";
 import { appState, gameState } from "./state.svelte";
 import { hold_sound, release_sound } from "./audio.svelte";
-import { gate_stars, play_portal_enter, play_portal_leave } from "./portal-sounds";
+import {
+    gate_stars,
+    play_portal_enter,
+    play_portal_leave,
+    play_scene_close,
+} from "./portal-sounds";
 import type { SceneData } from "./types/messaging/server_messages";
 
 type Intro = {
@@ -142,6 +147,8 @@ export async function change_scene(
         return;
     }
     waiting = scene;
+    // Not while the gate waits for the tap, which has its own sound
+    if (!at_gate) play_scene_close();
     try {
         await intro.cover();
     } finally {
