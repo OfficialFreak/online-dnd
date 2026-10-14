@@ -316,6 +316,42 @@
             .filter((effect) => CONDITIONS[effect]),
     );
 
+    let piling: ReturnType<typeof setTimeout> | undefined;
+    $effect(() => () => clearTimeout(piling));
+
+    /** Every condition at once, piled on one after another in a random order */
+    function pile_on_conditions() {
+        record_undo();
+        clearTimeout(piling);
+        const missing = CONDITION_KEYS.filter(
+            (effect) => !marker_conditions.includes(effect),
+        )
+            .map((effect) => ({ effect, order: Math.random() }))
+            .sort((a, b) => a.order - b.order)
+            .map(({ effect }) => effect);
+        const next = () => {
+            const effect = missing.shift();
+            if (!effect) return;
+            const current = (scene_marker.status_effects ?? []).map(
+                normalize_condition,
+            );
+            if (!current.includes(effect)) {
+                scene_marker.status_effects = [...current, effect];
+                throttled_save();
+            }
+            piling = setTimeout(next, 70);
+        };
+        next();
+    }
+
+    function clear_conditions() {
+        record_undo();
+        clearTimeout(piling);
+        scene_marker.status_effects = [];
+        scene_marker.effect_rounds = {};
+        throttled_save();
+    }
+
     /** How far the figure's character sees in the dark, from D&D Beyond */
     let character_darkvision = $derived(
         (connected_character?.specialSenses as { darkvision?: number } | undefined)
@@ -675,7 +711,29 @@
                     </fieldset>
                 {/if}
                 <fieldset class="fieldset p-0">
-                    <legend class="fieldset-legend pt-0">Zustände</legend>
+                    <legend class="fieldset-legend pt-0 w-full">
+                        Zustände
+                        <span class="flex gap-1">
+                            <!-- svelte-ignore node_invalid_placement_ssr -->
+                            <button
+                                class="btn btn-xs btn-ghost font-normal"
+                                title="Alle Zustände auf einmal, viel Glück"
+                                disabled={marker_conditions.length ===
+                                    CONDITION_KEYS.length}
+                                onclick={pile_on_conditions}
+                                ><i class="fa-solid fa-wand-magic-sparkles"
+                                ></i>Alle</button
+                            >
+                            <!-- svelte-ignore node_invalid_placement_ssr -->
+                            <button
+                                class="btn btn-xs btn-ghost font-normal"
+                                title="Alle Zustände weg, der Fluch auch"
+                                disabled={!scene_marker.status_effects?.length}
+                                onclick={clear_conditions}
+                                ><i class="fa-solid fa-broom"></i>Keine</button
+                            >
+                        </span>
+                    </legend>
                     <div class="grid grid-cols-3 gap-1">
                         {#each CONDITION_KEYS as effect (effect)}
                             {@const active = scene_marker.status_effects
