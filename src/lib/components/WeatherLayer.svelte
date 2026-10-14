@@ -244,9 +244,14 @@
 
 <svelte:window bind:innerWidth={width} bind:innerHeight={height} />
 
+<!-- As large as the window, also under the scroll bars: the map's place counts from the
+     window's corner. Stretched into the room between the scroll bars, the splashes and
+     the sky sat a little off the map, far out of the zoom where its edges show. -->
 <canvas
     bind:this={canvas}
-    class="fixed inset-0 z-0 w-full h-full pointer-events-none"
+    class="fixed top-0 left-0 z-0 pointer-events-none"
+    style:width="{width}px"
+    style:height="{height}px"
     style:display={active ? null : "none"}
     aria-hidden="true"
 ></canvas>

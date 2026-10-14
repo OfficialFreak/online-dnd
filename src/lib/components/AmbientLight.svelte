@@ -33,6 +33,8 @@
     let grain = $state("");
     /** The map fills the screen, nothing of the light shows and it isn't drawn */
     let covered = $state(false);
+    let window_w = $state(innerWidth);
+    let window_h = $state(innerHeight);
 
     const base = document.createElement("canvas");
     const extended = document.createElement("canvas");
@@ -455,12 +457,17 @@
     });
 </script>
 
+<svelte:window bind:innerWidth={window_w} bind:innerHeight={window_h} />
+
 {#if appState.ambient && gameState.scene}
     <!-- Above the page's background, under all that comes after it on the page: a
-         negative z-index would put it under the body's background -->
+         negative z-index would put it under the body's background. As large as the
+         window also under the scroll bars, see WeatherLayer. -->
     <div
-        class="ambient fixed inset-0 pointer-events-none"
+        class="ambient fixed top-0 left-0 pointer-events-none"
         class:covered
+        style:width="{window_w}px"
+        style:height="{window_h}px"
         aria-hidden="true"
     >
         {#each [0, 1] as index (index)}
