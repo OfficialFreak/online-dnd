@@ -24,7 +24,9 @@
 
 <svelte:window onpointerdowncapture={on_pointer_down} />
 
-<div class="flex items-end gap-1" bind:this={bar}>
+<!-- The menu opens above the button: beside it, many lines of one's own wrapped into a
+     block that pushed the dice aside -->
+<div class="relative flex items-end" bind:this={bar}>
     <button
         class="btn btn-circle w-12 h-12 shadow {open ? 'btn-info' : ''}"
         aria-label="Reaktionen"
@@ -36,27 +38,37 @@
     </button>
     {#if open}
         <div
-            class="flex flex-wrap gap-1 bg-base-100 rounded-box p-1 shadow max-w-[calc(100vw-7.5rem)]"
-            transition:fly={{ x: -12, duration: 150 }}
+            class="absolute bottom-full left-0 mb-2 w-max min-w-60 max-w-[min(22rem,calc(100vw-4.5rem-var(--safe-left)-var(--safe-right)))] frosted rounded-box shadow-lg p-2 flex flex-col gap-1"
+            transition:fly={{ y: 8, duration: 150 }}
         >
-            {#each REACTIONS as reaction (reaction.key)}
-                <button
-                    class="btn btn-sm"
-                    onclick={() => send_reaction(reaction.key)}
-                >
-                    <span class="text-lg leading-none">{reaction.emoji}</span>
-                    {reaction.label}
-                </button>
-            {/each}
-            {#each reactionState.voicelines as line (line.id)}
-                <button class="btn btn-sm" onclick={() => send_reaction(VOICELINE + line.id)}>
-                    <span class="text-lg leading-none">🗣️</span>
-                    {line.name}
-                </button>
-            {/each}
+            <div class="grid grid-cols-4 gap-1">
+                {#each REACTIONS as reaction (reaction.key)}
+                    <button
+                        class="btn btn-ghost h-auto min-h-0 py-1.5 px-1 flex-col gap-0.5 font-normal"
+                        onclick={() => send_reaction(reaction.key)}
+                    >
+                        <span class="text-2xl leading-none">{reaction.emoji}</span>
+                        <span class="text-xs">{reaction.label}</span>
+                    </button>
+                {/each}
+            </div>
+            {#if reactionState.voicelines.length}
+                <div class="border-t border-base-content/10 pt-1 flex flex-col max-h-48 overflow-y-auto">
+                    {#each reactionState.voicelines as line (line.id)}
+                        <button
+                            class="btn btn-ghost btn-sm justify-start font-normal gap-2"
+                            title={line.name}
+                            onclick={() => send_reaction(VOICELINE + line.id)}
+                        >
+                            <span class="text-base leading-none">🗣️</span>
+                            <span class="truncate">{line.name}</span>
+                        </button>
+                    {/each}
+                </div>
+            {/if}
             <button
-                class="btn btn-sm btn-ghost"
-                title="Mit deiner eigenen Stimme einsprechen"
+                class="btn btn-ghost btn-xs self-end font-normal text-base-content/60"
+                title="Mit deiner eigenen Stimme einsprechen, auch eigene Sprüche"
                 onclick={() => {
                     open = false;
                     recording = true;
