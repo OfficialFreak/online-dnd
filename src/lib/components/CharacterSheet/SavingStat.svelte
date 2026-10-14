@@ -5,9 +5,7 @@
 
     let { stat, character } = $props();
 
-    let color = $derived(
-        character.decorations.themeColor?.themeColor || "black",
-    );
+    let color = $derived(character.themeColor);
     let stat_name = $derived(Object.keys(character.actualStats)[stat]);
     let modifier: number = $derived(
         Object.values(character.savingModifiers)[stat] as number,

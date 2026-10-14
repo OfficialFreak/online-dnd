@@ -57,8 +57,7 @@
             class="h-22 aspect-square p-1 mask mask-hexagon {marker
                 ? 'cursor-grab active:cursor-grabbing select-none touch-none'
                 : ''}"
-            style="background: {character.decorations.themeColor?.themeColor ||
-                'black'}"
+            style="background: {character.themeColor}"
             title={marker ? "Auf die Karte ziehen" : undefined}
             use:dragSource={marker ? { kind: "marker", marker } : null}
         >

@@ -18,9 +18,15 @@ export class Character {
     inventory: any;
     conditions: any;
     customSenses: any;
+    decorations: any;
 
     constructor(data: any) {
         Object.assign(this, data);
+    }
+
+    /** The sheet's colour, D&D Beyond's red when the player didn't pick a theme */
+    get themeColor(): string {
+        return this.decorations?.themeColor?.themeColor || "#c53131";
     }
 
     get baseStats() {

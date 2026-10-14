@@ -1,9 +1,7 @@
 <script lang="ts">
     let { stat, character } = $props();
 
-    let color = $derived(
-        character.decorations.themeColor?.themeColor || "black",
-    );
+    let color = $derived(character.themeColor);
     let stat_name = $derived(Object.keys(character.passiveSenses)[stat]);
     let stat_value = $derived(Object.values(character.passiveSenses)[stat]);
 </script>
