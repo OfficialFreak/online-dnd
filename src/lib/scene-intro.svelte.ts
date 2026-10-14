@@ -27,6 +27,8 @@ type Intro = {
 };
 
 let intro: Intro | null = null;
+/** The ask to enter is shown, the portal is closed already */
+let at_gate = false;
 /**
  * Opening the app, smoke covers it until the first map is there and then draws back: the
  * map and all on it came in bit by bit before
@@ -49,7 +51,11 @@ export function register_intro(shown: Intro | null) {
     // Nothing plays before, also where it could, as in the desktop app: the music comes
     // in as the portal opens.
     hold_sound();
-    shown.knock().then((tapped) => tapped && release_sound());
+    at_gate = true;
+    shown.knock().then((tapped) => {
+        at_gate = false;
+        if (tapped) release_sound();
+    });
     // The scene came first: the desktop app connects behind its loading screen, before
     // the page with the map is there
     if (gameState.scene) {
@@ -77,6 +83,21 @@ export async function portal_update(apply: () => unknown) {
         await apply();
     } catch (e) {
         console.error("Updating failed", e);
+        release_sound();
+        intro?.lift(Promise.resolve());
+    }
+}
+
+/**
+ * The server was updated and this is the newest version already: the portal is woven anew
+ * all the same, it closes and draws back, as with an update of the app
+ */
+export async function portal_rewoven() {
+    if (!intro || at_gate) return;
+    hold_sound(1100);
+    try {
+        await intro.announce("Das Portal wird neu gewoben");
+    } finally {
         release_sound();
         intro?.lift(Promise.resolve());
     }

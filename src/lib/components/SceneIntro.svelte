@@ -208,6 +208,8 @@
         await knocked;
         await Promise.race([ready, wait(6000)]);
         if (mine !== run) return;
+        // Not over the controls anymore, after an announcement
+        above = false;
         start_smoke();
         smoke.set(0, { duration: 1700, easing: linear });
         if (scroll_shown) {

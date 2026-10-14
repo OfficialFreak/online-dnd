@@ -540,7 +540,6 @@
                     // Another start than before: the server was updated
                     if (message.started) {
                         if (server_started && message.started !== server_started) {
-                            notify("Das Portal wurde neu gewoben", MessageTypes.Info, 4000);
                             follow_server_update();
                         }
                         server_started = message.started;

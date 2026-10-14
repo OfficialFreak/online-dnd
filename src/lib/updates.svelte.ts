@@ -1,7 +1,7 @@
 import { updated } from "$app/state";
 import { in_tauri, invoke_tauri } from "./platform";
 import { appState } from "./state.svelte";
-import { intro_ready, portal_update } from "./scene-intro.svelte";
+import { intro_ready, portal_rewoven, portal_update } from "./scene-intro.svelte";
 
 let applying = false;
 
@@ -34,14 +34,14 @@ async function leave() {
 /**
  * Looks for a newer version and applies it at once, announced over the map: the desktop app
  * installs it and starts anew, the web version loads again. An app left open for days ran
- * an old version against a newer server.
+ * an old version against a newer server. True if there was one.
  */
-export async function look_for_update() {
-    if (applying) return;
+export async function look_for_update(): Promise<boolean> {
+    if (applying) return true;
     try {
         if (in_tauri) {
             const version = await invoke_tauri<string | null>("update_version");
-            if (!version) return;
+            if (!version) return false;
             applying = true;
             close_dialogs();
             await portal_update(async () => {
@@ -49,17 +49,20 @@ export async function look_for_update() {
                 // Not installed, e.g. offline: loaded again it connects again
                 await invoke_tauri("install_update").catch(() => location.reload());
             });
+            return true;
         } else {
-            if (!updated.current && !(await updated.check())) return;
+            if (!updated.current && !(await updated.check())) return false;
             applying = true;
             close_dialogs();
             await portal_update(async () => {
                 await leave();
                 reload_fresh();
             });
+            return true;
         }
     } catch (e) {
         console.warn("Looking for an update failed", e);
+        return false;
     } finally {
         applying = false;
     }
@@ -86,19 +89,20 @@ export function tidy_address() {
 let following: ReturnType<typeof setInterval> | undefined;
 
 /**
- * After the server was updated. The desktop app's own update may still be being built
- * then, a few minutes: it looks again every two minutes for half an hour, instead of only
- * at the next half-hourly look.
+ * After the server was updated: the portal is woven anew, with the app's update if there is
+ * one. The desktop app's own update may still be being built then, a few minutes: it looks
+ * again every two minutes for half an hour, instead of only at the next half-hourly look.
  */
-export function follow_server_update() {
-    look_for_update();
-    if (!in_tauri) return;
-    clearInterval(following);
-    const until = Date.now() + 30 * 60 * 1000;
-    following = setInterval(() => {
-        if (Date.now() > until) clearInterval(following);
-        else look_for_update();
-    }, 2 * 60 * 1000);
+export async function follow_server_update() {
+    if (in_tauri) {
+        clearInterval(following);
+        const until = Date.now() + 30 * 60 * 1000;
+        following = setInterval(() => {
+            if (Date.now() > until) clearInterval(following);
+            else look_for_update();
+        }, 2 * 60 * 1000);
+    }
+    if (!(await look_for_update())) await portal_rewoven();
 }
 
 /**
