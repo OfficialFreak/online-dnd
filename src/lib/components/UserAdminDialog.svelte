@@ -114,11 +114,6 @@
 <dialog bind:this={dialog} class="modal scrollbar-gutter-affected">
     <div class="modal-box w-11/12 max-w-3xl flex flex-col gap-3">
         <h3 class="text-lg font-bold">Spieler verwalten</h3>
-        <p class="text-sm text-base-content/60">
-            Jeder meldet sich mit seinem Passwort an. Ein neues Passwort meldet
-            den Spieler ab, das alte gilt dann nicht mehr. DM-Rechte wirken
-            sofort.
-        </p>
         <div class="overflow-x-auto">
             <table class="table table-sm">
                 <thead>

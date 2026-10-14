@@ -1,6 +1,5 @@
 <script lang="ts">
     import { dragSource } from "$lib/drag.svelte";
-    import { in_tauri } from "$lib/platform";
     import {
         activate_scene,
         appState,
@@ -68,16 +67,6 @@
 
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
     <h1 class="text-3xl font-bold">Szenen</h1>
-    <p class="text-sm text-base-content/60">
-        Zieh eine Szene auf die Karte oder klick auf <i
-            class="fa-solid fa-play text-xs"
-        ></i>, um sie zu aktivieren. Sie spielt dann ihre Musik und hat ihr
-        Wetter, wie du sie zuletzt darin eingestellt hast.
-        {#if in_tauri}
-            Bilder aus dem Explorer kannst du hier hineinziehen, um neue Szenen zu
-            erstellen.
-        {/if}
-    </p>
     <label class="input input-sm w-full">
         <i class="fa-solid fa-magnifying-glass opacity-50"></i>
         <input type="search" placeholder="Suchen" bind:value={search} />
@@ -218,6 +207,7 @@
     <button
         class="btn btn-soft"
         disabled={uploadState.uploading}
+        title="Universal VTT (.dd2vtt) aus Dungeon Alchemist, animierte Karten mit ihrem Video"
         onclick={import_uvtt}
     >
         {#if uploadState.uploading}
@@ -231,10 +221,4 @@
             <i class="fa-solid fa-dungeon"></i> Karte mit Wänden importieren
         {/if}
     </button>
-    <p class="text-xs text-base-content/60">
-        In Dungeon Alchemist als „Universal VTT“ (.dd2vtt) exportieren: Bild, Raster,
-        Wände, Türen und Lichter kommen mit, die Spieler sehen dann nur, was ihre
-        Figuren sehen. Bei animierten Karten das Video zusammen mit der .dd2vtt
-        auswählen.
-    </p>
 </div>

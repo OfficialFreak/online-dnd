@@ -1,6 +1,5 @@
 <script lang="ts">
     import { appState } from "$lib/state.svelte";
-    import { in_tauri } from "$lib/platform";
     import {
         audioState,
         guess_sound_kind,
@@ -221,15 +220,6 @@
 
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
     <h1 class="text-3xl font-bold">Stimmung</h1>
-    <p class="text-sm text-base-content/60">
-        Musik läuft für alle in Schleife, ein neues Lied ersetzt das alte. Ambiente wie
-        Regen läuft daneben, so viel du willst. Effekte spielen einmal. Musik, Ambiente
-        und Wetter merkt sich die Szene, sie kommen wieder, wenn du zu ihr wechselst. Eine
-        Szene ohne eigene Musik oder eigenes Ambiente ist still.
-        {#if in_tauri}
-            Audiodateien aus dem Explorer kannst du hier hineinziehen.
-        {/if}
-    </p>
     <WeatherControls />
     <div class="divider my-0"></div>
     <div role="tablist" class="tabs tabs-box tabs-sm">

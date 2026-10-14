@@ -1257,13 +1257,6 @@
             class="flex gap-2"
             transition:fly={{ x: -12, duration: 150 }}
         >
-        {#if gameState.dm}
-            <div
-                class="bar-tag"
-            >
-                DM
-            </div>
-        {/if}
         <button
             class="bar-button"
             aria-label="Aussehen"
@@ -1473,16 +1466,9 @@
 </div>
 <dialog bind:this={theme_modal} class="modal scrollbar-gutter-affected">
     <div class="modal-box">
-        <h3 class="text-lg font-bold">Würfel</h3>
-        <p class="text-sm text-base-content/60 mb-2">
-            Alle sehen deine Würfel, wenn du würfelst.
-        </p>
+        <h3 class="text-lg font-bold mb-2">Würfel</h3>
         <DiceSkinPicker />
-        <h3 class="text-lg font-bold mt-4">Reaktionen</h3>
-        <p class="text-sm text-base-content/60 mb-2">
-            Sprich sie mit deiner Stimme ein, bis zu 3 Sekunden. Alle hören sie, wenn
-            du sie neben den Würfeln drückst.
-        </p>
+        <h3 class="text-lg font-bold mt-4 mb-2">Reaktionen</h3>
         <ReactionRecorder />
         <h3 class="text-lg font-bold mt-4">Effekte</h3>
         <label class="flex items-center gap-2 text-sm mt-1">
@@ -1522,9 +1508,6 @@
             />
             Farben der Karte im Hintergrund leuchten lassen
         </label>
-        <p class="text-xs text-base-content/60 mt-1">
-            Ruckelt die App, schalte das aus, es lässt die Grafik ständig arbeiten.
-        </p>
         <h3 class="text-lg font-bold mt-4">Aussehen anpassen</h3>
         <div class="flex flex-row flex-wrap gap-1">
             {#each ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter", "dim", "nord", "sunset", "caramellatte", "abyss", "silk"] as theme}
@@ -1710,15 +1693,6 @@
     .bar-button:focus-visible {
         color: var(--color-base-content);
         background: color-mix(in srgb, var(--color-base-content), transparent 86%);
-    }
-    .bar-tag {
-        margin: auto 0;
-        padding: 0 0.4rem;
-        font-size: 0.65rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        color: color-mix(in srgb, var(--color-info), transparent 20%);
-        pointer-events: none;
     }
     @media (pointer: coarse) {
         .bar-button {

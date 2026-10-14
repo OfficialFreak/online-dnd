@@ -229,12 +229,6 @@
                 </p>
             {/each}
         </div>
-        {#if !picking}
-            <p class="text-xs text-base-content/50">
-                Nur Dateien, die keine Szene, kein Marker und kein Sound mehr
-                nutzt, lassen sich löschen.
-            </p>
-        {/if}
     </div>
     <form method="dialog" class="modal-backdrop">
         <button class="outline-0">close</button>

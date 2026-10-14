@@ -367,9 +367,6 @@
                             mapUse={false}
                         />
                     </div>
-                    <p class="text-sm text-base-content/60">
-                        So sieht der Marker aus.
-                    </p>
                 </div>
                 {#if editing}
                     <p class="fieldset-label">

@@ -743,10 +743,6 @@
                                     <span class="w-12 opacity-60">Runden</span>
                                 </label>
                             {/each}
-                            <p class="text-xs text-base-content/60">
-                                Zählt am Ende ihres Zugs runter, leer hält bis
-                                du ihn entfernst.
-                            </p>
                         </div>
                     {/if}
                 </fieldset>
@@ -812,11 +808,6 @@
                                 <span class="label">ft</span>
                             </label>
                         </div>
-                        <p class="text-xs text-base-content/60">
-                            {character_darkvision
-                                ? `Leer: ${character_darkvision} ft Dunkelsicht aus D&D Beyond.`
-                                : "Dunkelsicht in Fuß, leer: keine."}
-                        </p>
                     </fieldset>
                 {/if}
                 <div class="grid grid-cols-2 gap-2">

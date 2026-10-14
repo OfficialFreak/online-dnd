@@ -87,12 +87,7 @@
     onclose={() => (recording = false)}
 >
     <div class="modal-box w-fit max-w-[calc(100vw-2rem)]">
-        <h3 class="text-lg font-bold">Reaktionen einsprechen</h3>
-        <p class="text-sm text-base-content/60 mt-1 mb-3">
-            Mit deiner Stimme, die Reaktionen bis zu 3 Sekunden. Eigene Sprüche kannst du
-            so viele anlegen, wie du willst. Alle hören sie, wenn du sie drückst, dein „Hallo“
-            auch, wenn du dazukommst.
-        </p>
+        <h3 class="text-lg font-bold mb-3">Reaktionen einsprechen</h3>
         {#if recording}
             <ReactionRecorder />
         {/if}

@@ -139,10 +139,6 @@
             </button>
         {/each}
     </div>
-    <p class="text-xs text-base-content/60">
-        {info.hint}. Die Bibliotheken sind englisch, gängige deutsche Wörter
-        werden übersetzt.
-    </p>
     <label class="input input-sm w-full">
         <i class="fa-solid fa-magnifying-glass opacity-50"></i>
         <input
