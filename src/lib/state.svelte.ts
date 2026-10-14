@@ -315,7 +315,11 @@ export function remember_roll(roll: RollEntry) {
 }
 
 /** Advantage or disadvantage for the next roll with a single d20 */
-export const rollState = $state({ mode: "normal" as RollMode });
+export const rollState = $state({
+    mode: "normal" as RollMode,
+    /** The dice are being chosen, the controls make way for them */
+    choosing: false,
+});
 
 export async function ensureStore() {
     if (!appState.store) {

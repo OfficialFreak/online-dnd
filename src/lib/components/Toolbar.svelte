@@ -23,6 +23,7 @@
         remove_markers,
         drawState,
         wallState,
+        rollState,
     } from "../state.svelte";
     import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
     import { LIGHT_PRESETS, LIGHTING_LABELS, type Lighting } from "$lib/lighting";
@@ -432,7 +433,9 @@
     }}
 />
 
-{#if appState.controls_open}
+<!-- Folded away only the characters stay. While the dice are chosen nothing, their menu
+     opens over this corner. -->
+{#if !rollState.choosing}
 <div
     class="gui fixed top-[calc(var(--titlebar)+0.625rem+var(--safe-top))] left-[calc(0.5rem+var(--safe-left))] bottom-[calc(var(--corner-bottom)+3.5rem)] flex flex-row pointer-events-none"
 >

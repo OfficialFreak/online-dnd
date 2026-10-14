@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onDestroy } from "svelte";
     import { fade } from "svelte/transition";
     import { rollState } from "$lib/state.svelte";
     import type { RollMode } from "$lib/rolls";
@@ -17,9 +18,7 @@
     });
 
     let entries = $derived(Object.entries(dice_count)) as [Dice, number][];
-    let chosen_dice = $derived(
-        Object.values(dice_count).some((val) => val > 0),
-    );
+    let chosen = $derived(Object.values(dice_count).reduce((sum, count) => sum + count, 0));
     let privacy_level = $state("public");
 
     function reset() {
@@ -32,148 +31,150 @@
         rollState.mode = rollState.mode === mode ? "normal" : mode;
     }
 
-    // Advantage and disadvantage show up once the dice are pressed. A chosen mode stays
-    // in view, it changes the next d20 of the character sheet too.
+    /**
+     * The dice open above the button with a click or tap and close with another or one
+     * next to them. Everything they need is in there: beside the button, advantage and
+     * the roll button pushed the reactions aside. The controls make way meanwhile.
+     */
     let opened = $state(false);
-    let show_modes = $derived(
-        opened || chosen_dice || rollState.mode !== "normal",
-    );
     let chooser: HTMLDivElement | null = $state(null);
-    // Touch screens open the dice with a tap and close them with a tap next to them,
-    // hover would keep them open
-    let touch = $state(false);
+
+    function set_open(open: boolean) {
+        opened = open;
+        rollState.choosing = open;
+    }
+
+    function roll() {
+        roll_callback(
+            entries
+                .filter(([_, value]) => value > 0)
+                .map(([key, value]) => value.toString() + key),
+            privacy_level,
+        );
+        reset();
+        set_open(false);
+    }
+
+    onDestroy(() => (rollState.choosing = false));
 </script>
 
 <svelte:window
     onpointerdown={(event) => {
-        if (chooser && !chooser.contains(event.target as Node)) opened = false;
+        if (opened && chooser && !chooser.contains(event.target as Node)) set_open(false);
+    }}
+    onkeydown={(event) => {
+        if (opened && event.key === "Escape") set_open(false);
     }}
 />
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-    class="flex flex-row gap-1 items-end"
+    class="dropdown dropdown-top {opened ? 'dropdown-open' : 'dropdown-close'}"
     transition:fade={{ duration: 200 }}
     bind:this={chooser}
-    onmouseleave={() => (opened = false)}
 >
+    <!-- The dice chosen and not rolled yet, with the menu closed -->
+    <div class="indicator">
+        {#if !opened && chosen > 0}
+            <span class="indicator-item badge badge-sm badge-info">{chosen}</span>
+        {/if}
+        <button
+            class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center {rollState.mode ===
+            'advantage'
+                ? 'ring-2 ring-success'
+                : rollState.mode === 'disadvantage'
+                  ? 'ring-2 ring-error'
+                  : ''}"
+            aria-label="Würfel"
+            aria-expanded={opened}
+            title={rollState.mode === "advantage"
+                ? "Würfel, der nächste W20 mit Vorteil"
+                : rollState.mode === "disadvantage"
+                  ? "Würfel, der nächste W20 mit Nachteil"
+                  : "Würfel"}
+            onclick={() => set_open(!opened)}
+        >
+            <span class="dice-icon d20 !bg-base-content/70"></span>
+        </button>
+    </div>
     <div
-        class="dropdown dropdown-top dropdown-hover {touch
-            ? opened
-                ? 'dropdown-open'
-                : 'dropdown-close'
-            : ''}"
+        class="dropdown-content z-1 mb-2 frosted rounded-box shadow-lg p-2 flex flex-col gap-2 w-max max-w-[calc(100vw-var(--corner-left)-var(--corner-right))]"
     >
-        <div class="flex flex-row gap-1">
+        <div class="join self-start" role="group" aria-label="Vorteil oder Nachteil">
             <button
-                class="btn rounded-full w-12 h-12 p-0 flex justify-center items-center {rollState.mode ===
-                'advantage'
-                    ? 'ring-2 ring-success'
-                    : rollState.mode === 'disadvantage'
-                      ? 'ring-2 ring-error'
-                      : ''}"
-                aria-label="D20"
-                onpointerdown={(event) => (touch = event.pointerType !== "mouse")}
-                onclick={() => (opened = !opened)}
+                class="btn btn-xs join-item {rollState.mode === 'advantage'
+                    ? 'btn-success'
+                    : 'btn-ghost'}"
+                title="Der nächste W20 wird zweimal gewürfelt, der höhere zählt"
+                aria-pressed={rollState.mode === "advantage"}
+                onclick={() => toggle_mode("advantage")}
             >
-                <span class="dice-icon d20 !bg-base-content/70"></span>
+                <i class="fa-solid fa-angles-up"></i> Vorteil
             </button>
-            {#if chosen_dice}
-                <div class="join h-12 justify-center">
+            <button
+                class="btn btn-xs join-item {rollState.mode === 'disadvantage'
+                    ? 'btn-error'
+                    : 'btn-ghost'}"
+                title="Der nächste W20 wird zweimal gewürfelt, der niedrigere zählt"
+                aria-pressed={rollState.mode === "disadvantage"}
+                onclick={() => toggle_mode("disadvantage")}
+            >
+                <i class="fa-solid fa-angles-down"></i> Nachteil
+            </button>
+        </div>
+        <!-- Smaller and wrapping on phones, so all fit on the screen. Room above and to
+             the right for the counts. -->
+        <ul class="flex flex-row flex-wrap gap-2 max-sm:gap-1.5 pt-2 pr-2">
+            {#each entries as [dice, count]}
+                <li class="indicator">
+                    {#if count > 0}
+                        <span class="indicator-item badge badge-sm will-change-contents"
+                            >{count}</span
+                        >
+                    {/if}
                     <button
-                        class="btn join-item rounded-l-full h-full"
+                        class="btn rounded-full w-12 h-12 max-sm:w-11 max-sm:h-11 p-0 flex justify-center items-center"
+                        aria-label={dice.toUpperCase()}
+                        title={dice.toUpperCase()}
                         onclick={() => {
-                            roll_callback(
-                                entries
-                                    .filter(([_, value]) => value > 0)
-                                    .map(([key, value]) => {
-                                        return value.toString() + key;
-                                    }),
-                                privacy_level,
-                            );
-                            reset();
+                            dice_count[dice]++;
+                        }}
+                        oncontextmenu={(evt) => {
+                            evt.preventDefault();
+                            count > 0 && dice_count[dice]--;
                         }}
                     >
+                        <span class="dice-icon !bg-base-content {dice}"></span>
+                    </button>
+                </li>
+            {/each}
+        </ul>
+        {#if chosen > 0}
+            <div class="flex flex-row gap-1" transition:fade={{ duration: 150 }}>
+                <div class="join flex-1">
+                    <button class="btn btn-info join-item rounded-l-full flex-1" onclick={roll}>
                         Würfeln
                     </button>
                     <select
-                        class="select join-item rounded-r-full h-full w-auto bg-base-200 border-base-200 font-semibold"
+                        class="select join-item rounded-r-full w-auto bg-base-200 border-base-200 font-semibold"
+                        aria-label="Wer das Ergebnis sieht"
                         bind:value={privacy_level}
                     >
-                        <option disabled selected>Sichtbarkeit</option>
                         <option value="public">Alle</option>
                         <option value="dm">Nur der DM</option>
                         <option value="private">Privat</option>
                     </select>
                 </div>
-                <button class="btn rounded-full h-12" onclick={reset}>
-                    Zurücksetzen
+                <button
+                    class="btn btn-ghost btn-square rounded-full"
+                    aria-label="Zurücksetzen"
+                    title="Zurücksetzen"
+                    onclick={reset}
+                >
+                    <i class="fa-solid fa-rotate-left"></i>
                 </button>
-            {/if}
-        </div>
-        <!-- A row, as a column the dice would cover the toolbar -->
-        <!-- Smaller and wrapping on phones, so all fit on the screen -->
-        <ul
-            class="dropdown-content z-1 flex flex-row flex-wrap gap-2 max-sm:gap-1.5 pt-3 pr-3 pb-2 w-max max-w-[calc(100vw-1rem)]"
-        >
-            {#each entries as [dice, count]}
-                <div class="indicator">
-                    {#if count > 0}
-                        <span class="indicator-item badge will-change-contents"
-                            >{count}</span
-                        >
-                    {/if}
-                    <div class="tooltip" data-tip={dice.toUpperCase()}>
-                        <button
-                            class="btn rounded-full w-12 h-12 max-sm:w-11 max-sm:h-11 p-0 flex justify-center items-center"
-                            aria-label={dice.toUpperCase()}
-                            onclick={() => {
-                                dice_count[dice]++;
-                            }}
-                            oncontextmenu={(evt) => {
-                                evt.preventDefault();
-                                count > 0 && dice_count[dice]--;
-                            }}
-                        >
-                            <span class="dice-icon !bg-base-content {dice}"
-                            ></span>
-                        </button>
-                    </div>
-                </div>
-            {/each}
-        </ul>
+            </div>
+        {/if}
     </div>
-    {#if show_modes}
-    <div
-        class="join join-vertical frosted rounded-box"
-        role="group"
-        aria-label="Vorteil oder Nachteil"
-        transition:fade={{ duration: 150 }}
-    >
-        <button
-            class="btn btn-xs join-item justify-start {rollState.mode ===
-            'advantage'
-                ? 'btn-success'
-                : 'btn-ghost'}"
-            title="Der nächste W20 wird zweimal gewürfelt, der höhere zählt"
-            aria-pressed={rollState.mode === "advantage"}
-            onclick={() => toggle_mode("advantage")}
-        >
-            <i class="fa-solid fa-fw fa-angles-up"></i> Vorteil
-        </button>
-        <button
-            class="btn btn-xs join-item justify-start {rollState.mode ===
-            'disadvantage'
-                ? 'btn-error'
-                : 'btn-ghost'}"
-            title="Der nächste W20 wird zweimal gewürfelt, der niedrigere zählt"
-            aria-pressed={rollState.mode === "disadvantage"}
-            onclick={() => toggle_mode("disadvantage")}
-        >
-            <i class="fa-solid fa-fw fa-angles-down"></i> Nachteil
-        </button>
-    </div>
-    {/if}
 </div>
 
 <style>
