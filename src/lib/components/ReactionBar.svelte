@@ -100,7 +100,7 @@
 
 <!-- Above the dice, the newest at the bottom -->
 <div
-    class="fixed bottom-[calc(4.5rem+var(--safe-bottom))] left-[calc(0.5rem+var(--safe-left))] z-[1000] flex flex-col gap-1 pointer-events-none"
+    class="fixed bottom-[calc(var(--corner-bottom)+4rem)] left-[var(--corner-left)] z-[1000] flex flex-col gap-1 pointer-events-none"
     aria-live="polite"
 >
     {#each reactionState.bubbles as bubble (bubble.id)}
