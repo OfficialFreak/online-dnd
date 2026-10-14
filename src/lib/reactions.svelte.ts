@@ -59,7 +59,7 @@ function show_bubble(emoji: string, text: string, who?: string) {
 /** Plays a reaction like the others hear it, the recording or the cartoon voice */
 export function play_reaction(key: string, file?: string | null, who = "", label?: string | null) {
     if (key.startsWith(VOICELINE)) {
-        if (file) play_effect(`${who}: ${label ?? key}`.trim(), file);
+        if (file) play_effect(`${who}: ${label ?? key}`.trim(), file, 1, true);
         return;
     }
     const reaction = REACTIONS.find((reaction) => reaction.key === key);
@@ -67,7 +67,7 @@ export function play_reaction(key: string, file?: string | null, who = "", label
     // Without a recording the default voice, as the others hear it: listening in the
     // recorder played the cartoon voice while everyone heard the one the DM chose
     const voiced = file ?? reactionState.default_reactions[key];
-    if (voiced) play_effect(`${who}: ${reaction.label}`.trim(), voiced);
+    if (voiced) play_effect(`${who}: ${reaction.label}`.trim(), voiced, 1, true);
     else DEFAULT_VOICES[key]?.();
 }
 

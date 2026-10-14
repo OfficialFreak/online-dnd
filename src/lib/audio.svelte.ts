@@ -52,11 +52,18 @@ let ducked = false;
 /** While the microphone records nothing plays, see hold_sound() */
 let held = false;
 /**
- * Between two scenes, in the portal's starry realm: the music, ambience and weather of
- * neither scene play, effects and the portal's own sounds still do. See
- * quiet_between_scenes().
+ * Between two scenes, in the portal's starry realm: the music, ambience, weather and
+ * effects of neither scene play, thunder too. The portal's own sounds and the players'
+ * reactions still do. See quiet_between_scenes().
  */
 let between = false;
+/** Effect players playing a player's reaction, which goes on between two scenes */
+const personal_players = new WeakSet<HTMLAudioElement>();
+
+/** Whether the portal is between two scenes, where the scenes' own sounds are silent */
+export function between_scenes() {
+    return between;
+}
 /** An effect the DM plays again before it ends plays twice at once */
 const effects = new Map<string, Set<HTMLAudioElement>>();
 /** The players of the ambience playing, by the sound's name */
@@ -676,10 +683,15 @@ export function set_sound_level(name: string, level: number) {
     if (sound) sound.level = level;
 }
 
-/** Loudness below 1 plays it quieter than the effect volume, e.g. a distant thunder */
-export function play_effect(name: string, file: string, loudness = 1) {
-    if (held) return;
+/**
+ * Loudness below 1 plays it quieter than the effect volume, e.g. a distant thunder.
+ * Personal is a player's reaction, it also plays between two scenes.
+ */
+export function play_effect(name: string, file: string, loudness = 1, personal = false) {
+    if (held || (between && !personal)) return;
     const audio = free_effect_player();
+    if (personal) personal_players.add(audio);
+    else personal_players.delete(audio);
     clearInterval(fades.get(audio));
     audio.src = asset_url(file);
     set_audio_level(audio, effect_volume() * loudness);
@@ -745,6 +757,14 @@ const HOLD_FADE = 300;
 export function quiet_between_scenes(duration = 1100) {
     between = true;
     for (const [player] of live_players()) fade(player, () => 0, undefined, duration);
+    // The old scene's effects end with it, a long thunder too
+    for (const [name, playing] of [...effects]) {
+        for (const audio of playing) {
+            if (personal_players.has(audio)) continue;
+            forget_effect(name, audio);
+            fade(audio, () => 0, () => audio.pause(), duration);
+        }
+    }
 }
 
 /** The smoke draws back from the new scene, its sound comes in slowly with it */
