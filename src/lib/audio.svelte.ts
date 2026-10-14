@@ -233,6 +233,9 @@ function unlock() {
     for (const audio of players) {
         if (unlocked.has(audio)) continue;
         unlocked.add(audio);
+        // Playing already, so it may: a moment of silence would cut off what it plays,
+        // a thunder stopped when someone typed or tapped
+        if (!audio.paused) continue;
         // Refused, e.g. as the finger only came down, it tries again when it lifts
         const retry = () => unlocked.delete(audio);
         // A song waiting for this tap plays, the others play a moment of silence
