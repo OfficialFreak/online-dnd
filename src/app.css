@@ -282,6 +282,23 @@ html.veiled .gui * {
     }
 }
 
+/* The curse glitches the marker's colours now and then, held without fading in between.
+   The only one with a filter, the marker's own filters are on its image. */
+@keyframes cond-cursed {
+    0%,
+    85.5%,
+    90%,
+    100% {
+        filter: none;
+    }
+    84% {
+        filter: invert(1) hue-rotate(180deg);
+    }
+    88% {
+        filter: hue-rotate(90deg) saturate(3) contrast(1.5);
+    }
+}
+
 /* Firefox drew the moving conditions anew at each step of a zoom gesture, with a few
    burning markers zooming stuttered. They hold still until the map is laid out again. */
 .zooming .condition-animated,

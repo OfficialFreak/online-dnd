@@ -5,7 +5,8 @@ export type ParticleMotion =
     | "orbit"
     | "pop"
     | "flash"
-    | "bob";
+    | "bob"
+    | "haunt";
 
 export type Condition = {
     label: string;
@@ -147,6 +148,15 @@ export const CONDITIONS: Record<string, Condition> = {
         aura: true,
         particles: { symbols: ["✨", "✨"], motion: "orbit" },
         icon: "fa-sun",
+    },
+    cursed: {
+        label: "Verflucht",
+        color: "#7b2fd0",
+        filter: "hue-rotate(250deg) saturate(1.7) contrast(1.2)",
+        animation: "cond-cursed 4.2s steps(1, end) infinite",
+        aura: true,
+        particles: { symbols: ["👻", "💀", "👁️"], motion: "haunt" },
+        icon: "fa-skull",
     },
 };
 

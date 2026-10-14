@@ -230,6 +230,17 @@
         animation-timing-function: ease-in-out;
     }
 
+    /* Ghosts swoop around the marker in a figure eight and fade through its middle */
+    .haunt span {
+        left: 50%;
+        top: 45%;
+        font-size: 22cqw;
+        animation-name: haunt;
+        animation-duration: 4.5s;
+        animation-timing-function: ease-in-out;
+        animation-delay: calc(var(--i) / var(--n) * -4.5s);
+    }
+
     .icons {
         position: absolute;
         left: 50%;
@@ -454,6 +465,39 @@
         }
         50% {
             transform: translateY(4cqh);
+        }
+    }
+
+    @keyframes haunt {
+        0%,
+        50%,
+        100% {
+            transform: translate(0, 0) scale(0.6);
+            opacity: 0;
+        }
+        12.5% {
+            transform: translate(30cqw, 22cqh) scale(0.9) rotate(10deg);
+            opacity: 0.9;
+        }
+        25% {
+            transform: translate(44cqw, 0) scale(1.1) rotate(-6deg);
+            opacity: 1;
+        }
+        37.5% {
+            transform: translate(30cqw, -22cqh) scale(0.9) rotate(8deg);
+            opacity: 0.9;
+        }
+        62.5% {
+            transform: translate(-30cqw, 22cqh) scale(0.9) rotate(-10deg);
+            opacity: 0.9;
+        }
+        75% {
+            transform: translate(-44cqw, 0) scale(1.1) rotate(6deg);
+            opacity: 1;
+        }
+        87.5% {
+            transform: translate(-30cqw, -22cqh) scale(0.9) rotate(-8deg);
+            opacity: 0.9;
         }
     }
 
