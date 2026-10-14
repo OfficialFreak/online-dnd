@@ -54,7 +54,7 @@ export function register_intro(shown: Intro | null) {
     // the page with the map is there
     if (gameState.scene) {
         opening = false;
-        shown.lift(loaded(gameState.scene.map));
+        shown.lift(map_loaded(gameState.scene.map));
         return;
     }
     // Without a scene to show, e.g. none is active, it draws back on its own
@@ -102,7 +102,7 @@ export async function change_scene(
         opening = false;
         await tick();
         await drawn();
-        intro.lift(loaded(scene.map));
+        intro.lift(map_loaded(scene.map));
         return;
     }
     const other = !!gameState.scene && gameState.scene.name !== scene.name;
@@ -122,7 +122,7 @@ export async function change_scene(
         // scroll stuttered while they did
         await tick();
         await drawn();
-        intro?.reveal(latest.name, loaded(latest.map));
+        intro?.reveal(latest.name, map_loaded(latest.map));
     }
 }
 
@@ -155,7 +155,7 @@ function drawn() {
  * map itself: decoding it apart, up to 8192 pixels a side, held everything up for a third
  * of a second, the page only decodes it as large as it is shown.
  */
-function loaded(file: string) {
+export function map_loaded(file: string) {
     return new Promise<void>((resolve) => {
         const look = () => {
             const media = document.querySelector('[data-map="main"]');

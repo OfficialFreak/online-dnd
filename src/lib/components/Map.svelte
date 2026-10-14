@@ -67,6 +67,7 @@
     import confetti from "canvas-confetti";
     import { billows, smoothstep } from "$lib/noise";
     import { FOG_TEXTURE_SCALE, fog_texture } from "$lib/fog-texture";
+    import { map_loaded } from "$lib/scene-intro.svelte";
 
     let {
         file,
@@ -1269,6 +1270,30 @@
         keep_under(point, client_x, client_y, unshifted);
         shrink_layout();
         settle_later();
+    }
+
+    /**
+     * A new map shows whole and in the middle: the zoom and scrolling of the last one fit
+     * it badly. Once its picture is there, its size is known only then.
+     */
+    let fitted: string | null = null;
+    $effect(() => {
+        const current = file;
+        if (!editable || !current || current === fitted) return;
+        fitted = current;
+        untrack(() => fit_when_loaded(current));
+    });
+
+    async function fit_when_loaded(current: string) {
+        await map_loaded(current);
+        // Measured a frame after the picture is laid out
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        if (file !== current || !base_h) return;
+        const room = window.innerHeight - titlebar_room;
+        appState.zoom = Math.min(1, Math.max(MIN_ZOOM, room / base_h));
+        settle();
+        window.scrollTo(0, 0);
     }
 
     $effect(() => {
