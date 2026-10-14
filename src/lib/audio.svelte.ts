@@ -122,6 +122,12 @@ if (typeof navigator !== "undefined" && "audioSession" in navigator) {
 // come from another origin, which Web Audio would play as silence.
 let context: AudioContext | null = null;
 const gains = new WeakMap<HTMLAudioElement, GainNode>();
+/**
+ * Where each gain node is headed. Its own value follows a few hundredths of a second later,
+ * a fade right after a sound was set silent started from the old level: the music of a new
+ * scene came in loud on a player that had never played, and only then went down.
+ */
+const levels = new WeakMap<HTMLAudioElement, number>();
 
 /** Whether the server's files come from the page's own origin */
 function assets_same_origin() {
@@ -153,6 +159,8 @@ export function route_audio(audio: HTMLAudioElement) {
             }
         }
         const gain = context.createGain();
+        // Silent until given a level, a new gain node plays at full
+        gain.gain.value = 0;
         context.createMediaElementSource(audio).connect(gain).connect(context.destination);
         gains.set(audio, gain);
     } catch (e) {
@@ -167,13 +175,15 @@ function wake_audio() {
 }
 
 function level(audio: HTMLAudioElement) {
-    return gains.get(audio)?.gain.value ?? audio.volume;
+    const gain = gains.get(audio);
+    return gain ? (levels.get(audio) ?? gain.gain.value) : audio.volume;
 }
 
 /** The volume of a sound from 0 to 1, by its gain node or by itself */
 export function set_audio_level(audio: HTMLAudioElement, value: number) {
     const gain = gains.get(audio);
     if (gain) {
+        levels.set(audio, value);
         // Glides there within a few hundredths of a second: set at once, every step of a
         // fade clicked
         const now = gain.context.currentTime;
