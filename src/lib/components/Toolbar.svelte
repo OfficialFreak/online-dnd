@@ -52,26 +52,28 @@
         }
     }
 
-    // On touch screens the fog and measuring menus open with a tap and close with a tap
-    // next to them. Hover doesn't exist there, and Safari keeps the focus that would
-    // otherwise close them.
+    // The menus beside the controls open and close with their button, and close with a
+    // click or tap next to them. Opened on hover they couldn't be closed with the button,
+    // and Safari keeps the focus that would otherwise close them.
     let touch = $state(false);
     type Menu = "fog" | "measure" | "walls" | "view";
     let open_menu: Menu | null = $state(null);
 
     function menu_state(menu: Menu) {
-        if (!touch) return "";
         return open_menu === menu ? "dropdown-open" : "dropdown-close";
     }
 
-    function tap_menu(menu: Menu) {
-        if (touch) open_menu = open_menu === menu ? null : menu;
+    function toggle_menu(menu: Menu) {
+        open_menu = open_menu === menu ? null : menu;
     }
 
-    /** Picking a tool in a menu closes it on touch screens, the map is under it */
-    function pick_tool(tool: Tools) {
-        appState.selectedTool = tool;
-        open_menu = null;
+    /**
+     * A tool from a menu, picking the active one again puts it away. On touch screens the
+     * menu closes, the map is under it.
+     */
+    function pick_tool(tool: Tools, active = appState.selectedTool === tool) {
+        appState.selectedTool = active ? Tools.None : tool;
+        if (touch) open_menu = null;
     }
 
     function on_pointer_down(event: PointerEvent) {
@@ -84,15 +86,30 @@
         }
     }
 
-    // The ruler and drawing share a button, which picks up the one used last
+    // The ruler, drawing and the eraser share a button, which shows the one used last
     let measuring = $derived(
         appState.selectedTool === Tools.Ruler ||
-            appState.selectedTool === Tools.Draw,
+            appState.selectedTool === Tools.Draw ||
+            appState.selectedTool === Tools.Erase,
     );
     let last_measure_tool = $state(Tools.Ruler);
     $effect(() => {
         if (measuring) last_measure_tool = appState.selectedTool;
     });
+    let measure_icon = $derived(
+        last_measure_tool === Tools.Ruler
+            ? "fa-ruler"
+            : last_measure_tool === Tools.Erase
+              ? "fa-eraser"
+              : (DRAWING_KINDS.find((entry) => entry.kind === drawState.kind)?.icon ??
+                "fa-pen-ruler"),
+    );
+
+    function pick_drawing(kind: (typeof DRAWING_KINDS)[number]["kind"]) {
+        const active = appState.selectedTool === Tools.Draw && drawState.kind === kind;
+        drawState.kind = kind;
+        pick_tool(Tools.Draw, active);
+    }
 
     // Fog editing needs an array for every player. Existing fog is never reset here:
     // players may have different fog on purpose, and wiping it would be saved with the next stroke.
@@ -168,6 +185,7 @@
                 break;
             case "Escape":
                 selection.clear();
+                open_menu = null;
                 break;
             case "KeyK":
                 if (gameState.dm) {
@@ -192,6 +210,9 @@
                 break;
             case "KeyD":
                 selectTool(Tools.Draw);
+                break;
+            case "KeyE":
+                selectTool(Tools.Erase);
                 break;
             case "KeyY":
                 selectTool(Tools.Pointer);
@@ -304,13 +325,9 @@
 
     /** A mode of the wall tool, picking the active one again puts the tool away */
     function pick_wall_mode(mode: (typeof WALL_MODES)[number]["mode"]) {
-        if (appState.selectedTool === Tools.Walls && wallState.mode === mode && !touch) {
-            appState.selectedTool = Tools.None;
-            return;
-        }
+        const active = appState.selectedTool === Tools.Walls && wallState.mode === mode;
         wallState.mode = mode;
-        if (touch) pick_tool(Tools.Walls);
-        else appState.selectedTool = Tools.Walls;
+        pick_tool(Tools.Walls, active);
     }
 
     function set_vision(enabled: boolean) {
@@ -443,12 +460,6 @@
             {:else if !toolbarState.characterOpen}
                 <div class="p-2 px-4">
                     <h1 class="text-3xl font-bold">Charaktere</h1>
-                    {#if gameState.dm}
-                        <p class="text-sm text-base-content/60 mt-2">
-                            Zieh das Porträt eines Charakters auf die Karte, um
-                            seinen Marker dort zu platzieren.
-                        </p>
-                    {/if}
                     <div class="flex flex-row flex-wrap gap-2 mt-2">
                         {#each gameState.characters as character}
                             <CharacterPreview
@@ -532,12 +543,13 @@
          panel, not beside the room the closed panel keeps. -->
     <div
         data-keep-clear
-        class="tools flex flex-col gap-1 p-1 frosted rounded-box h-min pointer-events-auto [@media(max-height:600px)]:grid [@media(max-height:600px)]:grid-cols-2 {shown_panel &&
+        class="tools flex flex-col gap-0.5 p-1 frosted rounded-box h-min pointer-events-auto [@media(max-height:600px)]:grid [@media(max-height:600px)]:grid-cols-2 {shown_panel &&
         !toolbarState.panel
             ? 'tools-tucked'
             : ''}"
         transition:fade|global={{ duration: 100 }}
     >
+        <!-- Using the map: pointing, measuring and drawing, choosing markers -->
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
                 Zeiger <kbd class="kbd">Z</kbd>
@@ -553,6 +565,114 @@
                     selectTool(Tools.Pointer);
                 }}><i class="fa-solid fa-arrow-pointer"></i></button
             >
+        </div>
+        <!-- Drawings are measurements that stay, so they share the ruler's button -->
+        <div
+            class="dropdown dropdown-right {menu_state('measure')}"
+            data-menu="measure"
+        >
+            <button
+                class="btn btn-square btn-sm rounded-box {measuring
+                    ? 'btn-info'
+                    : open_menu === 'measure'
+                      ? 'btn-active'
+                      : ''}"
+                aria-label="Messen und Zeichnen"
+                aria-expanded={open_menu === "measure"}
+                title="Messen und Zeichnen"
+                onclick={() => toggle_menu("measure")}
+                ><i class="fa-solid {measure_icon}"></i></button
+            >
+            <div
+                class="dropdown-content bg-base-100 rounded-box z-1 p-2 shadow-sm flex flex-col gap-2"
+                style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
+                use:keep_in_view
+            >
+                <div class="flex flex-row items-center gap-0.5">
+                    <button
+                        class="btn btn-sm btn-square {appState.selectedTool ===
+                        Tools.Ruler
+                            ? 'btn-info'
+                            : 'btn-ghost'}"
+                        title="Lineal (L)"
+                        aria-label="Lineal"
+                        onclick={() => pick_tool(Tools.Ruler)}
+                    >
+                        <i class="fa-solid fa-ruler"></i>
+                    </button>
+                    <span class="w-px h-5 bg-base-content/15 mx-1"></span>
+                    {#each DRAWING_KINDS as { kind, label, icon }}
+                        <button
+                            class="btn btn-sm btn-square {appState.selectedTool ===
+                                Tools.Draw && drawState.kind === kind
+                                ? 'btn-info'
+                                : 'btn-ghost'}"
+                            title={label}
+                            aria-label={label}
+                            onclick={() => pick_drawing(kind)}
+                        >
+                            <i class="fa-solid {icon}"></i>
+                        </button>
+                    {/each}
+                    <span class="w-px h-5 bg-base-content/15 mx-1"></span>
+                    <button
+                        class="btn btn-sm btn-square {appState.selectedTool ===
+                        Tools.Erase
+                            ? 'btn-info'
+                            : 'btn-ghost'}"
+                        title="Radierer (E)"
+                        aria-label="Radierer"
+                        onclick={() => pick_tool(Tools.Erase)}
+                    >
+                        <i class="fa-solid fa-eraser"></i>
+                    </button>
+                </div>
+                <div class="flex flex-row items-center gap-1.5 px-1">
+                    {#each DRAWING_COLORS as color}
+                        <button
+                            class="w-5 h-5 rounded-full border border-base-content/30 cursor-pointer {drawState.color ===
+                            color
+                                ? 'ring-2 ring-info ring-offset-1 ring-offset-base-100'
+                                : ''}"
+                            style="background: {color}"
+                            aria-label="Farbe {color}"
+                            onclick={() => (drawState.color = color)}
+                        ></button>
+                    {/each}
+                    <span class="flex-1"></span>
+                    <button
+                        class="btn btn-xs btn-square {drawState.snap
+                            ? 'btn-info'
+                            : 'btn-ghost'}"
+                        title="Am Raster einrasten"
+                        aria-label="Am Raster einrasten"
+                        aria-pressed={drawState.snap}
+                        onclick={() => (drawState.snap = !drawState.snap)}
+                    >
+                        <i class="fa-solid fa-border-all"></i>
+                    </button>
+                </div>
+                <div class="flex flex-row gap-1 border-t border-base-content/10 pt-2">
+                    <button
+                        class="btn btn-xs btn-ghost flex-1"
+                        onclick={() =>
+                            appState.ws?.send(
+                                DeleteDrawings.create({
+                                    owner: gameState.name,
+                                }),
+                            )}
+                        ><i class="fa-solid fa-trash-can"></i> Meine löschen</button
+                    >
+                    {#if gameState.dm}
+                        <button
+                            class="btn btn-xs btn-ghost text-error flex-1"
+                            onclick={() =>
+                                appState.ws?.send(DeleteDrawings.create({}))}
+                            ><i class="fa-solid fa-trash-can"></i> Alle löschen</button
+                        >
+                    {/if}
+                </div>
+            </div>
         </div>
         {#if gameState.dm}
             <div class="tooltip tooltip-right">
@@ -574,6 +694,46 @@
                     ><i class="fa-solid fa-vector-square"></i></button
                 >
             </div>
+        {/if}
+        <span class="tool-divider" aria-hidden="true"></span>
+        <!-- Panels -->
+        <div class="tooltip tooltip-right">
+            <div class="tooltip-content">
+                Charaktere <kbd class="kbd">C</kbd>
+            </div>
+            <button
+                tabindex="0"
+                class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                'characters'
+                    ? 'btn-info'
+                    : ''}"
+                aria-label="Charaktere"
+                onclick={() => {
+                    togglePanel("characters");
+                }}
+            >
+                <i class="fa-solid fa-user"></i>
+            </button>
+        </div>
+        {#if gameState.dm}
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    Marker <kbd class="kbd">M</kbd>
+                </div>
+                <button
+                    tabindex="0"
+                    class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                    'markers'
+                        ? 'btn-info'
+                        : ''}"
+                    aria-label="Marker"
+                    onclick={() => {
+                        togglePanel("markers");
+                    }}
+                >
+                    <i class="fa-solid fa-location-pin"></i>
+                </button>
+            </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
                     Szenen <kbd class="kbd">S</kbd>
@@ -592,47 +752,80 @@
             </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
-                    {#if gameState.pressure}
-                        Chill Pill
-                    {:else}
-                        Pressure
-                    {/if} <kbd class="kbd">P</kbd>
+                    Musik und Wetter <kbd class="kbd">B</kbd>
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {gameState.pressure
+                    class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                    'sounds'
                         ? 'btn-info'
                         : ''}"
-                    aria-label="Pressure"
-                    onclick={toggle_pressure}
-                    ><i class="fa-solid fa-stopwatch"></i></button
+                    aria-label="Musik und Wetter"
+                    onclick={() => togglePanel("sounds")}
                 >
+                    <i class="fa-solid fa-music"></i>
+                </button>
             </div>
-            <div
-                class="dropdown dropdown-right dropdown-hover {menu_state('view')}"
-                data-menu="view"
+        {/if}
+        <div class="tooltip tooltip-right">
+            <div class="tooltip-content">
+                Verlauf <kbd class="kbd">V</kbd>
+            </div>
+            <button
+                tabindex="0"
+                class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
+                'rolls'
+                    ? 'btn-info'
+                    : ''}"
+                aria-label="Verlauf"
+                onclick={() => {
+                    togglePanel("rolls");
+                }}
             >
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </button>
+        </div>
+        {#if !gameState.dm}
+            <div class="tooltip tooltip-right">
+                <div class="tooltip-content">
+                    Charakter Aktualisieren <kbd class="kbd">R</kbd>
+                </div>
                 <button
                     tabindex="0"
+                    class="btn btn-square btn-sm rounded-box"
+                    aria-label="Charakter Aktualisieren"
+                    onclick={updateCharacter}
+                >
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        {/if}
+        {#if gameState.dm}
+            <span class="tool-divider" aria-hidden="true"></span>
+            <!-- What the players see -->
+            <div
+                class="dropdown dropdown-right {menu_state('view')}"
+                data-menu="view"
+            >
+                <!-- Without tabindex: daisyUI makes the button of an open menu unclickable -->
+                <button
                     class="btn btn-square btn-sm rounded-box {fogState.selected_player !==
                     'all'
                         ? 'btn-info'
-                        : ''}"
+                        : open_menu === 'view'
+                          ? 'btn-active'
+                          : ''}"
                     aria-label="Ansicht eines Spielers"
-                    onclick={() => tap_menu("view")}
+                    aria-expanded={open_menu === "view"}
+                    title="Ansicht"
+                    onclick={() => toggle_menu("view")}
                     ><i class="fa-solid fa-eye"></i></button
                 >
                 <div
-                    class="dropdown-content bg-base-100 rounded-box z-1 w-60 p-3 shadow-sm flex flex-col gap-2"
+                    class="dropdown-content bg-base-100 rounded-box z-1 w-60 p-2 shadow-sm flex flex-col gap-2"
                     style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
                     use:keep_in_view
                 >
-                    <h3 class="font-bold">Ansicht</h3>
-                    <p class="text-xs text-base-content/60">
-                        Sieh die Karte wie ein Spieler: seinen Nebel, was seine Figuren
-                        sehen, ohne versteckte Marker. Den Nebel malst du dann nur für
-                        ihn.
-                    </p>
                     <!-- Buttons, not a select: its list opens outside the page, the menu
                          lost the mouse there and closed -->
                     <div class="flex flex-wrap gap-1">
@@ -665,36 +858,33 @@
                 </div>
             </div>
             <div
-                class="dropdown dropdown-right dropdown-hover {menu_state('fog')}"
+                class="dropdown dropdown-right {menu_state('fog')}"
                 data-menu="fog"
             >
                 <button
-                    tabindex="0"
                     class="btn btn-square btn-sm rounded-box {fog_active
                         ? 'btn-info'
-                        : ''}"
-                    aria-label="Fog"
-                    onclick={() => tap_menu("fog")}
+                        : open_menu === 'fog'
+                          ? 'btn-active'
+                          : ''}"
+                    aria-label="Nebel"
+                    aria-expanded={open_menu === "fog"}
+                    title="Nebel"
+                    onclick={() => toggle_menu("fog")}
                     ><i class="fa-solid fa-cloud"></i></button
                 >
                 <div
-                    class="dropdown-content bg-base-100 rounded-box z-1 w-56 p-3 shadow-sm flex flex-col gap-3"
+                    class="dropdown-content bg-base-100 rounded-box z-1 w-56 p-2 shadow-sm flex flex-col gap-2"
                     style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
                     use:keep_in_view
                 >
-                    <h3 class="font-bold">Nebel</h3>
-                    <p class="text-xs text-base-content/60">
-                        {#if fogState.selected_player === "all"}
-                            Für alle Spieler. Einen einzelnen wählst du unter
-                            <i class="fa-solid fa-eye"></i> Ansicht.
-                        {:else}
-                            Nur für {fogState.selected_player}, aus der
-                            <i class="fa-solid fa-eye"></i> Ansicht.
-                        {/if}
-                    </p>
-                    <fieldset class="fieldset p-0">
-                        <legend class="fieldset-legend pt-0">Pinsel</legend>
-                        <div class="flex flex-row gap-1">
+                    {#if fogState.selected_player !== "all"}
+                        <span class="badge badge-sm badge-info badge-soft self-start">
+                            <i class="fa-solid fa-eye"></i>
+                            {fogState.selected_player}
+                        </span>
+                    {/if}
+                    <div class="flex flex-row gap-1">
                             <div class="join">
                                 {#each [1, 3, 5] as brush}
                                     <button
@@ -720,8 +910,7 @@
                             >
                                 <i class="fa-regular fa-square"></i> Rechteck
                             </button>
-                        </div>
-                    </fieldset>
+                    </div>
                     <div class="grid grid-cols-4 gap-1">
                         <div class="tooltip tooltip-bottom">
                             <div class="tooltip-content">
@@ -734,10 +923,7 @@
                                     ? 'btn-info'
                                     : ''}"
                                 aria-label="Nebel hinzufügen"
-                                onclick={() => {
-                                    if (touch) pick_tool(Tools.AddFog);
-                                    else selectTool(Tools.AddFog);
-                                }}
+                                onclick={() => pick_tool(Tools.AddFog)}
                             >
                                 <i class="fa-solid fa-pen"></i>
                             </button>
@@ -753,10 +939,7 @@
                                     ? 'btn-info'
                                     : ''}"
                                 aria-label="Nebel entfernen"
-                                onclick={() => {
-                                    if (touch) pick_tool(Tools.RemoveFog);
-                                    else selectTool(Tools.RemoveFog);
-                                }}
+                                onclick={() => pick_tool(Tools.RemoveFog)}
                             >
                                 <i class="fa-solid fa-eraser"></i>
                             </button>
@@ -793,25 +976,27 @@
                 </div>
             </div>
             <div
-                class="dropdown dropdown-right dropdown-hover {menu_state('walls')}"
+                class="dropdown dropdown-right {menu_state('walls')}"
                 data-menu="walls"
             >
                 <button
-                    tabindex="0"
                     class="btn btn-square btn-sm rounded-box {appState.selectedTool ===
                     Tools.Walls
                         ? 'btn-info'
-                        : ''}"
+                        : open_menu === 'walls'
+                          ? 'btn-active'
+                          : ''}"
                     aria-label="Wände und Sicht"
-                    onclick={() => tap_menu("walls")}
+                    aria-expanded={open_menu === "walls"}
+                    title="Wände und Sicht"
+                    onclick={() => toggle_menu("walls")}
                     ><i class="fa-solid fa-dungeon"></i></button
                 >
                 <div
-                    class="dropdown-content bg-base-100 rounded-box z-1 w-64 p-3 shadow-sm flex flex-col gap-3"
+                    class="dropdown-content bg-base-100 rounded-box z-1 w-64 p-2 shadow-sm flex flex-col gap-2"
                     style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
                     use:keep_in_view
                 >
-                    <h3 class="font-bold">Wände und Sicht</h3>
                     <label class="flex items-start gap-2 text-sm">
                         <input
                             type="checkbox"
@@ -872,56 +1057,42 @@
                             {/each}
                         </div>
                     {/if}
-                    <p class="text-xs text-base-content/60">
-                        Klick setzt Punkte, Doppelklick, Rechtsklick oder Enter beendet
-                        die Wand, Esc bricht ab. Am Handy beendet doppeltes Tippen.
-                        Enden rasten an anderen Wänden ein, mit Strg auch am Raster.
-                        Türen ziehst du auf. Alle öffnen sie mit einem Klick, ein
-                        Rechtsklick schließt sie ab. Ein Klick mit Licht setzt eins, ein
-                        Klick auf eins ändert Farbe und Reichweite. Fackeln für Figuren
-                        gibt es in ihrem Menü.
-                    </p>
-                    {#if gameState.scene?.state.walls?.length || gameState.scene?.state.doors?.length}
-                        <p class="text-xs text-base-content/60">
-                            {gameState.scene?.state.walls?.length ?? 0} Wände, {gameState
-                                .scene?.state.doors?.length ?? 0} Türen
-                        </p>
-                    {/if}
                 </div>
             </div>
+            <span class="tool-divider" aria-hidden="true"></span>
+            <!-- The game -->
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
-                    Marker <kbd class="kbd">M</kbd>
+                    Kampf <kbd class="kbd">K</kbd>
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
-                    'markers'
+                    class="btn btn-square btn-sm rounded-box {gameState.combat
                         ? 'btn-info'
                         : ''}"
-                    aria-label="Marker"
+                    aria-label="Kampf"
                     onclick={() => {
-                        togglePanel("markers");
-                    }}
+                        toggleCombat();
+                    }}><i class="fa-solid fa-hand-fist"></i></button
                 >
-                    <i class="fa-solid fa-location-pin"></i>
-                </button>
             </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
-                    Musik und Wetter <kbd class="kbd">B</kbd>
+                    {#if gameState.pressure}
+                        Chill Pill
+                    {:else}
+                        Pressure
+                    {/if} <kbd class="kbd">P</kbd>
                 </div>
                 <button
                     tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
-                    'sounds'
+                    class="btn btn-square btn-sm rounded-box {gameState.pressure
                         ? 'btn-info'
                         : ''}"
-                    aria-label="Musik und Wetter"
-                    onclick={() => togglePanel("sounds")}
+                    aria-label="Pressure"
+                    onclick={toggle_pressure}
+                    ><i class="fa-solid fa-stopwatch"></i></button
                 >
-                    <i class="fa-solid fa-music"></i>
-                </button>
             </div>
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
@@ -940,202 +1111,54 @@
                     <i class="fa-solid fa-arrow-rotate-left"></i>
                 </button>
             </div>
-            <div class="tooltip tooltip-right">
-                <div class="tooltip-content">
-                    Kampf <kbd class="kbd">K</kbd>
-                </div>
-                <button
-                    tabindex="0"
-                    class="btn btn-square btn-sm rounded-box {gameState.combat
-                        ? 'btn-info'
-                        : ''}"
-                    aria-label="Kampf"
-                    onclick={() => {
-                        toggleCombat();
-                    }}><i class="fa-solid fa-hand-fist"></i></button
-                >
-            </div>
         {/if}
-        <div class="tooltip tooltip-right">
-            <div class="tooltip-content">
-                Charaktere <kbd class="kbd">C</kbd>
-            </div>
-            <button
-                tabindex="0"
-                class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
-                'characters'
-                    ? 'btn-info'
-                    : ''}"
-                aria-label="Charaktere"
-                onclick={() => {
-                    togglePanel("characters");
-                }}
-            >
-                <i class="fa-solid fa-user"></i>
-            </button>
-        </div>
-        <div class="tooltip tooltip-right">
-            <div class="tooltip-content">
-                Verlauf <kbd class="kbd">V</kbd>
-            </div>
-            <button
-                tabindex="0"
-                class="btn btn-square btn-sm rounded-box {toolbarState.panel ===
-                'rolls'
-                    ? 'btn-info'
-                    : ''}"
-                aria-label="Verlauf"
-                onclick={() => {
-                    togglePanel("rolls");
-                }}
-            >
-                <i class="fa-solid fa-clock-rotate-left"></i>
-            </button>
-        </div>
-        {#if !gameState.dm}
-            <div class="tooltip tooltip-right">
-                <div class="tooltip-content">
-                    Charakter Aktualisieren <kbd class="kbd">R</kbd>
-                </div>
-                <button
-                    tabindex="0"
-                    class="btn btn-square btn-sm rounded-box"
-                    aria-label="Charakter Aktualisieren"
-                    onclick={updateCharacter}
-                >
-                    <i class="fa-solid fa-rotate-right"></i>
-                </button>
-            </div>
-        {/if}
-        <!-- Drawings are measurements that stay, so they share the ruler's button -->
-        <div
-            class="dropdown dropdown-right dropdown-end dropdown-hover {menu_state(
-                'measure',
-            )}"
-            data-menu="measure"
-        >
-            <button
-                tabindex="0"
-                class="btn btn-square btn-sm rounded-box {measuring
-                    ? 'btn-info'
-                    : ''}"
-                aria-label="Messen und Zeichnen"
-                onclick={() => {
-                    selectTool(
-                        measuring ? appState.selectedTool : last_measure_tool,
-                    );
-                    // Tapping again puts the tool away and closes the menu
-                    if (touch) open_menu = measuring ? "measure" : null;
-                }}
-                ><i
-                    class="fa-solid {last_measure_tool === Tools.Ruler
-                        ? 'fa-ruler'
-                        : (DRAWING_KINDS.find(
-                              (entry) => entry.kind === drawState.kind,
-                          )?.icon ?? 'fa-pen-ruler')}"
-                ></i></button
-            >
-            <div
-                class="dropdown-content bg-base-100 rounded-box z-1 w-72 p-3 shadow-sm flex flex-col gap-3"
-                style="transform: translate(var(--shift-x, 0px), var(--shift-y, 0px))"
-                use:keep_in_view
-            >
-                <h3 class="font-bold flex flex-row items-baseline gap-2">
-                    Messen & Zeichnen
-                    <span
-                        class="text-xs font-normal text-base-content/60 pointer-coarse:hidden"
-                        ><kbd class="kbd kbd-xs">L</kbd>
-                        <kbd class="kbd kbd-xs">D</kbd></span
-                    >
-                </h3>
-                <div class="flex flex-row gap-1">
-                    <button
-                        class="btn btn-sm btn-square {appState.selectedTool ===
-                        Tools.Ruler
-                            ? 'btn-info'
-                            : ''}"
-                        title="Lineal, nur du siehst es"
-                        aria-label="Lineal"
-                        onclick={() => pick_tool(Tools.Ruler)}
-                    >
-                        <i class="fa-solid fa-ruler"></i>
-                    </button>
-                    <div class="join flex-1">
-                        {#each DRAWING_KINDS as { kind, label, icon }}
-                            <button
-                                class="btn btn-sm join-item flex-1 {appState.selectedTool ===
-                                    Tools.Draw && drawState.kind === kind
-                                    ? 'btn-info'
-                                    : ''}"
-                                title={label}
-                                aria-label={label}
-                                onclick={() => {
-                                    drawState.kind = kind;
-                                    pick_tool(Tools.Draw);
-                                }}
-                            >
-                                <i class="fa-solid {icon}"></i>
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-                <div class="flex flex-row flex-wrap gap-2">
-                    {#each DRAWING_COLORS as color}
-                        <button
-                            class="w-5 h-5 rounded-full border border-base-content/30 cursor-pointer {drawState.color ===
-                            color
-                                ? 'ring-2 ring-info ring-offset-1 ring-offset-base-100'
-                                : ''}"
-                            style="background: {color}"
-                            aria-label="Farbe {color}"
-                            onclick={() => (drawState.color = color)}
-                        ></button>
-                    {/each}
-                </div>
-                <label class="label text-sm">
-                    <input
-                        type="checkbox"
-                        class="toggle toggle-sm"
-                        bind:checked={drawState.snap}
-                    />
-                    Am Raster einrasten, in 5-ft-Schritten
-                </label>
-                <p class="text-xs text-base-content/60">
-                    Das Lineal siehst nur du, Zeichnungen sehen alle.
-                    <span class="pointer-coarse:hidden"
-                        >Mit <kbd class="kbd kbd-xs">Strg</kbd> rasten sie auch ein.
-                        Rechtsklick löscht eine Zeichnung.</span
-                    ><span class="hidden pointer-coarse:inline"
-                        >Ein Finger misst oder zeichnet, zwei verschieben und zoomen
-                        die Karte. Lange drücken löscht eine Zeichnung.</span
-                    >
-                </p>
-                <div class="grid grid-cols-2 gap-1">
-                    <button
-                        class="btn btn-sm {gameState.dm ? '' : 'col-span-2'}"
-                        onclick={() =>
-                            appState.ws?.send(
-                                DeleteDrawings.create({
-                                    owner: gameState.name,
-                                }),
-                            )}>Meine löschen</button
-                    >
-                    {#if gameState.dm}
-                        <button
-                            class="btn btn-sm btn-error btn-soft"
-                            onclick={() =>
-                                appState.ws?.send(DeleteDrawings.create({}))}
-                            >Alle löschen</button
-                        >
-                    {/if}
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 {/if}
 
 <style>
+    /* The controls stay in the background: no ground of their own for the buttons, muted
+       until pointed at, the active one tinted instead of filled */
+    .tools {
+        background: color-mix(in srgb, var(--color-base-100), transparent 55%);
+        border-color: transparent;
+        box-shadow: none;
+    }
+    @supports (-moz-appearance: none) {
+        .tools {
+            background: color-mix(in srgb, var(--color-base-100), transparent 15%);
+        }
+    }
+    .tools > div > .btn {
+        background: transparent;
+        border-color: transparent;
+        box-shadow: none;
+        color: color-mix(in srgb, var(--color-base-content), transparent 35%);
+    }
+    .tools > div > .btn:hover:not(:disabled),
+    .tools > div > .btn.btn-active {
+        background: color-mix(in srgb, var(--color-base-content), transparent 88%);
+        color: var(--color-base-content);
+    }
+    .tools > div > .btn.btn-info {
+        background: color-mix(in srgb, var(--color-info), transparent 78%);
+        color: var(--color-info);
+    }
+    .tools > div > .btn:disabled {
+        background: transparent;
+        opacity: 0.35;
+    }
+    .tool-divider {
+        height: 1px;
+        margin: 0.2rem 0.4rem;
+        background: color-mix(in srgb, var(--color-base-content), transparent 88%);
+    }
+    /* Two columns on a low screen, the line across both */
+    @media (max-height: 600px) {
+        .tool-divider {
+            grid-column: span 2;
+        }
+    }
     /* Sliding only moves and fades it, which the graphics card does alone */
     .panel {
         transition:
