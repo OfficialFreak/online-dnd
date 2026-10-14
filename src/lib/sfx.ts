@@ -1,7 +1,8 @@
 /**
  * Short sounds made on the spot with Web Audio, no files needed: dice tumbling behind the
  * DM's screen and the reactions of players who didn't record their own voice. And the
- * recording of a player's voice for their reactions.
+ * recording of a player's voice for their reactions. The portal's sounds play here too,
+ * see portal-sounds.ts.
  */
 import { effect_volume, hold_sound, release_sound } from "$lib/audio.svelte";
 
@@ -9,7 +10,7 @@ let context: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
 
 /** Started by the first tap or key, browsers keep sound off until then */
-function audio() {
+export function audio() {
     if (typeof AudioContext === "undefined") return null;
     if (!context) {
         context = new AudioContext();

@@ -5,6 +5,7 @@
 import { tick } from "svelte";
 import { appState, gameState } from "./state.svelte";
 import { hold_sound, release_sound } from "./audio.svelte";
+import { gate_stars, play_portal_enter, play_portal_leave } from "./portal-sounds";
 import type { SceneData } from "./types/messaging/server_messages";
 
 type Intro = {
@@ -48,12 +49,16 @@ export function register_intro(shown: Intro | null) {
     if (!shown || !opening || !appState.scene_intro) return;
     shown.veil();
     // Every time, the user likes the look of it, also where sound plays without a tap.
-    // Nothing plays before, also where it could, as in the desktop app: the music comes
-    // in as the portal opens.
+    // No music before, also where it could play, as in the desktop app: it comes in as the
+    // portal opens.
     hold_sound();
     at_gate = true;
+    // Where sound plays without a tap, the stars glint while the gate waits. The tap's own
+    // sound takes over from them, see SceneIntro.svelte.
+    const end_stars = gate_stars();
     shown.knock().then((tapped) => {
         at_gate = false;
+        end_stars(tapped ? 0.9 : 0.3);
         if (tapped) release_sound();
     });
     // The scene came first: the desktop app connects behind its loading screen, before
@@ -77,8 +82,10 @@ export function register_intro(shown: Intro | null) {
  */
 export async function portal_update(apply: () => unknown) {
     try {
-        // The sound fades with the smoke closing, nothing new plays while it is woven
+        // The sound fades with the smoke closing, nothing new plays while it is woven but
+        // the portal's own
         hold_sound(1100);
+        if (intro) play_portal_leave();
         await intro?.announce("Das Portal wird neu gewoben");
         await apply();
     } catch (e) {
@@ -95,10 +102,13 @@ export async function portal_update(apply: () => unknown) {
 export async function portal_rewoven() {
     if (!intro || at_gate) return;
     hold_sound(1100);
+    play_portal_leave();
     try {
         await intro.announce("Das Portal wird neu gewoben");
     } finally {
         release_sound();
+        // Entered anew as it draws back
+        play_portal_enter();
         intro?.lift(Promise.resolve());
     }
 }
