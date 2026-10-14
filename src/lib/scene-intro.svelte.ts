@@ -5,6 +5,7 @@
 import { tick } from "svelte";
 import { appState, gameState } from "./state.svelte";
 import {
+    can_play_unasked,
     hold_sound,
     quiet_between_scenes,
     release_sound,
@@ -100,9 +101,11 @@ export function register_intro(shown: Intro | null) {
         end_stars(tapped ? 0.9 : 0.3);
         if (tapped) release_sound();
     });
-    // Back after an update they had entered before: in again, as if tapped. Where the
-    // browser wants a tap for sound, the next tap anywhere brings it.
-    if (take_reentry()) shown.enter();
+    // Back after an update they had entered before: in again, as if tapped, where sound
+    // plays without one, as in the desktop app. A browser mostly wants a tap for sound
+    // after loading anew, there the gate stays and its tap brings the sound: let in
+    // without, it stayed silent until the next tap anywhere.
+    if (take_reentry()) can_play_unasked().then((can) => can && shown.enter());
     // The scene came first: the desktop app connects behind its loading screen, before
     // the page with the map is there
     if (gameState.scene) {

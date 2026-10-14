@@ -236,6 +236,36 @@ const players = new Set<HTMLAudioElement>();
 const unlocked = new WeakSet<HTMLAudioElement>();
 let listening_for_tap = false;
 
+/**
+ * Whether sound plays here without a tap first. The desktop app may, a browser that just
+ * loaded the page anew often not: Safari never, Chrome after a tap on the page before.
+ * Asked of the browser where it tells, otherwise of a new audio context, which starts
+ * suspended without leave and stays so when asked to resume. A moment of silence on an
+ * audio element was no test, Safari may let that play as it is no sound.
+ */
+export async function can_play_unasked(): Promise<boolean> {
+    if (in_tauri) return true;
+    const policy = (
+        navigator as Navigator & { getAutoplayPolicy?: (kind: string) => string }
+    ).getAutoplayPolicy?.("audiocontext");
+    if (policy) return policy === "allowed";
+    if (typeof AudioContext === "undefined") return false;
+    const probe = new AudioContext();
+    try {
+        if (probe.state !== "running") {
+            await Promise.race([
+                probe.resume().catch(() => {}),
+                new Promise((resolve) => setTimeout(resolve, 300)),
+            ]);
+        }
+        return probe.state === "running";
+    } catch {
+        return false;
+    } finally {
+        probe.close().catch(() => {});
+    }
+}
+
 /** Lets the first tap unlock this element, also on iOS */
 export function keep_unlocked(audio: HTMLAudioElement) {
     players.add(audio);
