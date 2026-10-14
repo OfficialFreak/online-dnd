@@ -1,7 +1,7 @@
 /**
  * The sounds of the weather's moments, made on the spot with Web Audio like the dice in
- * sfx.ts: coins landing on the map and a quake, the ground roaring, rock groaning and
- * stones and grit falling.
+ * sfx.ts: coins landing on the map and a quake, the ground roaring deep, rock groaning and
+ * stones tumbling.
  */
 import { effect_volume } from "$lib/audio.svelte";
 import { audio } from "$lib/sfx";
@@ -193,27 +193,24 @@ export function play_clink(loudness = 1) {
 
 // ------------------------------------------------------------------------------ Quake
 
-const noises = new Map<string, AudioBuffer>();
+let brown: AudioBuffer | null = null;
 
-/** Noise made once: white, or brown, deep, for the roar */
-function noise(ctx: AudioContext, kind: "white" | "brown") {
-    const made = noises.get(kind);
-    if (made && made.sampleRate === ctx.sampleRate) return made;
-    const buffer = ctx.createBuffer(2, ctx.sampleRate * 2, ctx.sampleRate);
+/** Deep noise for the roar, made once */
+function brown_noise(ctx: AudioContext) {
+    if (brown && brown.sampleRate === ctx.sampleRate) return brown;
+    brown = ctx.createBuffer(2, ctx.sampleRate * 2, ctx.sampleRate);
     for (let channel = 0; channel < 2; channel++) {
-        const data = buffer.getChannelData(channel);
+        const data = brown.getChannelData(channel);
         let last = 0;
         let peak = 0;
         for (let i = 0; i < data.length; i++) {
-            const white = Math.random() * 2 - 1;
-            last = (last + 0.02 * white) / 1.02;
-            data[i] = kind === "white" ? white : last;
-            peak = Math.max(peak, Math.abs(data[i]));
+            last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+            data[i] = last;
+            peak = Math.max(peak, Math.abs(last));
         }
         for (let i = 0; i < data.length; i++) data[i] /= peak;
     }
-    noises.set(kind, buffer);
-    return buffer;
+    return brown;
 }
 
 /** Smooth wandering between 0 and 1, `speed` new values a second */
@@ -255,8 +252,8 @@ function jolt(ctx: AudioContext, out: AudioNode, at: number, strength: number) {
 }
 
 /**
- * Stones knocking and grit trickling down, more while it shakes harder, worked out sample
- * by sample into one buffer: as separate nodes they were hundreds at once
+ * Stones tumbling, dull, more while it shakes harder, worked out sample by sample into one
+ * buffer: as separate nodes they were hundreds at once
  */
 function debris(ctx: AudioContext, seconds: number) {
     const rate = ctx.sampleRate;
@@ -273,7 +270,7 @@ function debris(ctx: AudioContext, seconds: number) {
             right[start + i] += value * r;
         }
     };
-    // A two-pole resonance, for the ring of struck stone and of grit
+    // A two-pole resonance, for the knock of struck stone
     const resonance = (frequency: number, q: number) => {
         const w = (2 * Math.PI * frequency) / rate;
         const alpha = Math.sin(w) / (2 * q);
@@ -295,7 +292,7 @@ function debris(ctx: AudioContext, seconds: number) {
         };
     };
 
-    // Stones: a crack of rock on rock and a dull body ringing out. A sine turned on by one
+    // Stones: a muffled knock of rock on rock and a dull body ringing out. A sine turned on by one
     // step each sample and a fade by one factor: sin and exp for each sample of each stone
     // held the page up for a moment as the quake began.
     let t = 0.02;
@@ -304,7 +301,7 @@ function debris(ctx: AudioContext, seconds: number) {
         const step = (2 * Math.PI * (80 + Math.random() * 170)) / rate;
         const decay = (0.03 + Math.random() * 0.05) * rate;
         const fade = Math.exp(-1 / decay);
-        const crack = resonance(600 + Math.random() * 1800, 1.5 + Math.random() * 2);
+        const crack = resonance(200 + Math.random() * 500, 1.5 + Math.random() * 2);
         const click = 0.003 * rate + Math.random() * 0.005 * rate;
         const turn = 2 * Math.cos(step);
         let before = Math.sin(-step);
@@ -318,28 +315,12 @@ function debris(ctx: AudioContext, seconds: number) {
                 earlier = before;
                 before = ring;
                 body *= fade;
-                const cracking = i < click ? 12 * strength * crack(Math.random() * 2 - 1) * (1 - i / click) : 0;
+                const cracking = i < click ? 6 * strength * crack(Math.random() * 2 - 1) * (1 - i / click) : 0;
                 return body * ring + cracking;
             },
             Math.floor(decay * 4),
         );
         t += -Math.log(1 - Math.random()) / (3 + 22 * shaking(t));
-    }
-
-    // Grit and sand trickling, on a little after the shaking ends
-    t = 0;
-    while (t < seconds + 0.4) {
-        const after = Math.max(0, t - seconds * 0.9);
-        const strength = (0.02 + Math.random() * 0.05) * Math.max(shaking(t), 0.25 * Math.exp(-after * 4));
-        const grain = resonance(1300 + Math.random() * 3000, 2);
-        const size = (0.003 + Math.random() * 0.007) * rate;
-        add(
-            Math.floor(t * rate),
-            Math.random() * 2 - 1,
-            (i) => strength * 12 * grain(Math.random() * 2 - 1) * Math.sin((Math.PI * i) / size),
-            Math.floor(size),
-        );
-        t += -Math.log(1 - Math.random()) / (10 + 90 * Math.max(shaking(t), 0.1));
     }
 
     const buffer = ctx.createBuffer(2, length, rate);
@@ -350,23 +331,28 @@ function debris(ctx: AudioContext, seconds: number) {
 
 /**
  * A quake over `seconds`, following the shaking of quake_strength(): a hard jolt at first,
- * dying down, and an aftershock halfway. The ground roars deep beneath, rock groans under
- * strain, things rattle, stones knock and grit trickles down.
+ * dying down, and an aftershock halfway. All of it deep: the ground roaring, a growl
+ * above it, rock groaning under the strain and stones tumbling.
  */
 export function play_rumble(seconds = 4.4) {
     const ctx = audio();
     if (!ctx || !effect_volume()) return;
     const limit = soft_limit(ctx);
     limit.out.connect(output(ctx, 1));
-    const out = limit.into;
+    // All of it deep: anything bright above the rumble sounded like scraping
+    const out = ctx.createBiquadFilter();
+    out.type = "lowpass";
+    out.frequency.value = 500;
+    out.Q.value = 0.7;
+    out.connect(limit.into);
     const at = ctx.currentTime + 0.03;
     const until = at + seconds + 0.6;
     const shaking = (t: number) => quake_strength(t / seconds);
 
     // The ground roaring, unevenly
-    const uneven = wander(5);
+    const uneven = wander(3);
     const roar = ctx.createBufferSource();
-    roar.buffer = noise(ctx, "brown");
+    roar.buffer = brown_noise(ctx);
     roar.loop = true;
     const deep = ctx.createBiquadFilter();
     deep.type = "lowpass";
@@ -375,7 +361,7 @@ export function play_rumble(seconds = 4.4) {
     const roar_level = ctx.createGain();
     roar_level.gain.value = 0;
     roar_level.gain.setValueCurveAtTime(
-        over(seconds, (t) => 1.3 * shaking(t) * (0.6 + 0.4 * uneven(t))),
+        over(seconds, (t) => 1.6 * shaking(t) * (0.6 + 0.4 * uneven(t))),
         at,
         seconds,
     );
@@ -383,19 +369,19 @@ export function play_rumble(seconds = 4.4) {
     roar.start(at, Math.random() * 1.5);
     roar.stop(until);
 
-    // A rougher growl above it, fluttering quicker
-    const flutter = wander(11);
+    // A rougher growl above it, rolling a little quicker
+    const flutter = wander(4);
     const growl = ctx.createBufferSource();
-    growl.buffer = noise(ctx, "brown");
+    growl.buffer = brown_noise(ctx);
     growl.loop = true;
     const band = ctx.createBiquadFilter();
     band.type = "bandpass";
-    band.frequency.value = 150;
+    band.frequency.value = 100;
     band.Q.value = 0.9;
     const growl_level = ctx.createGain();
     growl_level.gain.value = 0;
     growl_level.gain.setValueCurveAtTime(
-        over(seconds, (t) => 1.1 * shaking(t) * (0.3 + 0.7 * flutter(t))),
+        over(seconds, (t) => 1.1 * shaking(t) * (0.5 + 0.5 * flutter(t))),
         at,
         seconds,
     );
@@ -415,8 +401,8 @@ export function play_rumble(seconds = 4.4) {
     groan.frequency.setValueCurveAtTime(over(seconds, (t) => 30 + 18 * strain(t), 50), at, seconds);
     const body = ctx.createBiquadFilter();
     body.type = "bandpass";
-    body.frequency.value = 190;
-    body.Q.value = 2.5;
+    body.frequency.value = 95;
+    body.Q.value = 1.5;
     const groan_level = ctx.createGain();
     groan_level.gain.value = 0;
     const slips = wander(9);
@@ -427,31 +413,12 @@ export function play_rumble(seconds = 4.4) {
     );
     const muffle = ctx.createBiquadFilter();
     muffle.type = "lowpass";
-    muffle.frequency.value = 900;
+    muffle.frequency.value = 300;
     groan.connect(body).connect(groan_level).connect(muffle).connect(out);
     groan.start(at);
     groan.stop(until);
 
-    // Everything loose rattling with the shaking
-    const loose = ctx.createBufferSource();
-    loose.buffer = noise(ctx, "white");
-    loose.loop = true;
-    const rattle_band = ctx.createBiquadFilter();
-    rattle_band.type = "bandpass";
-    rattle_band.frequency.value = 1100;
-    rattle_band.Q.value = 1.5;
-    const rattle = ctx.createGain();
-    rattle.gain.value = 0;
-    rattle.gain.setValueCurveAtTime(
-        over(seconds, (t) => 3 * shaking(t) ** 1.5 * (0.5 + 0.5 * Math.sin(2 * Math.PI * 12 * t)) ** 3, 400),
-        at,
-        seconds,
-    );
-    loose.connect(rattle_band).connect(rattle).connect(out);
-    loose.start(at, Math.random() * 1.5);
-    loose.stop(until);
-
-    // Stones and grit
+    // Stones tumbling
     const falling = ctx.createBufferSource();
     falling.buffer = debris(ctx, seconds);
     falling.connect(out);
