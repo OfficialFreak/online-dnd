@@ -1247,6 +1247,15 @@
     });
     let zoom_offset_x = $derived(centered(base_w, window_w));
     let zoom_offset_y = $derived(centered(base_h, window_h - titlebar_room));
+    /**
+     * Room around the map the page scrolls into, a quarter of the window: an edge of the
+     * map comes away from the edge of the screen and out from under the controls, to zoom
+     * in on what lies there
+     */
+    let slack_x = $derived(editable ? Math.round(window_w * 0.25) : 0);
+    let slack_y = $derived(
+        editable ? Math.round(Math.max(0, window_h - titlebar_room) * 0.25) : 0,
+    );
     let map_element: HTMLDivElement | null = $state(null);
 
     $effect(() => {
@@ -1308,8 +1317,8 @@
             unshifted.left + window.scrollX + zoom_offset_x + base_w * zoom;
         const bottom =
             unshifted.top + window.scrollY + zoom_offset_y + base_h * zoom;
-        const max_x = Math.max(0, right - document.documentElement.clientWidth);
-        const max_y = Math.max(0, bottom - document.documentElement.clientHeight);
+        const max_x = Math.max(0, right + slack_x - document.documentElement.clientWidth);
+        const max_y = Math.max(0, bottom + slack_y - document.documentElement.clientHeight);
         shift_x = Math.min(Math.max(shift_x, window.scrollX - max_x), window.scrollX);
         shift_y = Math.min(Math.max(shift_y, window.scrollY - max_y), window.scrollY);
     }
@@ -1366,7 +1375,9 @@
         const room = window.innerHeight - titlebar_room;
         appState.zoom = Math.min(1, Math.max(MIN_ZOOM, room / base_h));
         settle();
-        window.scrollTo(0, 0);
+        // Past the room around it, once laid out at the new zoom
+        await tick();
+        window.scrollTo(slack_x, slack_y);
     }
 
     $effect(() => {
@@ -2315,9 +2326,15 @@
      narrow map leaves room beside it, on a tablet the window is taller than the map. What
      sticks out sideways past the screen or a wider map, like the stars of a marker at the
      edge, is cut off there, it would make the page scroll sideways. -->
+<!-- The room around it as padding outside the width, which the map's size is a share of.
+     At least as high as the window: a smaller map sits in its middle, scrolled past the
+     room above it. -->
 <div
     class={editable ? "overflow-x-clip" : ""}
-    style="width: {Math.max(1, wrapper_zoom) * 100}%"
+    style="width: {Math.max(1, wrapper_zoom) *
+        100}%; box-sizing: content-box; padding: {slack_y}px {slack_x}px; min-height: {editable
+        ? Math.max(0, window_h - titlebar_room)
+        : 0}px"
 >
 <!-- With the selection tool a finger draws a box instead of panning. -->
 <div
