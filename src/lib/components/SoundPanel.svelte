@@ -224,7 +224,8 @@
     <p class="text-sm text-base-content/60">
         Musik läuft für alle in Schleife, ein neues Lied ersetzt das alte. Ambiente wie
         Regen läuft daneben, so viel du willst. Effekte spielen einmal. Musik, Ambiente
-        und Wetter merkt sich die Szene, sie kommen wieder, wenn du zu ihr wechselst.
+        und Wetter merkt sich die Szene, sie kommen wieder, wenn du zu ihr wechselst. Eine
+        Szene ohne eigene Musik oder eigenes Ambiente ist still.
         {#if in_tauri}
             Audiodateien aus dem Explorer kannst du hier hineinziehen.
         {/if}
