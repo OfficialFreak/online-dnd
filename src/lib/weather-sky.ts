@@ -2,10 +2,49 @@
  * The night sky behind the map, in the light around it: northern lights, a blood moon in
  * a red sky, stars, and now and then a shooting star, the same moments on every screen.
  */
+import { billows, smoothstep } from "$lib/noise";
 import { half_layer, NONE, seeded, type Frame, type MapBox, type Shown } from "$lib/weather-common";
 
 /** A shooting star across the sky, where it starts in fractions of the screen */
 type Shooting = { at: number; x: number; y: number; angle: number; speed: number; life: number; tail: number };
+
+/**
+ * The bands of the northern lights: how high they wind through the sky, in fractions of
+ * the screen, how far they swing to the side and so curl up now and then, how bright
+ * and how tall their rays
+ */
+const CURTAINS = [
+    { base: 0.2, swing: 0.07, curl: 0.1, phase: 0, bright: 1, tall: 1 },
+    { base: 0.3, swing: 0.05, curl: 0.06, phase: 2.3, bright: 0.75, tall: 0.8 },
+    { base: 0.12, swing: 0.04, curl: 0.04, phase: 4.6, bright: 0.5, tall: 0.65 },
+];
+
+/** The band's lower edge drawn twice, a soft glow and a brighter seam on it */
+const AURORA_BAND = [
+    [20, "90, 240, 170", 0.07],
+    [5, "160, 255, 195", 0.16],
+] as const;
+
+/**
+ * Points along a band across the screen, each with how far along it is. It sways up and
+ * down and to the sides, where it swings back further than it goes on it curls.
+ */
+function curtain_path(curtain: (typeof CURTAINS)[number], width: number, height: number, t: number) {
+    const points: [number, number, number][] = [];
+    // Swinging to the side bunches the rays up where it turns, without folding over
+    const curl = curtain.curl * (0.6 + 0.4 * Math.sin(t * 0.025 + curtain.phase));
+    const count = Math.max(60, Math.round(width / 4));
+    for (let i = 0; i <= count; i++) {
+        const along = -0.1 + (i / count) * 1.2;
+        const x = along * width + Math.sin(along * 7 + t * 0.06 + curtain.phase) * width * curl;
+        const y =
+            height * curtain.base +
+            Math.sin(along * 4.3 + t * 0.05 + curtain.phase) * height * curtain.swing +
+            Math.sin(along * 11 - t * 0.08 + curtain.phase * 1.7) * height * 0.015;
+        points.push([x, y, along]);
+    }
+    return points;
+}
 
 /** Shooting stars come in windows this long, a window may have one */
 const SHOOTING_WINDOW = 7000;
@@ -130,35 +169,50 @@ export class Sky {
     }
 
     /**
-     * Curtains of light in the upper sky: many thin strips, bright green below, fading
-     * into violet above, swaying slowly. At half the size about thirty times a second.
+     * Northern lights as they look: bands of light winding through the upper sky, now and
+     * then curling up, brightest along their lower edge, with rays rising from them here
+     * and there, in bunches and of uneven height, fading upwards into violet. On a canvas
+     * a third of the size, which blurs them softly, about thirty times a second.
      */
     private draw_aurora(frame: Frame, strength: number) {
         if (frame.dt === 0 || frame.now - this.aurora_drawn >= (frame.lite ? 60 : 30)) {
             this.aurora_drawn = frame.now;
-            const { layer, ctx } = half_layer(this.aurora_layer, frame.width, frame.height);
+            const { layer, ctx } = half_layer(this.aurora_layer, frame.width, frame.height, 3);
             this.aurora_layer = layer;
-            const strip = this.aurora_strip();
+            const ray = this.aurora_strip();
             const { width, height } = frame;
             const t = frame.now / 1000;
-            const gap = frame.lite ? 6 : 3;
+            const step = frame.lite ? 2 : 1;
             ctx.globalCompositeOperation = "lighter";
-            for (const curtain of [0, 1, 2]) {
-                const phase = curtain * 2.1;
-                const base = height * (0.2 + curtain * 0.07);
-                for (let x = -gap; x < width + gap; x += gap) {
-                    const y =
-                        base +
-                        Math.sin(x * 0.0035 + t * 0.09 + phase) * height * 0.06 +
-                        Math.sin(x * 0.011 - t * 0.15 + phase * 1.7) * height * 0.02;
-                    const tall = height * (0.12 + 0.08 * Math.sin(x * 0.006 + t * 0.12 + phase * 0.6));
-                    // Brighter and fainter strips, drifting along
-                    const shimmer =
-                        0.5 +
-                        0.3 * Math.sin(x * 0.045 + t * 0.7 + phase) +
-                        0.2 * Math.sin(x * 0.13 - t * 1.3 + phase * 2);
-                    ctx.globalAlpha = Math.max(0, shimmer) * strength * (curtain === 1 ? 0.6 : 0.45);
-                    ctx.drawImage(strip, x, y - tall, gap + 1, tall);
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            for (const curtain of CURTAINS) {
+                const points = curtain_path(curtain, width, height, t);
+                // The curtain is its rays, close together: faint all along, bright in
+                // bunches, single ones taller and brighter than their neighbours
+                for (let i = 0; i < points.length; i += step) {
+                    const [x, y, along] = points[i];
+                    const bunch = smoothstep(0.3, 0.72, billows(along * 3.2 + curtain.phase, t * 0.03, 2));
+                    const single = billows(along * 70 + curtain.phase * 3, t * 0.18, 1);
+                    const tall = height * (0.06 + 0.24 * bunch * (0.6 + 0.4 * single)) * curtain.tall;
+                    ctx.globalAlpha = Math.min(
+                        1,
+                        strength * curtain.bright * (0.14 + 0.6 * bunch) * (0.5 + 0.5 * single),
+                    );
+                    ctx.drawImage(ray, x - 8, y - tall, 16, tall + 3);
+                }
+                // The band itself, a wide soft glow and its bright lower edge
+                ctx.globalAlpha = 1;
+                for (const [line, colour, alpha] of AURORA_BAND) {
+                    ctx.beginPath();
+                    for (let i = 0; i < points.length; i++) {
+                        const [x, y] = points[i];
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.lineWidth = line;
+                    ctx.strokeStyle = `rgba(${colour}, ${alpha * strength * curtain.bright})`;
+                    ctx.stroke();
                 }
             }
             ctx.globalAlpha = 1;
@@ -167,29 +221,44 @@ export class Sky {
         frame.ctx.drawImage(this.aurora_layer!, 0, 0, frame.width, frame.height);
     }
 
-    /** One strip of the curtain, drawn once: green at its foot, violet higher up */
+    /**
+     * One ray of the curtain, drawn once: green at its foot, violet higher up, fading out
+     * to both sides so the rays blend into each other
+     */
     private aurora_strip() {
         if (this.strip) return this.strip;
         const strip = document.createElement("canvas");
-        strip.width = 2;
+        strip.width = 16;
         strip.height = 128;
         const ctx = strip.getContext("2d")!;
         const light = ctx.createLinearGradient(0, 128, 0, 0);
-        light.addColorStop(0, "rgba(90, 255, 170, 0)");
-        light.addColorStop(0.08, "rgba(90, 255, 170, 0.95)");
-        light.addColorStop(0.35, "rgba(60, 230, 160, 0.55)");
-        light.addColorStop(0.7, "rgba(130, 90, 255, 0.3)");
+        light.addColorStop(0, "rgba(120, 255, 170, 0)");
+        light.addColorStop(0.04, "rgba(120, 255, 170, 0.95)");
+        light.addColorStop(0.3, "rgba(70, 240, 160, 0.6)");
+        light.addColorStop(0.65, "rgba(70, 200, 170, 0.25)");
+        light.addColorStop(0.85, "rgba(140, 90, 255, 0.12)");
         light.addColorStop(1, "rgba(160, 80, 255, 0)");
         ctx.fillStyle = light;
-        ctx.fillRect(0, 0, 2, 128);
+        ctx.fillRect(0, 0, 16, 128);
+        const sides = ctx.createLinearGradient(0, 0, 16, 0);
+        sides.addColorStop(0, "rgba(0, 0, 0, 0)");
+        sides.addColorStop(0.5, "rgba(0, 0, 0, 1)");
+        sides.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.globalCompositeOperation = "destination-in";
+        ctx.fillStyle = sides;
+        ctx.fillRect(0, 0, 16, 128);
         return (this.strip = strip);
     }
 
-    /** A big red moon with a glow, in the free sky beside or above the map */
+    /**
+     * A big red moon with a glow, in the free sky beside or above the map: a photo of the
+     * moon, until it has loaded a drawn one
+     */
     private draw_moon(frame: Frame, strength: number) {
         const { ctx, width, height } = frame;
-        const radius = Math.round(Math.min(64, Math.max(22, Math.min(width, height) * 0.055)));
-        if (this.moon?.radius !== radius) this.moon = { radius, sprite: moon_sprite(radius) };
+        const radius = Math.round(Math.min(90, Math.max(28, Math.min(width, height) * 0.07)));
+        const photo = moon_photo(() => (this.moon = null));
+        if (this.moon?.radius !== radius) this.moon = { radius, sprite: moon_sprite(radius, photo) };
         const [x, y] = moon_spot(frame.map, width, height, radius);
         const size = this.moon.sprite.width;
         ctx.globalAlpha = strength;
@@ -249,8 +318,32 @@ function moon_spot(map: MapBox | null, width: number, height: number, radius: nu
     return [width - radius - 30, radius + 30];
 }
 
-/** The moon drawn once: a glow, a disc dark red at its rim, a few darker seas */
-function moon_sprite(radius: number) {
+let photo: HTMLImageElement | null = null;
+let photo_loaded = false;
+
+/**
+ * The photo of the moon, loaded once: the near side as the Lunar Reconnaissance Orbiter
+ * saw it (NASA/GSFC/Arizona State University, public domain), see static/weather. Null
+ * until it is there, `loaded` comes then.
+ */
+function moon_photo(loaded: () => void) {
+    if (photo_loaded) return photo;
+    if (!photo && typeof Image !== "undefined") {
+        photo = new Image();
+        photo.onload = () => {
+            photo_loaded = true;
+            loaded();
+        };
+        photo.src = "/weather/moon.webp";
+    }
+    return null;
+}
+
+/**
+ * The moon drawn once: a glow, and the photo in the deep red of a moon in the Earth's
+ * shadow, brighter on one side. Without the photo a red disc with a few darker seas.
+ */
+function moon_sprite(radius: number, picture: HTMLImageElement | null) {
     const size = Math.ceil(radius * 6);
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = size;
@@ -261,6 +354,31 @@ function moon_sprite(radius: number) {
     glow.addColorStop(1, "rgba(255, 40, 20, 0)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, size, size);
+    if (picture) {
+        const side = Math.ceil(radius * 2);
+        const disc = document.createElement("canvas");
+        disc.width = disc.height = side;
+        const d = disc.getContext("2d")!;
+        d.drawImage(picture, 0, 0, side, side);
+        d.globalCompositeOperation = "multiply";
+        d.fillStyle = "rgb(255, 132, 86)";
+        d.fillRect(0, 0, side, side);
+        // Lit more from one side, darker towards the other
+        const light = d.createRadialGradient(side * 0.32, side * 0.7, side * 0.05, side * 0.5, side * 0.5, side * 0.8);
+        light.addColorStop(0, "rgb(255, 245, 228)");
+        light.addColorStop(1, "rgb(135, 80, 72)");
+        d.fillStyle = light;
+        d.fillRect(0, 0, side, side);
+        // The seas not quite black
+        d.globalCompositeOperation = "screen";
+        d.fillStyle = "rgb(46, 8, 4)";
+        d.fillRect(0, 0, side, side);
+        // Only the disc
+        d.globalCompositeOperation = "destination-in";
+        d.drawImage(picture, 0, 0, side, side);
+        ctx.drawImage(disc, c - radius, c - radius, radius * 2, radius * 2);
+        return canvas;
+    }
     const disc = ctx.createRadialGradient(c - radius * 0.3, c - radius * 0.3, radius * 0.1, c, c, radius);
     disc.addColorStop(0, "rgb(225, 80, 55)");
     disc.addColorStop(0.7, "rgb(175, 40, 28)");

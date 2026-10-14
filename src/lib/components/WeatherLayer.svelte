@@ -14,8 +14,9 @@
         WeatherRenderer,
         type Flash,
     } from "$lib/weather";
-    import { gusty, NONE, seeded } from "$lib/weather-common";
-    import { play_clink, play_rumble } from "$lib/weather-sounds";
+    import { gusty, NONE, quake_strength, seeded } from "$lib/weather-common";
+    import { QUAKE_FOR } from "$lib/weather-moments";
+    import { play_clink, play_rumble, prepare_clinks } from "$lib/weather-sounds";
 
     /** The weather of the active scene, over the map and its markers but under the controls */
     let { weather }: { weather: Weather | null | undefined } = $props();
@@ -165,8 +166,9 @@
     }
 
     /**
-     * The map shakes, hard at first and then less: what carries it and its figures, the
-     * element that moves it. A translation on top of its own, so it stays where it is.
+     * The map shakes with the quake, hard at first, less, and once more: what carries it
+     * and its figures, the element that moves it. A translation on top of its own, so it
+     * stays where it is.
      */
     function shake() {
         if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -174,15 +176,16 @@
         while (mover && !mover.style.transform) mover = mover.parentElement;
         if (!mover) return;
         const frames: Keyframe[] = [];
-        const steps = 26;
+        // About twelve jerks a second
+        const steps = Math.round((QUAKE_FOR / 1000) * 12);
         for (let i = 0; i < steps; i++) {
-            const strength = 7 * (1 - i / steps) ** 1.3;
+            const strength = 8 * quake_strength(i / steps);
             const x = (Math.random() - 0.5) * 2 * strength;
             const y = (Math.random() - 0.5) * 2 * strength;
             frames.push({ translate: `${x.toFixed(1)}px ${y.toFixed(1)}px` });
         }
         frames.push({ translate: "0px 0px" });
-        mover.animate(frames, { duration: 2400, easing: "linear" });
+        mover.animate(frames, { duration: QUAKE_FOR, easing: "linear" });
     }
 
     // The DM's moments, for everyone at once, see +layout.svelte
@@ -193,9 +196,10 @@
             ).detail;
             if (moment === "thunder") return thunderclap(seed, file);
             if (moment === "quake") {
-                play_rumble();
+                play_rumble(QUAKE_FOR / 1000);
                 if (appState.show_weather) shake();
             }
+            if (moment === "gold") prepare_clinks();
             if (appState.show_weather) renderer?.moment(moment, seed);
         };
         window.addEventListener("weather-moment", on_moment);

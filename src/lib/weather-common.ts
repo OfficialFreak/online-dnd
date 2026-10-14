@@ -101,6 +101,17 @@ export function gusty(wind: number, time: number) {
     return wind * (1 + 1.1 * gust);
 }
 
+/**
+ * How hard a quake shakes from its start (0) to its end (1): a hard jolt, dying down, and
+ * an aftershock about halfway. The map, the rubble and the rumble all follow it.
+ */
+export function quake_strength(progress: number) {
+    if (progress < 0 || progress > 1) return 0;
+    const first = Math.exp(-progress * 4.5);
+    const after = 0.6 * Math.exp(-(((progress - 0.5) / 0.08) ** 2));
+    return Math.min(1, first + after) * (1 - progress ** 3);
+}
+
 /** A thunderstorm comes up, passes overhead and moves on in this many milliseconds */
 const STORM_PASS = 6 * 60_000;
 
@@ -137,11 +148,14 @@ export function cloud_sprite(colour = "235, 238, 244") {
     return canvas;
 }
 
-/** A canvas at half the size of the screen, for what is soft anyway and drawn less often */
-export function half_layer(layer: HTMLCanvasElement | null, width: number, height: number) {
+/**
+ * A canvas at a `fraction` of the size of the screen, half by default, for what is soft
+ * anyway and drawn less often. Stretched over the screen it blurs.
+ */
+export function half_layer(layer: HTMLCanvasElement | null, width: number, height: number, fraction = 2) {
     layer ??= document.createElement("canvas");
-    const w = Math.max(1, Math.ceil(width / 2));
-    const h = Math.max(1, Math.ceil(height / 2));
+    const w = Math.max(1, Math.ceil(width / fraction));
+    const h = Math.max(1, Math.ceil(height / fraction));
     if (layer.width !== w || layer.height !== h) {
         layer.width = w;
         layer.height = h;

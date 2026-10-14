@@ -1,9 +1,9 @@
 /**
  * What the DM lets happen for a few seconds over everyone's map: blood rain, gold rain and
- * a quake that shakes dust and pebbles loose. The thunderclap is a flash of the storm.
+ * a quake that shakes dust and rubble loose. The thunderclap is a flash of the storm.
  */
 import type { WeatherMomentKind } from "$lib/types/messaging/server_messages";
-import { drop_at, seeded, type Frame } from "$lib/weather-common";
+import { drop_at, quake_strength, seeded, type Frame } from "$lib/weather-common";
 
 /** A coin or a pebble, falling, bouncing off the map's top edge and lying there a while */
 type Piece = {
@@ -22,12 +22,23 @@ type Piece = {
     /** A pebble's corners, for coins none */
     corners: number[] | null;
 };
-type Dust = { x: number; y: number; vx: number; vy: number; size: number; age: number; life: number };
+/** Fine dust trickling, or with `cloud` a soft puff billowing out */
+type Dust = {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    age: number;
+    life: number;
+    cloud: boolean;
+};
 
 /** How long blood rain lasts, in milliseconds */
 const BLOOD_FOR = 6500;
 const GOLD_FOR = 2400;
-const QUAKE_FOR = 2600;
+/** As long as the rumble, see play_rumble() */
+export const QUAKE_FOR = 4400;
 
 export class Moments {
     private blood_since = -Infinity;
@@ -39,6 +50,9 @@ export class Moments {
     private dust: Dust[] = [];
     private coins_due = 0;
     private pebbles_due = 0;
+    private crumbs_due = 0;
+    /** A soft round puff of dust, drawn once, for the clouds */
+    private puff_sprite: HTMLCanvasElement | null = null;
 
     constructor(
         /** A coin hit the map, `loudness` by how hard */
@@ -91,41 +105,36 @@ export class Moments {
             }
         }
 
-        const quaking = now - this.quake_since < QUAKE_FOR;
-        if (quaking) {
-            const shaking = 1 - (now - this.quake_since) / QUAKE_FOR;
-            // Pebbles fall from above and crumble off the bottom edge of the map
-            this.pebbles_due += 22 * shaking * dt;
+        const since = now - this.quake_since;
+        if (since < QUAKE_FOR) {
+            // Harder in the jolts, see quake_strength()
+            const shaking = quake_strength(since / QUAKE_FOR);
+            // Rubble falls from above onto the map
+            this.pebbles_due += 18 * shaking * dt;
             while (this.pebbles_due >= 1) {
                 this.pebbles_due--;
-                const from_map = map && map.bottom < height && Math.random() < 0.45;
-                const x = from_map
-                    ? Math.max(map.left, 0) + Math.random() * (Math.min(map.right, width) - Math.max(map.left, 0))
-                    : Math.random() * width;
-                const pebble = piece(x, from_map ? map.bottom : -10, 1.6 + Math.random() * 3, true);
-                if (from_map) pebble.vy = 20 + Math.random() * 60;
-                this.pebbles.push(pebble);
+                this.pebbles.push(piece(Math.random() * width, -10, 2 + Math.random() ** 1.8 * 7, true));
             }
+            // The map's edges crumble, chunks break off with a puff of dust
+            if (map) this.crumble(frame, 40 * shaking * dt);
             // Fine dust trickles from above in a few streams, with grit falling faster
             for (const stream of this.quake_streams) {
                 const x = stream * width;
-                let due = 70 * shaking * dt;
-                while (due > 0) {
-                    if (Math.random() < due) {
-                        this.dust.push({
-                            x: x + (Math.random() - 0.5) * 20,
-                            y: -6,
-                            vx: (Math.random() - 0.5) * 40,
-                            vy: 35 + Math.random() * 70,
-                            size: 0.8 + Math.random() * 1.8,
-                            age: 0,
-                            life: 1.6 + Math.random() * 1.8,
-                        });
-                    }
-                    due--;
+                for (let due = 80 * shaking * dt; due > 0; due--) {
+                    if (Math.random() >= due) continue;
+                    this.dust.push({
+                        x: x + (Math.random() - 0.5) * 20,
+                        y: -6,
+                        vx: (Math.random() - 0.5) * 40,
+                        vy: 35 + Math.random() * 70,
+                        size: 0.7 + Math.random() * 1.6,
+                        age: 0,
+                        life: 1.8 + Math.random() * 2,
+                        cloud: false,
+                    });
                 }
-                if (Math.random() < 9 * shaking * dt) {
-                    const grit = piece(x + (Math.random() - 0.5) * 10, -6, 0.7 + Math.random() * 0.9, true);
+                if (Math.random() < 10 * shaking * dt) {
+                    const grit = piece(x + (Math.random() - 0.5) * 10, -6, 0.6 + Math.random() * 1.2, true);
                     grit.vy = 160 + Math.random() * 120;
                     this.pebbles.push(grit);
                 }
@@ -151,7 +160,7 @@ export class Moments {
                     continue;
                 }
                 const before = p.y;
-                p.vy += 1300 * dt;
+                p.vy += (coins ? 1300 : 950) * dt;
                 p.x += p.vx * dt;
                 p.y += p.vy * dt;
                 const ground = surface(p.x);
@@ -159,7 +168,7 @@ export class Moments {
                     p.y = ground;
                     if (p.bounces < 2 && p.vy > 140) {
                         if (coins) this.on_clink?.(Math.min(1, p.vy / 900));
-                        else if (p.bounces === 0) this.puff(p.x, ground);
+                        else if (p.bounces === 0) this.puff(p.x, ground, p.size);
                         p.vy = -p.vy * (0.3 + Math.random() * 0.2);
                         p.vx += (Math.random() - 0.5) * 110;
                         p.turn *= 1.5;
@@ -180,65 +189,127 @@ export class Moments {
             d.age += dt;
             d.x += (d.vx + frame.wind * 20) * dt;
             d.y += d.vy * dt;
-            d.vy += 25 * dt;
-            d.vx *= Math.max(0, 1 - dt * 0.8);
-            d.size += 2.2 * dt;
+            // Clouds slow down and billow, fine dust keeps falling
+            d.vy += (d.cloud ? 6 : 25) * dt;
+            d.vx *= Math.max(0, 1 - dt * (d.cloud ? 1.6 : 0.8));
+            if (d.cloud) d.vy *= Math.max(0, 1 - dt * 1.2);
+            d.size += (d.cloud ? 14 : 2.2) * dt;
             if (d.age > d.life) drop_at(this.dust, i);
         }
     }
 
-    /** A little cloud of dust where a pebble hit */
-    private puff(x: number, y: number) {
-        for (let i = 0; i < 4; i++) {
+    /**
+     * Chunks break off the map's bottom and sides, `due` of them this frame, and fall
+     * away, each with a puff of dust where it broke
+     */
+    private crumble(frame: Frame, due: number) {
+        const { map, width, height } = frame;
+        if (!map) return;
+        // The parts of the edges on the screen
+        const left = Math.max(0, map.left);
+        const right = Math.min(width, map.right);
+        const top = Math.max(0, map.top);
+        const bottom = Math.min(height, map.bottom);
+        const edges: [number, () => [number, number, number]][] = [];
+        if (map.bottom < height && right > left) {
+            edges.push([right - left, () => [left + Math.random() * (right - left), map.bottom, 0]]);
+        }
+        if (map.left > 0 && bottom > top) {
+            edges.push([(bottom - top) * 0.6, () => [map.left, top + Math.random() * (bottom - top), -1]]);
+        }
+        if (map.right < width && bottom > top) {
+            edges.push([(bottom - top) * 0.6, () => [map.right, top + Math.random() * (bottom - top), 1]]);
+        }
+        const total = edges.reduce((sum, [length]) => sum + length, 0);
+        if (!total) return;
+        this.crumbs_due += due;
+        while (this.crumbs_due >= 1) {
+            this.crumbs_due--;
+            let pick = Math.random() * total;
+            const [, place] = edges.find(([length]) => (pick -= length) < 0) ?? edges[0];
+            const [x, y, side] = place();
+            const chunk = piece(x + side * 2, y + (side ? 0 : 2), 2 + Math.random() ** 1.6 * 7, true);
+            chunk.vx = side * (20 + Math.random() * 60) + (Math.random() - 0.5) * 30;
+            chunk.vy = side ? -20 + Math.random() * 40 : 10 + Math.random() * 50;
+            this.pebbles.push(chunk);
+            this.puff(x, y, chunk.size, side);
+        }
+    }
+
+    /** A cloud of dust where rubble hit or broke off, puffing out to `side` */
+    private puff(x: number, y: number, size: number, side = 0) {
+        const clouds = 2 + Math.floor(size / 2);
+        for (let i = 0; i < clouds; i++) {
             this.dust.push({
-                x,
-                y: y - 2,
-                vx: (Math.random() - 0.5) * 60,
-                vy: -10 - Math.random() * 25,
-                size: 2 + Math.random() * 3,
+                x: x + (Math.random() - 0.5) * size * 1.5,
+                y: y - 2 + (Math.random() - 0.5) * size,
+                vx: side * (25 + Math.random() * 45) + (Math.random() - 0.5) * 60,
+                vy: -6 - Math.random() * 22,
+                size: 6 + Math.random() * 6 + size * 1.5,
                 age: 0,
-                life: 0.8 + Math.random() * 0.7,
+                life: 1.5 + Math.random() * 1.4,
+                cloud: true,
             });
         }
     }
 
     draw(frame: Frame) {
         const { ctx } = frame;
-        if (this.dust.length) {
-            for (const [from, alpha] of [
-                [0, 0.24],
-                [0.5, 0.11],
+        if (this.dust.length) this.draw_dust(frame);
+        if (this.pebbles.length) {
+            // Each chunk dark, with a lighter face towards the sky, so it looks solid
+            for (const [face, colour] of [
+                [false, "68, 61, 55, 0.96"],
+                [true, "132, 121, 107, 0.92"],
             ] as const) {
                 ctx.beginPath();
-                for (const d of this.dust) {
-                    const age = d.age / d.life;
-                    if (age < from || age >= from + 0.5) continue;
-                    ctx.moveTo(d.x + d.size, d.y);
-                    ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
+                for (const p of this.pebbles) {
+                    if (face && p.size < 1.6) continue;
+                    const corners = p.corners!;
+                    const scale = face ? 0.55 : 1;
+                    const cx = p.x - (face ? p.size * 0.22 : 0);
+                    const cy = p.y - (face ? p.size * 0.26 : 0);
+                    for (let i = 0; i < corners.length; i++) {
+                        const angle = p.spin + (i / corners.length) * Math.PI * 2;
+                        const x = cx + Math.cos(angle) * p.size * corners[i] * scale;
+                        const y = cy + Math.sin(angle) * p.size * corners[i] * scale;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
                 }
-                ctx.fillStyle = `rgba(160, 145, 125, ${alpha})`;
+                ctx.fillStyle = `rgba(${colour})`;
                 ctx.fill();
             }
         }
-        if (this.pebbles.length) {
+        if (this.coins.length) this.draw_coins(frame);
+    }
+
+    /** Fine dust as dots, the clouds as soft puffs fading as they spread */
+    private draw_dust(frame: Frame) {
+        const { ctx } = frame;
+        for (const [from, alpha] of [
+            [0, 0.24],
+            [0.5, 0.11],
+        ] as const) {
             ctx.beginPath();
-            for (const p of this.pebbles) {
-                const corners = p.corners!;
-                const fade = p.lying !== null ? 1 - p.lying / p.stays : 1;
-                if (fade <= 0) continue;
-                for (let i = 0; i < corners.length; i++) {
-                    const angle = p.spin + (i / corners.length) * Math.PI * 2;
-                    const x = p.x + Math.cos(angle) * p.size * corners[i];
-                    const y = p.y + Math.sin(angle) * p.size * corners[i];
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.closePath();
+            for (const d of this.dust) {
+                const age = d.age / d.life;
+                if (d.cloud || age < from || age >= from + 0.5) continue;
+                ctx.moveTo(d.x + d.size, d.y);
+                ctx.arc(d.x, d.y, d.size, 0, Math.PI * 2);
             }
-            ctx.fillStyle = "rgba(92, 84, 76, 0.95)";
+            ctx.fillStyle = `rgba(160, 145, 125, ${alpha})`;
             ctx.fill();
         }
-        if (this.coins.length) this.draw_coins(frame);
+        const sprite = (this.puff_sprite ??= puff_sprite());
+        for (const d of this.dust) {
+            if (!d.cloud) continue;
+            const age = d.age / d.life;
+            ctx.globalAlpha = 0.6 * Math.min(1, age * 6) * (1 - age) ** 1.3;
+            ctx.drawImage(sprite, d.x - d.size, d.y - d.size, d.size * 2, d.size * 2);
+        }
+        ctx.globalAlpha = 1;
     }
 
     /**
@@ -266,6 +337,20 @@ export class Moments {
             ctx.fill();
         }
     }
+}
+
+/** A soft round puff, densest in the middle, in the colour of dry dust */
+function puff_sprite() {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 64;
+    const ctx = canvas.getContext("2d")!;
+    const puff = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    puff.addColorStop(0, "rgba(168, 154, 134, 0.9)");
+    puff.addColorStop(0.5, "rgba(160, 146, 126, 0.45)");
+    puff.addColorStop(1, "rgba(150, 138, 120, 0)");
+    ctx.fillStyle = puff;
+    ctx.fillRect(0, 0, 64, 64);
+    return canvas;
 }
 
 function piece(x: number, y: number, size: number, pebble: boolean): Piece {
