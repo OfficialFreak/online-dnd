@@ -72,10 +72,8 @@ html.veiled .gui * {
     pointer-events: none !important;
 }
 
-/* With the controls folded away the title bar is transparent, the page starts at the top */
-html.controls-folded body {
-    margin-top: var(--safe-top);
-}
+/* The page starts below the title bar also with the controls folded away: the map moved
+   down and up with them */
 
 /* Behind an open dialog the title bar fades. Asked on the title bar, the dialogs come
    after it: asked on the root, every class changing anywhere restyled the whole page,
