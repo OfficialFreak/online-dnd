@@ -176,7 +176,12 @@
         >
             <span class="text-xs uppercase font-bold">hit points</span>
             <span class="text-sm"
-                >{character.currentHealth}/{character.maxHealth}</span
+                >{character.currentHealth}/{character.maxHealth}
+                {#if character.temporaryHitPoints > 0}
+                    <span class="text-info" title="Temporäre Trefferpunkte"
+                        >+{character.temporaryHitPoints}</span
+                    >
+                {/if}</span
             >
             <progress
                 class="progress progress-error w-full"
