@@ -567,7 +567,7 @@ function leave(T: Tools, t: number, g: Genes) {
  * slows and the cracks run in as the smoke closes over the old scene, the boom falls as the
  * name of the new one unrolls, and time speeds up again as the smoke draws back from it.
  */
-const SCENE = 0.5;
+const SCENE = 0.75;
 
 function scene_close(T: Tools, t: number) {
     T.void_level.setValueAtTime(0.35 * LEAVE.space, t);
