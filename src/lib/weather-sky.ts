@@ -3,48 +3,49 @@
  * a red sky, stars, and now and then a shooting star, the same moments on every screen.
  */
 import { billows, smoothstep } from "$lib/noise";
-import { half_layer, NONE, seeded, type Frame, type MapBox, type Shown } from "$lib/weather-common";
+import { NONE, seeded, type Frame, type MapBox, type Shown } from "$lib/weather-common";
 
 /** A shooting star across the sky, where it starts in fractions of the screen */
 type Shooting = { at: number; x: number; y: number; angle: number; speed: number; life: number; tail: number };
 
 /**
  * The bands of the northern lights: how high they wind through the sky, in fractions of
- * the screen, how far they swing to the side and so curl up now and then, how bright
- * and how tall their rays
+ * the screen, how far up and down, how bright and how tall their rays
  */
 const CURTAINS = [
-    { base: 0.2, swing: 0.07, curl: 0.1, phase: 0, bright: 1, tall: 1 },
-    { base: 0.3, swing: 0.05, curl: 0.06, phase: 2.3, bright: 0.75, tall: 0.8 },
-    { base: 0.12, swing: 0.04, curl: 0.04, phase: 4.6, bright: 0.5, tall: 0.65 },
+    { base: 0.21, swing: 0.07, phase: 0, bright: 1, tall: 1 },
+    { base: 0.31, swing: 0.05, phase: 2.3, bright: 0.7, tall: 0.75 },
+    { base: 0.13, swing: 0.04, phase: 4.6, bright: 0.5, tall: 0.6 },
 ];
 
-/** The band's lower edge drawn twice, a soft glow and a brighter seam on it */
-const AURORA_BAND = [
-    [20, "90, 240, 170", 0.07],
-    [5, "160, 255, 195", 0.16],
-] as const;
+/** How much of the screen from the top the northern lights may fill */
+const AURORA_SKY = 0.42;
+
+/** Steps of the light from the foot of a ray to its top, see AURORA_LIGHT */
+const AURORA_STEPS = 128;
 
 /**
- * Points along a band across the screen, each with how far along it is. It sways up and
- * down and to the sides, where it swings back further than it goes on it curls.
+ * The light of a ray from its foot to its top, worked out once: red, green and blue in
+ * AURORA_STEPS steps, each from 0 to 1. Pale green and brightest at the foot, green,
+ * teal, fading into violet at the top.
  */
-function curtain_path(curtain: (typeof CURTAINS)[number], width: number, height: number, t: number) {
-    const points: [number, number, number][] = [];
-    // Swinging to the side bunches the rays up where it turns, without folding over
-    const curl = curtain.curl * (0.6 + 0.4 * Math.sin(t * 0.025 + curtain.phase));
-    const count = Math.max(60, Math.round(width / 4));
-    for (let i = 0; i <= count; i++) {
-        const along = -0.1 + (i / count) * 1.2;
-        const x = along * width + Math.sin(along * 7 + t * 0.06 + curtain.phase) * width * curl;
-        const y =
-            height * curtain.base +
-            Math.sin(along * 4.3 + t * 0.05 + curtain.phase) * height * curtain.swing +
-            Math.sin(along * 11 - t * 0.08 + curtain.phase * 1.7) * height * 0.015;
-        points.push([x, y, along]);
+const AURORA_LIGHT = (() => {
+    const light = new Float32Array(AURORA_STEPS * 3);
+    for (let i = 0; i < AURORA_STEPS; i++) {
+        const up = i / (AURORA_STEPS - 1);
+        let colour = [130, 255, 170];
+        if (up >= 0.15 && up < 0.55) {
+            const k = (up - 0.15) / 0.4;
+            colour = [130 - 70 * k, 255 - 40 * k, 170];
+        } else if (up >= 0.55) {
+            const k = (up - 0.55) / 0.45;
+            colour = [60 + 90 * k, 215 - 135 * k, 170 + 85 * k];
+        }
+        const shape = (1 - up) ** 1.4 * (0.6 + 0.4 * Math.exp(-up * 7));
+        light.set(colour.map((value) => (value / 255) * shape), i * 3);
     }
-    return points;
-}
+    return light;
+})();
 
 /** Shooting stars come in windows this long, a window may have one */
 const SHOOTING_WINDOW = 7000;
@@ -82,7 +83,9 @@ export class Sky {
     private stars: { x: number; y: number; size: number; phase: number }[] = [];
     private aurora_layer: HTMLCanvasElement | null = null;
     private aurora_drawn = -Infinity;
-    private strip: HTMLCanvasElement | null = null;
+    /** The light of the northern lights, red, green and blue for each pixel of the layer */
+    private aurora_light: Float32Array | null = null;
+    private aurora_image: ImageData | null = null;
     private moon: { radius: number; sprite: HTMLCanvasElement } | null = null;
 
     constructor() {
@@ -169,85 +172,88 @@ export class Sky {
     }
 
     /**
-     * Northern lights as they look: bands of light winding through the upper sky, now and
-     * then curling up, brightest along their lower edge, with rays rising from them here
-     * and there, in bunches and of uneven height, fading upwards into violet. On a canvas
-     * a third of the size, which blurs them softly, about thirty times a second.
+     * Northern lights as they look: bands of light winding through the upper sky,
+     * brightest along their lower edge, with rays rising from them in bunches, of uneven
+     * height and brightness, fading upwards into violet, drifting slowly along. Worked out
+     * column by column from noise into a small picture a quarter of the size, one smooth
+     * field of light: rays drawn side by side showed as stripes repeating. Twenty times a
+     * second, half as often on phones, it moves slowly.
      */
     private draw_aurora(frame: Frame, strength: number) {
-        if (frame.dt === 0 || frame.now - this.aurora_drawn >= (frame.lite ? 60 : 30)) {
+        const { width, height } = frame;
+        const fraction = frame.lite ? 5 : 4;
+        const columns = Math.max(1, Math.ceil(width / fraction));
+        const rows = Math.max(1, Math.ceil((height * AURORA_SKY) / fraction));
+        if (frame.dt === 0 || frame.now - this.aurora_drawn >= (frame.lite ? 100 : 50)) {
             this.aurora_drawn = frame.now;
-            const { layer, ctx } = half_layer(this.aurora_layer, frame.width, frame.height, 3);
-            this.aurora_layer = layer;
-            const ray = this.aurora_strip();
-            const { width, height } = frame;
+            const layer = (this.aurora_layer ??= document.createElement("canvas"));
+            if (layer.width !== columns || layer.height !== rows) {
+                layer.width = columns;
+                layer.height = rows;
+                this.aurora_light = new Float32Array(columns * rows * 3);
+            }
+            const light = (this.aurora_light ??= new Float32Array(columns * rows * 3));
+            light.fill(0);
             const t = frame.now / 1000;
-            const step = frame.lite ? 2 : 1;
-            ctx.globalCompositeOperation = "lighter";
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
             for (const curtain of CURTAINS) {
-                const points = curtain_path(curtain, width, height, t);
-                // The curtain is its rays, close together: faint all along, bright in
-                // bunches, single ones taller and brighter than their neighbours
-                for (let i = 0; i < points.length; i += step) {
-                    const [x, y, along] = points[i];
-                    const bunch = smoothstep(0.3, 0.72, billows(along * 3.2 + curtain.phase, t * 0.03, 2));
-                    const single = billows(along * 70 + curtain.phase * 3, t * 0.18, 1);
-                    const tall = height * (0.06 + 0.24 * bunch * (0.6 + 0.4 * single)) * curtain.tall;
-                    ctx.globalAlpha = Math.min(
-                        1,
-                        strength * curtain.bright * (0.14 + 0.6 * bunch) * (0.5 + 0.5 * single),
+                const bright = strength * curtain.bright;
+                for (let column = 0; column < columns; column++) {
+                    const along = (column * fraction) / width;
+                    // Where its lower edge is, in rows
+                    const edge =
+                        (height *
+                            (curtain.base +
+                                Math.sin(along * 4.3 + t * 0.05 + curtain.phase) * curtain.swing +
+                                Math.sin(along * 11 - t * 0.08 + curtain.phase * 1.7) * 0.015)) /
+                        fraction;
+                    // Lively in bunches, and within them rays of every width, drifting along
+                    const bunch = smoothstep(0.28, 0.72, billows(along * 3.2 + curtain.phase, t * 0.03, 2));
+                    const rays = billows(along * 44 + curtain.phase * 3 + t * 0.02, t * 0.12, 3);
+                    const glow = 2.4 * bright * (0.1 + 0.7 * bunch) * (0.18 + 1.4 * rays * rays);
+                    if (glow < 0.01) continue;
+                    const tall = Math.max(
+                        3,
+                        ((height * (0.05 + 0.22 * bunch * (0.45 + 0.55 * rays))) / fraction) * curtain.tall,
                     );
-                    ctx.drawImage(ray, x - 8, y - tall, 16, tall + 3);
-                }
-                // The band itself, a wide soft glow and its bright lower edge
-                ctx.globalAlpha = 1;
-                for (const [line, colour, alpha] of AURORA_BAND) {
-                    ctx.beginPath();
-                    for (let i = 0; i < points.length; i++) {
-                        const [x, y] = points[i];
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
+                    const top = Math.max(0, Math.floor(edge - tall));
+                    const bottom = Math.min(rows - 1, Math.ceil(edge + 3));
+                    const per_row = (AURORA_STEPS - 1) / tall;
+                    for (let row = top; row <= bottom; row++) {
+                        const above = edge - row;
+                        // Gone within a few rows below the edge
+                        const fade = above < 0 ? 1 + above / 2.5 : 1;
+                        if (fade <= 0) continue;
+                        const step = Math.min(AURORA_STEPS - 1, Math.max(0, Math.round(above * per_row))) * 3;
+                        const amount = glow * fade;
+                        const at = (row * columns + column) * 3;
+                        light[at] += AURORA_LIGHT[step] * amount;
+                        light[at + 1] += AURORA_LIGHT[step + 1] * amount;
+                        light[at + 2] += AURORA_LIGHT[step + 2] * amount;
                     }
-                    ctx.lineWidth = line;
-                    ctx.strokeStyle = `rgba(${colour}, ${alpha * strength * curtain.bright})`;
-                    ctx.stroke();
                 }
             }
-            ctx.globalAlpha = 1;
-            ctx.globalCompositeOperation = "source-over";
+            // Light added up on nothing: as bright as its brightest colour, so it lies on the
+            // sky like light, not like paint
+            const image = (this.aurora_image =
+                this.aurora_image?.width === columns && this.aurora_image.height === rows
+                    ? this.aurora_image
+                    : new ImageData(columns, rows));
+            const pixels = image.data;
+            for (let i = 0, j = 0; i < light.length; i += 3, j += 4) {
+                const peak = Math.min(1, Math.max(light[i], light[i + 1], light[i + 2]));
+                if (peak <= 0.002) {
+                    pixels[j + 3] = 0;
+                    continue;
+                }
+                const scale = 255 / Math.max(light[i], light[i + 1], light[i + 2]);
+                pixels[j] = light[i] * scale;
+                pixels[j + 1] = light[i + 1] * scale;
+                pixels[j + 2] = light[i + 2] * scale;
+                pixels[j + 3] = peak * 255;
+            }
+            layer.getContext("2d")!.putImageData(image, 0, 0);
         }
-        frame.ctx.drawImage(this.aurora_layer!, 0, 0, frame.width, frame.height);
-    }
-
-    /**
-     * One ray of the curtain, drawn once: green at its foot, violet higher up, fading out
-     * to both sides so the rays blend into each other
-     */
-    private aurora_strip() {
-        if (this.strip) return this.strip;
-        const strip = document.createElement("canvas");
-        strip.width = 16;
-        strip.height = 128;
-        const ctx = strip.getContext("2d")!;
-        const light = ctx.createLinearGradient(0, 128, 0, 0);
-        light.addColorStop(0, "rgba(120, 255, 170, 0)");
-        light.addColorStop(0.04, "rgba(120, 255, 170, 0.95)");
-        light.addColorStop(0.3, "rgba(70, 240, 160, 0.6)");
-        light.addColorStop(0.65, "rgba(70, 200, 170, 0.25)");
-        light.addColorStop(0.85, "rgba(140, 90, 255, 0.12)");
-        light.addColorStop(1, "rgba(160, 80, 255, 0)");
-        ctx.fillStyle = light;
-        ctx.fillRect(0, 0, 16, 128);
-        const sides = ctx.createLinearGradient(0, 0, 16, 0);
-        sides.addColorStop(0, "rgba(0, 0, 0, 0)");
-        sides.addColorStop(0.5, "rgba(0, 0, 0, 1)");
-        sides.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.globalCompositeOperation = "destination-in";
-        ctx.fillStyle = sides;
-        ctx.fillRect(0, 0, 16, 128);
-        return (this.strip = strip);
+        frame.ctx.drawImage(this.aurora_layer!, 0, 0, columns * fraction, rows * fraction);
     }
 
     /**
