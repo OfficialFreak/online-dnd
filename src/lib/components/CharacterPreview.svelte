@@ -62,12 +62,14 @@
             title={marker ? "Auf die Karte ziehen" : undefined}
             use:dragSource={marker ? { kind: "marker", marker } : null}
         >
+            <!-- Cropped around the middle like on the character sheet: a portrait
+                 taken from a phone screenshot has the browser bar at the top -->
             <img
                 src={character.decorations.avatarUrl ||
                     "https://www.dndbeyond.com/Content/Skins/Waterdeep/images/characters/default-avatar-builder.png"}
                 alt={character.name}
                 draggable="false"
-                class="mask mask-hexagon h-20 aspect-square object-cover object-top drag-none"
+                class="mask mask-hexagon h-20 aspect-square object-cover object-center drag-none"
             />
         </div>
         <div class="flex flex-col h-full w-full justify-center">
