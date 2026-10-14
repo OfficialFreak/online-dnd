@@ -36,8 +36,9 @@
 /* Started from the home screen the page reaches the rounded corners of the screen. The
    buttons there sit in the middle of the rounding, as far from the bottom as from the side
    like those of the lock screen: in the corner of the safe area they hugged the side. The
-   rounding grows with the status bar, from 39 points on the first iPhones without a home
-   button to about 60 on the Pro Max, and there is none without the home bar. */
+   rounding is about as large as the status bar is high, held sideways as the side's inset:
+   62 points both on the iPhone 16 Pro to 18 Pro Max, 55 and 59 on the 14 Pro and 15, 39
+   and 44 on the iPhone X. Without the home bar the corners are square. */
 html.home-screen {
     --screen-corner: clamp(
         0px,
@@ -45,10 +46,10 @@ html.home-screen {
         clamp(
             0px,
             max(
-                    env(safe-area-inset-top, 0px),
-                    env(safe-area-inset-left, 0px),
-                    env(safe-area-inset-right, 0px)
-                ) - 4px,
+                env(safe-area-inset-top, 0px),
+                env(safe-area-inset-left, 0px),
+                env(safe-area-inset-right, 0px)
+            ),
             62px
         )
     );
