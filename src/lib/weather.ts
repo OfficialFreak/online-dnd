@@ -262,8 +262,11 @@ type Strike = {
 const REFERENCE_AREA = 1920 * 1080;
 const MAX_DROPS = 700;
 const MAX_FLAKES = 450;
-/** Raindrops splashing off the top edge of the map each second, along 1920 pixels of it */
-const MAX_SPLASHES = 220;
+/**
+ * Raindrops splashing off the top edge of the map each second at full rain, along 400
+ * pixels of it. A longer edge gets more, but less than in proportion, see draw_rain.
+ */
+const MAX_SPLASHES = 40;
 /** The snow on the top edge of the map, how high it is at this many places along it */
 const CAP_PLACES = 160;
 
@@ -583,6 +586,16 @@ export class WeatherRenderer {
         this.shown.shooting_stars = this.target.shooting_stars;
     }
 
+    /**
+     * How much of the rain of a 1080p screen this one gets. Not as much more as it is
+     * larger: rain as dense across a wide desktop as on a phone was a wall of streaks and
+     * cost frames. Phones keep what they had.
+     */
+    private rain_share() {
+        const area = Math.max(0.3, (this.width * this.height) / REFERENCE_AREA);
+        return 0.4 * area ** 0.25 * (this.options.lite ? 0.6 : 1);
+    }
+
     private count(max: number, amount: number) {
         const area = Math.min(1.5, Math.max(0.3, (this.width * this.height) / REFERENCE_AREA));
         return Math.round(max * amount * area * (this.options.lite ? 0.6 : 1));
@@ -627,7 +640,7 @@ export class WeatherRenderer {
         const drift = slant * (height + 92);
         const band = width + 120 + Math.abs(drift);
         const start_x = () => -60 - Math.max(0, drift) + Math.random() * band;
-        const drops = Math.round(this.count(MAX_DROPS, rain) * Math.min(2.5, band / (width + 120)));
+        const drops = Math.round(MAX_DROPS * rain * this.rain_share() * Math.min(2.5, band / (width + 120)));
         while (this.drops.length < drops) {
             this.drops.push({
                 x: start_x(),
@@ -663,7 +676,7 @@ export class WeatherRenderer {
             this.splashes_due +=
                 MAX_SPLASHES *
                 raining *
-                ((right - left) / 1920) *
+                ((right - left) / 400) ** 0.4 *
                 (this.options.lite ? 0.6 : 1) *
                 dt;
         } else {
