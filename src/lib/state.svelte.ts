@@ -231,6 +231,13 @@ export const toolbarState = $state({
 
 export function togglePanel(panel: Panel) {
     toolbarState.panel = toolbarState.panel === panel ? null : panel;
+    // Players open the characters on their own sheet, the DM on all of them. The back
+    // button still leads a player to the others.
+    if (toolbarState.panel === "characters") {
+        toolbarState.characterOpen = gameState.dm
+            ? ""
+            : (own_character?.name ?? "");
+    }
 }
 
 /** Shows or folds away the controls, and remembers it on this device */
