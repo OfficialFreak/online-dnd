@@ -53,10 +53,12 @@ html.home-screen {
             62px
         )
     );
-    /* The middle of a 48 pixel button in the middle of the rounding */
-    --corner-bottom: max(0.5rem, var(--screen-corner) - 24px);
-    --corner-left: max(0.5rem, var(--screen-corner) - 24px);
-    --corner-right: max(0.5rem, var(--screen-corner) - 24px);
+    /* The middle of a 48 pixel button on the diagonal, nearer the corner than the middle of
+       the rounding: there it stood far off the edges. 48 points in on the newest iPhones,
+       24 from the bottom and the side and 18 from the rounding. */
+    --corner-bottom: max(0.5rem, var(--screen-corner) * 0.78 - 24px);
+    --corner-left: max(0.5rem, var(--screen-corner) * 0.78 - 24px);
+    --corner-right: max(0.5rem, var(--screen-corner) * 0.78 - 24px);
 }
 
 @media (pointer: coarse) {
