@@ -350,7 +350,7 @@
     }
 
     onMount(() => {
-        register_intro({ cover, reveal, veil, lift, announce, knock });
+        register_intro({ cover, reveal, veil, lift, announce, knock, enter: () => enter() });
         document.addEventListener("visibilitychange", on_visibility);
         // Ready before the first scene changes: the font and the parchment
         document.fonts?.load('700 2rem "Cinzel Decorative"').catch(() => {});

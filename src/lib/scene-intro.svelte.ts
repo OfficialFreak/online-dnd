@@ -30,11 +30,40 @@ type Intro = {
      * update's scroll.
      */
     knock(): Promise<boolean>;
+    /** Enters as if tapped, while it asks to */
+    enter(): void;
 };
 
 let intro: Intro | null = null;
 /** The ask to enter is shown, the portal is closed already */
 let at_gate = false;
+/** Came through the gate with a tap, the portal woven anew lets them in again */
+let entered = false;
+
+/**
+ * Set before an update loads the page again or starts the app anew, for someone who had
+ * entered: they are let in again without a tap, the portal still opens. In localStorage,
+ * the desktop app starts anew. Only for a few minutes, a later opening asks again.
+ */
+const REENTER = "reenter_after_update";
+const REENTER_MS = 3 * 60 * 1000;
+
+function remember_entered() {
+    if (!entered) return;
+    try {
+        localStorage.setItem(REENTER, String(Date.now()));
+    } catch {}
+}
+
+function take_reentry() {
+    try {
+        const at = Number(localStorage.getItem(REENTER) ?? 0);
+        localStorage.removeItem(REENTER);
+        return Date.now() - at < REENTER_MS;
+    } catch {
+        return false;
+    }
+}
 /**
  * Opening the app, smoke covers it until the first map is there and then draws back: the
  * map and all on it came in bit by bit before
@@ -63,9 +92,13 @@ export function register_intro(shown: Intro | null) {
     const end_stars = gate_stars();
     shown.knock().then((tapped) => {
         at_gate = false;
+        entered ||= tapped;
         end_stars(tapped ? 0.9 : 0.3);
         if (tapped) release_sound();
     });
+    // Back after an update they had entered before: in again, as if tapped. Where the
+    // browser wants a tap for sound, the next tap anywhere brings it.
+    if (take_reentry()) shown.enter();
     // The scene came first: the desktop app connects behind its loading screen, before
     // the page with the map is there
     if (gameState.scene) {
@@ -92,6 +125,7 @@ export async function portal_update(apply: () => unknown) {
         hold_sound(1100);
         if (intro) play_portal_leave();
         await intro?.announce("Das Portal wird neu gewoben");
+        remember_entered();
         await apply();
     } catch (e) {
         console.error("Updating failed", e);
