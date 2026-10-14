@@ -2,7 +2,7 @@
     import { play_effect } from "$lib/audio.svelte";
     import { appState } from "$lib/state.svelte";
     import type { Weather } from "$lib/types/messaging/server_messages";
-    import { CLEAR, flashes_between, WeatherRenderer } from "$lib/weather";
+    import { CLEAR, flashes_between, thunder_files, WeatherRenderer } from "$lib/weather";
 
     /** The weather of the active scene, over the map and its markers but under the controls */
     let { weather }: { weather: Weather | null | undefined } = $props();
@@ -16,6 +16,8 @@
 
     // Everyone can turn it off for themselves
     let shown = $derived(appState.show_weather && weather ? weather : CLEAR);
+    /** Only turning it on and off starts the lightning anew, the DM's sliders don't */
+    let lightning = $derived(shown.lightning);
 
     $effect(() => {
         const created = new WeatherRenderer(canvas, {
@@ -36,19 +38,21 @@
         renderer?.set(shown);
     });
 
-    // Lightning at the same moments on every screen, the thunder a few seconds later
+    // Lightning at the same moments on every screen, the thunder a few seconds later: one
+    // of the DM's, on every screen the same
     $effect(() => {
-        if (!shown.lightning) return;
+        if (!lightning) return;
         let last = Date.now();
         const thunders = new Set<ReturnType<typeof setTimeout>>();
         const interval = setInterval(() => {
             const now = Date.now();
             // Back from the background, the missed ones don't all come at once
             if (now - last > 2000) last = now - 250;
-            for (const flash of flashes_between(last, now)) {
-                renderer?.flash();
-                const file = weather?.thunder;
-                if (!file) continue;
+            for (const flash of flashes_between(last, now, shown.lightning_rate)) {
+                renderer?.flash(flash);
+                const files = thunder_files(weather);
+                if (!files.length) continue;
+                const file = files[Math.floor(flash.pick * files.length)];
                 const thunder = setTimeout(() => {
                     thunders.delete(thunder);
                     play_effect("Donner", file, flash.loudness);

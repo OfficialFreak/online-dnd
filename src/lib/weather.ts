@@ -44,9 +44,6 @@ export const PRESETS: { label: string; icon: string; weather: Weather }[] = [
 
 const NONE = 0.01;
 
-/** Lightning comes in windows of this many milliseconds, each may have a flash */
-const FLASH_WINDOW = 8000;
-
 /** A random number generator from a seed (mulberry32), the same numbers everywhere */
 function seeded(seed: number) {
     return () => {
@@ -58,30 +55,69 @@ function seeded(seed: number) {
 }
 
 /**
- * The flashes after `from` until `to`, in milliseconds since 1970. They come from the
- * clock, so every screen flashes at the same moment without the server. Each brings
- * how long its thunder takes and how loud it is.
+ * How many flashes come in a minute on average, by the DM's `lightning_rate`: from one
+ * every 80 seconds to one every four or so, one every 13 seconds by default as before
+ * there was a rate
  */
-export function flashes_between(from: number, to: number) {
-    const flashes: { at: number; thunder_delay: number; loudness: number }[] = [];
-    for (
-        let slot = Math.floor(from / FLASH_WINDOW);
-        slot <= Math.floor(to / FLASH_WINDOW);
-        slot++
-    ) {
+export function flashes_per_minute(rate: number | null | undefined) {
+    const value = rate != null && Number.isFinite(rate) ? Math.min(1, Math.max(0, rate)) : 0.5;
+    return 4.5 * (value < 0.5 ? 6 : 3) ** (2 * value - 1);
+}
+
+export type Flash = {
+    /** In milliseconds since 1970 */
+    at: number;
+    /** From 0 right overhead to 1 far off: near ones are brighter, louder and sooner */
+    distance: number;
+    thunder_delay: number;
+    loudness: number;
+    /** A bolt to see, else only the clouds light up from within */
+    bolt: boolean;
+    /** Where across the screen it strikes, from 0 to 1 */
+    x: number;
+    /** For the shape of the bolt and its flickering, the same on every screen */
+    seed: number;
+    /** Which of the thunders rolls after it, from 0 to 1 */
+    pick: number;
+};
+
+/**
+ * The flashes after `from` until `to`, in milliseconds since 1970. They come from the
+ * clock, so every screen flashes at the same moment without the server, with the same
+ * bolt and the same thunder.
+ */
+export function flashes_between(from: number, to: number, rate?: number | null) {
+    // A flash in six of ten windows, the windows as long as that makes the rate. At the
+    // default rate 8 seconds long, as before there was a rate: older clients flash at
+    // the same moments.
+    const span = Math.round((60000 / flashes_per_minute(rate)) * 0.6);
+    const flashes: Flash[] = [];
+    for (let slot = Math.floor(from / span); slot <= Math.floor(to / span); slot++) {
         const next = seeded(slot);
         if (next() > 0.6) continue;
-        const at = slot * FLASH_WINDOW + next() * FLASH_WINDOW;
+        const at = slot * span + next() * span;
         if (at <= from || at > to) continue;
         // Close storms thunder soon and loud, far ones later and quieter
         const distance = next();
         flashes.push({
             at,
+            distance,
             thunder_delay: 400 + distance * 3200,
-            loudness: 1 - distance * 0.5,
+            loudness: (1 - distance * 0.55) * (0.75 + next() * 0.25),
+            // Far off it is more often only a glow in the clouds
+            bolt: next() < 0.9 - distance * 0.55,
+            x: 0.06 + next() * 0.88,
+            seed: Math.floor(next() * 2 ** 31),
+            pick: next(),
         });
     }
     return flashes;
+}
+
+/** The thunders a flash picks from, also of scenes from before there were several */
+export function thunder_files(weather: Weather | null | undefined) {
+    if (weather?.thunders?.length) return weather.thunders;
+    return weather?.thunder ? [weather.thunder] : [];
 }
 
 export function is_clear(weather: Weather | null | undefined) {
@@ -105,14 +141,75 @@ export function weather_icons(weather: Weather | null | undefined) {
     return icons;
 }
 
+/** The strokes a bolt is drawn with, from the glow to the core: width, colour, strength */
+const BOLT_STROKES = [
+    [24, "110, 130, 255", 0.09],
+    [10, "150, 170, 255", 0.22],
+    [3.4, "205, 218, 255", 0.6],
+    [1.4, "255, 255, 255", 1],
+] as const;
+
+/** A line through x, y pairs into the current path */
+function trace(ctx: CanvasRenderingContext2D, points: number[]) {
+    ctx.moveTo(points[0], points[1]);
+    for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+}
+
+/**
+ * A branch off a bolt into `branches`, to one side and petering out, from the trunk now
+ * and then branching once more
+ */
+function branch(
+    next: () => number,
+    x: number,
+    y: number,
+    step: number,
+    room: number,
+    lean: number,
+    branches: number[][],
+    again: boolean,
+) {
+    const side = next() < 0.5 ? -1 : 1;
+    const end = y + room * (0.2 + next() * 0.5);
+    const points = [x, y];
+    branches.push(points);
+    while (y < end) {
+        y += step * (0.4 + next() * 0.8);
+        x += (side * (0.4 + next() * 0.7) + lean * 0.5 + (next() - 0.5) * 1.2) * step;
+        points.push(x, y);
+        if (again && next() < 0.08) {
+            branch(next, x, y, step * 0.8, (end - y) * 0.9, lean, branches, false);
+        }
+    }
+}
+
 type Drop = { x: number; y: number; z: number };
-type Flake = { x: number; y: number; z: number; phase: number; sway: number };
+/** `land` is where on the screen it comes down on the map, below it if it falls on */
+type Flake = { x: number; y: number; z: number; phase: number; sway: number; land: number };
 type Cloud = { x: number; y: number; width: number; speed: number; sprite: number; phase: number };
+/** Where a raindrop hits the map: a ring spreading out and a few droplets jumping up */
+type Splash = { x: number; y: number; size: number; age: number; life: number };
+/** A flake that came down and lies there until it melts, ages in seconds */
+type Lying = { x: number; y: number; radius: number; age: number; life: number };
+/** A flash of lightning while it shows, its bolt as x, y pairs in pixels */
+type Strike = {
+    flash: Flash;
+    /** performance.now() when it struck */
+    start: number;
+    /** The bolt strikes again a few times, milliseconds after the start */
+    strokes: { at: number; strength: number }[];
+    trunk: number[];
+    branches: number[][];
+};
 
 /** Particle counts at full strength on a 1080p screen, smaller screens get fewer */
 const REFERENCE_AREA = 1920 * 1080;
 const MAX_DROPS = 700;
 const MAX_FLAKES = 450;
+/** Raindrops hitting the map each second */
+const MAX_SPLASHES = 650;
+/** Flakes lying on the map at most, also in a long blizzard */
+const MAX_LYING = 900;
 const CLOUDS = 7;
 
 /**
@@ -131,7 +228,19 @@ export class WeatherRenderer {
     private flakes: Flake[] = [];
     private clouds: Cloud[] = [];
     private sprites: HTMLCanvasElement[] = [];
-    private flashes: { at: number; strength: number }[] = [];
+    private splashes: Splash[] = [];
+    /** Splashes owed from the last frames, a frame mostly brings only a part of one */
+    private splashes_due = 0;
+    private lying: Lying[] = [];
+    /**
+     * How much snow lies, from 0 to the snow's strength: it piles up over a minute or so
+     * and melts away a little faster. The longer it snows, the longer flakes stay lying
+     * and the frostier the edges of the screen.
+     */
+    private cover = 0;
+    /** The frost at the edges, see frost */
+    private frosted = "";
+    private strikes: Strike[] = [];
     private frame = 0;
     /** The pause between frames while only fog drifts, see tick */
     private wait = 0;
@@ -167,6 +276,7 @@ export class WeatherRenderer {
         if (this.options.calm) {
             // A still picture, the particles spread over the screen
             this.shown = { ...weather };
+            this.cover = weather.snow;
             this.update(0, performance.now());
             for (const particle of [...this.drops, ...this.flakes]) {
                 particle.y = Math.random() * this.height;
@@ -178,12 +288,54 @@ export class WeatherRenderer {
         this.start();
     }
 
-    /** A flash of lightning and a weaker one right after, while there is lightning */
-    flash() {
+    /** A flash of lightning, while there is lightning */
+    flash(flash: Flash) {
         if (this.options.calm || !this.target.lightning) return;
-        const now = performance.now();
-        this.flashes.push({ at: now, strength: 0.55 }, { at: now + 140, strength: 0.35 });
+        this.strikes.push(this.strike(flash));
         this.start();
+    }
+
+    /**
+     * The bolt from the top of the screen down, jagged and with branches. Near ones reach
+     * far down and flicker a few times, far ones stay small at the top, behind the clouds.
+     */
+    private strike(flash: Flash): Strike {
+        const next = seeded(flash.seed);
+        const near = 1 - flash.distance;
+        const strokes = [{ at: 0, strength: 1 }];
+        const restrikes = Math.floor(next() * (1 + near * 2.6));
+        for (let i = 0; i < restrikes; i++) {
+            strokes.push({
+                at: strokes[strokes.length - 1].at + 50 + next() * 130,
+                strength: 0.45 + next() * 0.5,
+            });
+        }
+        const strike: Strike = {
+            flash,
+            start: performance.now(),
+            strokes,
+            trunk: [],
+            branches: [],
+        };
+        if (!flash.bolt) return strike;
+
+        const { width, height } = this;
+        const reach = height * (0.18 + near * 0.62 + next() * 0.15);
+        const step = Math.max(7, Math.min(width, height) / 45) * (0.55 + near * 0.6);
+        // Leans a little to one side as a whole
+        const lean = (next() - 0.5) * 0.7;
+        let x = flash.x * width;
+        let y = -10;
+        strike.trunk.push(x, y);
+        while (y < reach) {
+            y += step * (0.5 + next() * 0.9);
+            x += (lean + (next() - 0.5) * 1.7) * step;
+            strike.trunk.push(x, y);
+            if (y < reach * 0.85 && next() < 0.05 + near * 0.08) {
+                branch(next, x, y, step * 0.75, (reach - y) * 0.8, lean, strike.branches, true);
+            }
+        }
+        return strike;
     }
 
     private set_active(active: boolean) {
@@ -262,7 +414,13 @@ export class WeatherRenderer {
             }
             return;
         }
-        if (this.drops.length || this.flakes.length || this.flashes.length) {
+        if (
+            this.drops.length ||
+            this.flakes.length ||
+            this.splashes.length ||
+            this.lying.length ||
+            this.strikes.length
+        ) {
             this.frame = requestAnimationFrame(this.tick);
         } else {
             // Only fog drifts, drawn about thirty times a second anyway: the frames in
@@ -282,8 +440,11 @@ export class WeatherRenderer {
             eased &&
             !this.drops.length &&
             !this.flakes.length &&
+            !this.splashes.length &&
+            !this.lying.length &&
+            this.cover < 0.002 &&
             this.shown.fog < NONE &&
-            !this.flashes.length
+            !this.strikes.length
         );
     }
 
@@ -338,8 +499,38 @@ export class WeatherRenderer {
             }
         }
 
-        // Snow drifts down slowly and sways
+        // Where the rain hits the map it splashes
+        const raining = this.shown.rain >= NONE ? this.shown.rain : 0;
+        this.splashes_due += this.count(MAX_SPLASHES, raining) * dt;
+        while (this.splashes_due >= 1) {
+            this.splashes_due--;
+            this.splashes.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: 2.5 + Math.random() * 5,
+                age: 0,
+                life: 0.28 + Math.random() * 0.22,
+            });
+        }
+        for (let i = this.splashes.length - 1; i >= 0; i--) {
+            const splash = this.splashes[i];
+            splash.age += dt;
+            if (splash.age >= splash.life) {
+                this.splashes[i] = this.splashes[this.splashes.length - 1];
+                this.splashes.pop();
+            }
+        }
+
+        // Snow drifts down slowly and sways. Most flakes come down on the map somewhere
+        // and lie there a while, the others drift on out of the screen.
+        const snowing = this.shown.snow >= NONE ? this.shown.snow : 0;
+        this.cover =
+            this.cover < snowing
+                ? Math.min(snowing, this.cover + dt * 0.02)
+                : Math.max(snowing, this.cover - dt * 0.05);
+        const land = () => (Math.random() < 0.6 ? height * (0.04 + Math.random()) : Infinity);
         const flakes = this.count(MAX_FLAKES, this.shown.snow);
+        const lying = this.count(MAX_LYING, 1);
         while (this.flakes.length < flakes) {
             this.flakes.push({
                 x: Math.random() * width,
@@ -347,6 +538,7 @@ export class WeatherRenderer {
                 z: 0.3 + Math.random() * 0.7,
                 phase: Math.random() * Math.PI * 2,
                 sway: 8 + Math.random() * 22,
+                land: land(),
             });
         }
         const t = now / 1000;
@@ -359,7 +551,18 @@ export class WeatherRenderer {
                 dt;
             if (flake.x < -10) flake.x += width + 20;
             if (flake.x > width + 10) flake.x -= width + 20;
-            if (flake.y - 4 > height) {
+            const landed = flake.y >= flake.land;
+            if (landed && this.lying.length < lying) {
+                // The longer it snows, the longer it stays before it melts
+                this.lying.push({
+                    x: flake.x,
+                    y: flake.y,
+                    radius: 0.8 + 2.4 * flake.z,
+                    age: 0,
+                    life: (3 + Math.random() * 3) * (1 + this.cover * 7),
+                });
+            }
+            if (landed || flake.y - 4 > height) {
                 if (this.flakes.length > flakes) {
                     this.flakes[i] = this.flakes[this.flakes.length - 1];
                     this.flakes.pop();
@@ -367,6 +570,17 @@ export class WeatherRenderer {
                 }
                 flake.y = -Math.random() * 20;
                 flake.x = Math.random() * width;
+                flake.land = land();
+            }
+        }
+        // Once it stops snowing it melts faster
+        const melt = snowing ? 1 : 2.5;
+        for (let i = this.lying.length - 1; i >= 0; i--) {
+            const flake = this.lying[i];
+            flake.age += dt * melt;
+            if (flake.age >= flake.life) {
+                this.lying[i] = this.lying[this.lying.length - 1];
+                this.lying.pop();
             }
         }
 
@@ -379,18 +593,89 @@ export class WeatherRenderer {
             if (cloud.x < -cloud.width) cloud.x = width;
         }
 
-        this.flashes = this.flashes.filter((flash) => now - flash.at < 600);
+        if (this.strikes.length) {
+            this.strikes = this.strikes.filter(
+                (strike) => now - strike.start < strike.strokes[strike.strokes.length - 1].at + 900,
+            );
+        }
     }
 
     private draw(now: number) {
         const { context: ctx, width, height, shown } = this;
         ctx.clearRect(0, 0, width, height);
         this.tint(shown);
-        if (is_clear(shown) && !this.flashes.length) return;
+        this.frost();
+        if (
+            is_clear(shown) &&
+            !this.strikes.length &&
+            !this.splashes.length &&
+            !this.lying.length
+        ) {
+            return;
+        }
+
+        // The bolts behind everything else, far ones veiled by the fog
+        for (const strike of this.strikes) {
+            if (strike.flash.bolt) this.draw_bolt(strike, this.light(strike, now));
+        }
 
         if (shown.fog >= NONE) {
             if (this.options.calm || now - this.fog_drawn >= 30) this.draw_fog(now);
             ctx.drawImage(this.fog_layer!, 0, 0, width, height);
+        }
+
+        if (this.lying.length) {
+            // Flat on the map, smaller and fainter as they melt
+            for (const [from, to, alpha] of [
+                [0, 0.34, 0.25],
+                [0.34, 0.67, 0.5],
+                [0.67, 1.01, 0.8],
+            ]) {
+                ctx.beginPath();
+                for (const flake of this.lying) {
+                    const left = Math.min(1, ((flake.life - flake.age) / flake.life) * 3.5);
+                    if (left < from || left >= to) continue;
+                    const radius = flake.radius * (0.55 + 0.45 * left);
+                    ctx.moveTo(flake.x + radius, flake.y);
+                    ctx.ellipse(flake.x, flake.y, radius, radius * 0.7, 0, 0, Math.PI * 2);
+                }
+                ctx.fillStyle = `rgba(240, 246, 255, ${alpha})`;
+                ctx.fill();
+            }
+        }
+
+        if (this.splashes.length) {
+            // A ring spreading out flat on the map, fading as it grows
+            ctx.lineWidth = 1;
+            for (const [from, to, alpha] of [
+                [0, 0.34, 0.55],
+                [0.34, 0.67, 0.32],
+                [0.67, 1.01, 0.14],
+            ]) {
+                ctx.beginPath();
+                for (const splash of this.splashes) {
+                    const age = splash.age / splash.life;
+                    if (age < from || age >= to) continue;
+                    const radius = splash.size * (0.25 + 0.75 * Math.sqrt(age));
+                    ctx.moveTo(splash.x + radius, splash.y);
+                    ctx.ellipse(splash.x, splash.y, radius, radius * 0.5, 0, 0, Math.PI * 2);
+                }
+                ctx.strokeStyle = `rgba(200, 214, 235, ${alpha})`;
+                ctx.stroke();
+            }
+            // Two droplets jumping up and falling back, in the first half
+            ctx.beginPath();
+            for (const splash of this.splashes) {
+                const age = (splash.age / splash.life) * 2;
+                if (age >= 1) continue;
+                const rise = Math.sin(age * Math.PI) * splash.size;
+                const spread = age * splash.size * 1.1;
+                const size = 0.7 + splash.size * 0.12;
+                ctx.rect(splash.x - spread, splash.y - rise * 0.9, size, size);
+                ctx.rect(splash.x + spread * 0.8, splash.y - rise * 1.2, size, size);
+            }
+            ctx.fillStyle = "rgba(215, 226, 245, 0.6)";
+            ctx.fill();
         }
 
         if (this.drops.length) {
@@ -436,13 +721,84 @@ export class WeatherRenderer {
             }
         }
 
-        let flash = 0;
-        for (const { at, strength } of this.flashes) {
-            if (now >= at) flash += strength * Math.exp(-(now - at) / 90);
-        }
-        if (flash > 0.01) {
-            ctx.fillStyle = `rgba(235, 240, 255, ${Math.min(0.8, flash)})`;
+        // The light of the flashes, from above where it struck: near ones light up the
+        // whole screen, far ones only the sky at the top
+        for (const strike of this.strikes) {
+            const near = 1 - strike.flash.distance;
+            const light =
+                this.light(strike, now) *
+                (strike.flash.bolt ? 0.12 + near * 0.5 : 0.15 + near * 0.35);
+            if (light < 0.01) continue;
+            const x = strike.flash.x * width;
+            const reach = Math.hypot(width, height) * (0.45 + near * 0.9);
+            const glow = ctx.createRadialGradient(x, 0, 0, x, 0, reach);
+            const brightest = Math.min(0.8, light);
+            glow.addColorStop(0, `rgba(235, 240, 255, ${brightest})`);
+            glow.addColorStop(1, `rgba(235, 240, 255, ${brightest * near * 0.4})`);
+            ctx.fillStyle = glow;
             ctx.fillRect(0, 0, width, height);
+        }
+    }
+
+    /** How bright a flash is now, each stroke flaring up and dying away */
+    private light(strike: Strike, now: number) {
+        const since = now - strike.start;
+        // Glowing in the clouds it fades slower than a bolt
+        const fade = strike.flash.bolt ? 75 : 150;
+        let light = 0;
+        for (const stroke of strike.strokes) {
+            if (since >= stroke.at) light += stroke.strength * Math.exp(-(since - stroke.at) / fade);
+        }
+        return Math.min(1, light);
+    }
+
+    /** A wide faint glow and a bright core on it, shadows cost too much while it flickers */
+    private draw_bolt(strike: Strike, light: number) {
+        const near = 1 - strike.flash.distance;
+        const alpha = light * (0.4 + near * 0.6);
+        if (alpha < 0.02) return;
+        const ctx = this.context;
+        const scale = 0.45 + near * 0.75;
+        ctx.save();
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        for (const [line, colour, strength] of BOLT_STROKES) {
+            ctx.lineWidth = line * scale;
+            ctx.strokeStyle = `rgba(${colour}, ${strength * alpha})`;
+            ctx.beginPath();
+            trace(ctx, strike.trunk);
+            ctx.stroke();
+            if (!strike.branches.length) continue;
+            // Branches thinner and fainter, gone before the trunk
+            ctx.lineWidth = line * scale * 0.5;
+            ctx.strokeStyle = `rgba(${colour}, ${strength * alpha * alpha * 0.8})`;
+            ctx.beginPath();
+            for (const branch of strike.branches) trace(ctx, branch);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    /**
+     * Snow that has been lying a while frosts the edges of the screen, thicker in the
+     * corners. A background like the tint, the graphics card only puts it on.
+     */
+    private frost() {
+        const strength = Math.round(this.cover * 30) / 100;
+        const colour = (alpha: number) => `rgba(236, 243, 255, ${alpha.toFixed(3)})`;
+        const frost =
+            strength > 0
+                ? [
+                      `radial-gradient(ellipse 45% 40% at 0% 0%, ${colour(strength)}, transparent)`,
+                      `radial-gradient(ellipse 40% 45% at 100% 100%, ${colour(strength)}, transparent)`,
+                      `radial-gradient(ellipse 35% 35% at 100% 0%, ${colour(strength * 0.7)}, transparent)`,
+                      `radial-gradient(ellipse 35% 40% at 0% 100%, ${colour(strength * 0.8)}, transparent)`,
+                      `radial-gradient(ellipse at center, transparent 60%, ${colour(strength * 0.6)})`,
+                  ].join(", ")
+                : "none";
+        if (frost !== this.frosted) {
+            this.frosted = frost;
+            this.canvas.style.backgroundImage = frost;
         }
     }
 

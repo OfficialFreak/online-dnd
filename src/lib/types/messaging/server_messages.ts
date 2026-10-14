@@ -166,8 +166,15 @@ export interface Weather {
     /** From -1, blowing to the left, to 1, to the right */
     wind: number;
     lightning: boolean;
-    /** The sound file everyone hears a moment after a flash */
+    /**
+     * The sound file everyone hears a moment after a flash, the first of `thunders` for
+     * clients from before there were several
+     */
     thunder?: string | null;
+    /** The sound files a flash's thunder is picked from, a different one each time */
+    thunders?: string[] | null;
+    /** How often lightning strikes, from 0 for rarely to 1 for often, as if 0.5 if missing */
+    lightning_rate?: number | null;
 }
 
 /** What plays when the DM switches to a scene, the music last played or stopped in it */
