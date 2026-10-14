@@ -13,35 +13,36 @@ type Shooting = { at: number; x: number; y: number; angle: number; speed: number
  * the screen, how far up and down, how bright and how tall their rays
  */
 const CURTAINS = [
-    { base: 0.21, swing: 0.07, phase: 0, bright: 1, tall: 1 },
-    { base: 0.31, swing: 0.05, phase: 2.3, bright: 0.7, tall: 0.75 },
-    { base: 0.13, swing: 0.04, phase: 4.6, bright: 0.5, tall: 0.6 },
+    { base: 0.29, swing: 0.07, phase: 0, bright: 1, tall: 1 },
+    { base: 0.37, swing: 0.05, phase: 2.3, bright: 0.7, tall: 0.8 },
+    { base: 0.19, swing: 0.04, phase: 4.6, bright: 0.5, tall: 0.6 },
 ];
 
 /** How much of the screen from the top the northern lights may fill */
-const AURORA_SKY = 0.42;
+const AURORA_SKY = 0.52;
 
 /** Steps of the light from the foot of a ray to its top, see AURORA_LIGHT */
 const AURORA_STEPS = 128;
 
 /**
  * The light of a ray from its foot to its top, worked out once: red, green and blue in
- * AURORA_STEPS steps, each from 0 to 1. Pale green and brightest at the foot, green,
- * teal, fading into violet at the top.
+ * AURORA_STEPS steps, each from 0 to 1. Pale green and brightest at the foot, green all
+ * the way up, only the very tips turning a little violet, as in photos of them.
  */
 const AURORA_LIGHT = (() => {
     const light = new Float32Array(AURORA_STEPS * 3);
+    const foot = [150, 255, 175];
+    const green = [80, 250, 150];
+    const tip = [150, 95, 230];
+    const blend = (a: number[], b: number[], k: number) => a.map((value, i) => value + (b[i] - value) * k);
     for (let i = 0; i < AURORA_STEPS; i++) {
         const up = i / (AURORA_STEPS - 1);
-        let colour = [130, 255, 170];
-        if (up >= 0.15 && up < 0.55) {
-            const k = (up - 0.15) / 0.4;
-            colour = [130 - 70 * k, 255 - 40 * k, 170];
-        } else if (up >= 0.55) {
-            const k = (up - 0.55) / 0.45;
-            colour = [60 + 90 * k, 215 - 135 * k, 170 + 85 * k];
-        }
-        const shape = (1 - up) ** 1.4 * (0.6 + 0.4 * Math.exp(-up * 7));
+        const colour =
+            up < 0.78
+                ? blend(foot, green, Math.min(1, up / 0.25))
+                : blend(green, tip, smoothstep(0.76, 0.94, up) * 0.85);
+        // Bright at the foot, staying up most of the way, fading out at the tip
+        const shape = (0.55 + 0.45 * Math.exp(-up * 7)) * (1 - up ** 4) * (1 - 0.3 * up);
         light.set(colour.map((value) => (value / 255) * shape), i * 3);
     }
     return light;
@@ -211,10 +212,11 @@ export class Sky {
                     const rays = billows(along * 44 + curtain.phase * 3 + t * 0.02, t * 0.12, 3);
                     const glow = 2.4 * bright * (0.1 + 0.7 * bunch) * (0.18 + 1.4 * rays * rays);
                     if (glow < 0.01) continue;
-                    const tall = Math.max(
-                        3,
-                        ((height * (0.05 + 0.22 * bunch * (0.45 + 0.55 * rays))) / fraction) * curtain.tall,
-                    );
+                    // Ending below the top of the screen, so the violet tips show: the
+                    // taller, the more it is held back, still uneven
+                    const room = Math.max(3, edge - 2);
+                    const wanted = ((height * (0.12 + 0.5 * bunch * (0.45 + 0.55 * rays))) / fraction) * curtain.tall;
+                    const tall = Math.max(3, room * (1 - Math.exp(-wanted / room)));
                     const top = Math.max(0, Math.floor(edge - tall));
                     const bottom = Math.min(rows - 1, Math.ceil(edge + 3));
                     const per_row = (AURORA_STEPS - 1) / tall;
