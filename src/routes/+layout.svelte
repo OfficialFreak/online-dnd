@@ -1260,13 +1260,13 @@
         >
         {#if gameState.dm}
             <div
-                class="btn btn-soft btn-info !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm pointer-events-none"
+                class="bar-tag"
             >
                 DM
             </div>
         {/if}
         <button
-            class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
+            class="bar-button"
             aria-label="Aussehen"
             onclick={() => theme_modal?.showModal()}
             ><i class="fa-solid fa-palette"></i><span class="max-sm:hidden"
@@ -1275,7 +1275,7 @@
         >
         {#if gameState.dm}
             <button
-                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
+                class="bar-button"
                 onclick={() => dialogs.users?.open()}
             >
                 <i class="fa-solid fa-users-gear"></i>
@@ -1283,7 +1283,7 @@
                 <span class="max-sm:hidden">Spieler</span>
             </button>
             <button
-                class="btn btn-soft btn-primary !text-xs px-2 my-auto h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
+                class="bar-button"
                 onclick={() => dialogs.assets?.open()}
             >
                 <i class="fa-solid fa-folder-open"></i>
@@ -1294,7 +1294,7 @@
         <div class="dropdown dropdown-bottom my-auto flex">
             <button
                 tabindex="0"
-                class="btn btn-soft btn-primary !text-xs px-2 h-6 pointer-coarse:h-9 pointer-coarse:px-3 pointer-coarse:!text-sm"
+                class="bar-button"
                 aria-label="Lautstärke"
                 title={audioState.music || audioState.ambience.length
                     ? `Läuft: ${[audioState.music, ...audioState.ambience]
@@ -1400,7 +1400,7 @@
                 <div
                     tabindex="0"
                     role="button"
-                    class="btn btn-soft btn-primary !text-xs px-2 h-6 pointer-coarse:h-9 pointer-events-none"
+                    class="bar-button pointer-events-none"
                 >
                     Updatevorgang...
                 </div>
@@ -1673,25 +1673,60 @@
         top: 0;
         left: 0;
         right: 0;
-        background: color-mix(in srgb, var(--color-base-100), transparent 40%);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(7.5px);
-        -webkit-backdrop-filter: blur(7.5px);
-        border: 1px solid rgba(28, 34, 41, 0.12);
+        /* A soft shade from the top instead of a bar with an edge, less in the way */
+        background: linear-gradient(
+            to bottom,
+            color-mix(in srgb, var(--color-base-100), transparent 30%),
+            transparent
+        );
         transition:
-            background-color 0.2s,
-            box-shadow 0.2s,
-            border-color 0.2s,
-            backdrop-filter 0.2s,
+            background 0.2s,
             /* Fading under the smoke, see .gui in app.css */
             opacity 1.2s ease 0.5s;
     }
     .titlebar-folded {
         background: transparent;
-        box-shadow: none;
-        border-color: transparent;
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
+    }
+    /* Quiet buttons: muted, on a faint dark ground that keeps them readable over a light
+       map, brighter under the pointer */
+    .bar-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        height: 1.75rem;
+        margin: auto 0;
+        padding: 0 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        color: color-mix(in srgb, var(--color-base-content), transparent 30%);
+        background: color-mix(in srgb, var(--color-base-100), transparent 45%);
+        cursor: pointer;
+        transition:
+            background-color 0.15s,
+            color 0.15s;
+    }
+    .bar-button:hover,
+    .bar-button:focus-visible {
+        color: var(--color-base-content);
+        background: color-mix(in srgb, var(--color-base-content), transparent 86%);
+    }
+    .bar-tag {
+        margin: auto 0;
+        padding: 0 0.4rem;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: color-mix(in srgb, var(--color-info), transparent 20%);
+        pointer-events: none;
+    }
+    @media (pointer: coarse) {
+        .bar-button {
+            height: 2.25rem;
+            padding: 0 0.85rem;
+            font-size: 0.875rem;
+        }
     }
     .titlebar-button {
         display: inline-flex;
