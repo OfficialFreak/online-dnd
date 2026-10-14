@@ -388,9 +388,16 @@
         scroll_container.scrollTop = 0;
     });
 
-    // A panel opened by a shortcut or elsewhere brings the folded away controls back
+    // A panel opened by a shortcut or elsewhere brings the folded away controls back, the
+    // characters are there with them folded too
     $effect(() => {
-        if (toolbarState.panel && !appState.controls_open) set_controls_open(true);
+        if (
+            toolbarState.panel &&
+            toolbarState.panel !== "characters" &&
+            !appState.controls_open
+        ) {
+            set_controls_open(true);
+        }
     });
 
     /** The panel on the page, also while it slides out of sight after closing */
@@ -549,6 +556,7 @@
             : ''}"
         transition:fade|global={{ duration: 100 }}
     >
+        {#if appState.controls_open}
         <!-- Using the map: pointing, measuring and drawing, choosing markers -->
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
@@ -696,6 +704,7 @@
             </div>
         {/if}
         <span class="tool-divider" aria-hidden="true"></span>
+        {/if}
         <!-- Panels -->
         <div class="tooltip tooltip-right">
             <div class="tooltip-content">
@@ -715,6 +724,7 @@
                 <i class="fa-solid fa-user"></i>
             </button>
         </div>
+        {#if appState.controls_open}
         {#if gameState.dm}
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
@@ -1111,6 +1121,7 @@
                     <i class="fa-solid fa-arrow-rotate-left"></i>
                 </button>
             </div>
+        {/if}
         {/if}
     </div>
 </div>

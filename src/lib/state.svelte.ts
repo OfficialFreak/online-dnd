@@ -236,9 +236,10 @@ export function togglePanel(panel: Panel) {
 /** Shows or folds away the controls, and remembers it on this device */
 export async function set_controls_open(open: boolean) {
     appState.controls_open = open;
-    // Folded away, nothing of them stays active unseen
+    // Folded away, nothing of them stays active unseen. The characters stay, their button
+    // stays with the folded controls.
     if (!open) {
-        toolbarState.panel = null;
+        if (toolbarState.panel !== "characters") toolbarState.panel = null;
         appState.selectedTool = Tools.None;
     }
     await ensureStore();
