@@ -398,6 +398,8 @@ export interface Reactions extends BaseServerMessage {
     voicelines?: Voiceline[];
     /** Whose voice the reactions without a recording have, null for the cartoon voices */
     default_voice?: string | null;
+    /** That voice's recordings, by reaction. Missing from older servers. */
+    default_reactions?: Record<string, string> | null;
 }
 
 /** The DM rolled behind the screen */

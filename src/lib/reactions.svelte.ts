@@ -31,6 +31,8 @@ export const reactionState = $state({
     voicelines: [] as Voiceline[],
     /** Whose voice the reactions without a recording have, null for the cartoon voices */
     default_voice: null as string | null,
+    /** That voice's recordings, by reaction */
+    default_reactions: {} as Record<string, string>,
     /** What was just called out, shown for a moment */
     bubbles: [] as Bubble[],
 });
@@ -62,7 +64,10 @@ export function play_reaction(key: string, file?: string | null, who = "", label
     }
     const reaction = REACTIONS.find((reaction) => reaction.key === key);
     if (!reaction) return;
-    if (file) play_effect(`${who}: ${reaction.label}`.trim(), file);
+    // Without a recording the default voice, as the others hear it: listening in the
+    // recorder played the cartoon voice while everyone heard the one the DM chose
+    const voiced = file ?? reactionState.default_reactions[key];
+    if (voiced) play_effect(`${who}: ${reaction.label}`.trim(), voiced);
     else DEFAULT_VOICES[key]?.();
 }
 

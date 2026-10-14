@@ -828,6 +828,7 @@
                     reactionState.mine = message.reactions ?? {};
                     reactionState.voicelines = message.voicelines ?? [];
                     reactionState.default_voice = message.default_voice ?? null;
+                    reactionState.default_reactions = message.default_reactions ?? {};
                     break;
                 case MessageType.HIDDEN_ROLL:
                     hear_hidden_roll();
