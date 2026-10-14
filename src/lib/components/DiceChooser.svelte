@@ -148,32 +148,38 @@
                 </li>
             {/each}
         </ul>
-        {#if chosen > 0}
-            <div class="flex flex-row gap-1" transition:fade={{ duration: 150 }}>
-                <div class="join flex-1">
-                    <button class="btn btn-info join-item rounded-l-full flex-1" onclick={roll}>
-                        Würfeln
-                    </button>
-                    <select
-                        class="select join-item rounded-r-full w-auto bg-base-200 border-base-200 font-semibold"
-                        aria-label="Wer das Ergebnis sieht"
-                        bind:value={privacy_level}
-                    >
-                        <option value="public">Alle</option>
-                        <option value="dm">Nur der DM</option>
-                        <option value="private">Privat</option>
-                    </select>
-                </div>
+        <!-- Always there, greyed out until dice are chosen: appearing with the first die it
+             pushed the dice up, and the second tap on one hit the roll button instead -->
+        <div class="flex flex-row gap-1">
+            <div class="join flex-1">
                 <button
-                    class="btn btn-ghost btn-square rounded-full"
-                    aria-label="Zurücksetzen"
-                    title="Zurücksetzen"
-                    onclick={reset}
+                    class="btn btn-info join-item rounded-l-full flex-1"
+                    disabled={chosen === 0}
+                    onclick={roll}
                 >
-                    <i class="fa-solid fa-rotate-left"></i>
+                    Würfeln
                 </button>
+                <select
+                    class="select join-item rounded-r-full w-auto bg-base-200 border-base-200 font-semibold"
+                    aria-label="Wer das Ergebnis sieht"
+                    disabled={chosen === 0}
+                    bind:value={privacy_level}
+                >
+                    <option value="public">Alle</option>
+                    <option value="dm">Nur der DM</option>
+                    <option value="private">Privat</option>
+                </select>
             </div>
-        {/if}
+            <button
+                class="btn btn-ghost btn-square rounded-full"
+                aria-label="Zurücksetzen"
+                title="Zurücksetzen"
+                disabled={chosen === 0}
+                onclick={reset}
+            >
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+        </div>
     </div>
 </div>
 
