@@ -89,7 +89,6 @@
     import UserAdminDialog from "$lib/components/UserAdminDialog.svelte";
     import Notifications from "$lib/components/Notifications.svelte";
     import { MessageTypes, notify } from "../lib/notifications.svelte";
-    import { bonus_string, mode_suffix, stat_label } from "$lib/rolls";
     import { condition_label, normalize_condition } from "$lib/conditions";
     import { load_dice_skin } from "$lib/dice-skins.svelte";
     import DiceSkinPicker from "$lib/components/DiceSkinPicker.svelte";
@@ -631,11 +630,6 @@
                     // Everyone sees the dice land first, in the history too
                     await after_dice(message);
                     remember_roll(message);
-                    notify(
-                        `${message.sender}${message.sender_dm ? " 👑" : ""} hat ${message.single_dice ? "eine" : message.dices + " ="} ${message.result} gewürfelt${mode_suffix(message.mode, message.d20s)}${message.dm_only ? " (nur DM)" : ""}`,
-                        MessageTypes.Info,
-                        gameState.dm ? -1 : 5000,
-                    );
                     break;
                 case MessageType.SCENE:
                     change_scene(message, show_scene);
@@ -879,20 +873,10 @@
                 case MessageType.CHECK_RESULT:
                     await after_dice(message);
                     remember_roll(message);
-                    notify(
-                        `${message.sender} (${message.stat === "initiative" ? "Initiative" : `Check: ${stat_label(message.stat)}`}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
-                        MessageTypes.Info,
-                        gameState.dm ? -1 : 5000,
-                    );
                     break;
                 case MessageType.SAVE_RESULT:
                     await after_dice(message);
                     remember_roll(message);
-                    notify(
-                        `${message.sender} (Rettungswurf: ${stat_label(message.stat)}): ${message.result}${bonus_string(message.result, message.bonus)}${mode_suffix(message.mode, message.d20s)}`,
-                        MessageTypes.Info,
-                        gameState.dm ? -1 : 5000,
-                    );
                     break;
                 case MessageType.COMBAT_STATE:
                     gameState.combat = message.active;

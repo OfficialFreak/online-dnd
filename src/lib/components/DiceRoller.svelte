@@ -15,10 +15,9 @@
     // @ts-ignore
     import confetti from "canvas-confetti";
     import { emoji_cannon } from "$lib/emoji-burst";
-    import { roller, rollState } from "../state.svelte";
+    import { gameState, roller, rollState } from "../state.svelte";
     import { dice_look } from "../dice-skins.svelte";
     import {
-        bonus_string as format_bonus,
         mode_label,
         natural_d20,
         roll_detail,
@@ -37,7 +36,6 @@
     // Its own canvas, canvas-confetti clears the whole of its canvas on every frame
     let emoji_canvas: HTMLCanvasElement | null = $state(null);
     let diceBox: DiceBox | null = $state(null);
-    let modal: HTMLDialogElement | null = $state(null);
     let dice_values: string = $state("");
     let roll_result: number = $state(-1);
     let rolls: string[] = $state([]);
@@ -45,21 +43,24 @@
     let mode = $state<RollMode>("normal");
     /** Both d20s of a roll with advantage or disadvantage, the first one counts with advantage */
     let d20s: number[] = $state([]);
-    /** The d20 that counts */
-    let kept_d20 = $derived(
-        mode === "advantage" ? Math.max(...d20s) : Math.min(...d20s),
-    );
     let single_roll = $derived(
         rolls.length === 1 && rolls[0].substring(0, 2) === "1d",
     );
 
-    /** Somebody else's roll being shown, with who rolled it and, once the dice landed, what came out */
+    /**
+     * The roll being shown at the bottom, one's own or somebody else's, with who rolled it
+     * and, once the dice landed, what came out
+     */
     let shown_roll: {
         roll: AnyRoll;
         /** The color of the roller's dice */
         color: string;
         landed: boolean;
+        /** The d20 of a roll of one d20, without the bonus, for 20s and 1s */
+        natural?: number | null;
     } | null = $state(null);
+    /** The id of the own roll being thrown, its card takes the server's title later */
+    let own_roll_id: string | null = null;
     /** Called when the dice on screen have all landed */
     let on_landed: (() => void) | null = null;
     /** Rolls of this client, the server sends them back like everyone else's */
@@ -76,15 +77,52 @@
     const sleep = (ms: number) =>
         new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-    let modal_closed: (() => void) | null = null;
+    /** How long one's own result stays at the bottom */
+    const OWN_CARD_MS = 3500;
+    /** Until when it stays, somebody else's dice wait for it */
+    let own_card_until = 0;
+    let own_card_timer: ReturnType<typeof setTimeout> | undefined;
 
     /** Gives the player a moment to read their own result before other dice come */
-    function modal_closes(max_ms: number) {
-        if (!modal?.open) return Promise.resolve();
-        return Promise.race([
-            new Promise<void>((resolve) => (modal_closed = resolve)),
-            sleep(max_ms),
-        ]);
+    function own_card_done(max_ms: number) {
+        return sleep(Math.min(max_ms, Math.max(0, own_card_until - Date.now())));
+    }
+
+    /**
+     * Shows one's own roll at the bottom like everyone else's, instead of a dialog in the
+     * middle. The server's copy of it, with what was checked, takes its place once there.
+     */
+    function show_own_roll() {
+        const one_d20 = rolls.length === 1 && (rolls[0] === "1d20" || rolls[0] === "d20");
+        const with_bonus = bonus === 0 ? "" : ` ${bonus > 0 ? "+" : "−"} ${Math.abs(bonus)}`;
+        const roll = {
+            type: MessageType.ROLL_RESULT,
+            sender: gameState.name,
+            sender_dm: gameState.dm,
+            notation: rolls.join(" + "),
+            single_dice: single_roll && bonus === 0,
+            dices: `${dice_values}${with_bonus}`,
+            result: roll_result + bonus,
+            mode,
+            d20s: [...d20s],
+            dm_only: false,
+            roll_id: own_roll_id,
+        } as AnyRoll;
+        const look = dice_look();
+        const shown = {
+            roll,
+            color: look.themeColor ?? "#aa55aa",
+            landed: true,
+            natural: one_d20 ? roll_result : null,
+        };
+        shown_roll = shown;
+        own_card_until = Date.now() + OWN_CARD_MS;
+        clearTimeout(own_card_timer);
+        own_card_timer = setTimeout(() => {
+            if (shown_roll?.roll.roll_id !== roll.roll_id) return;
+            shown_roll = null;
+            diceBox?.clear();
+        }, OWN_CARD_MS);
     }
 
     /** Counts the throws, so one that was given up while loading its theme stays given up */
@@ -136,7 +174,7 @@
             const landed = on_landed;
             on_landed = null;
             // Somebody else's roll, its result came with the message
-            if (shown_roll !== null || !landed) {
+            if ((shown_roll !== null && !own_roll_id) || !landed) {
                 landed?.();
                 return;
             }
@@ -169,16 +207,16 @@
                 .join(" + ");
             roll_result = groups.flat().reduce((sum, value) => sum + value, 0);
 
-            // Celebration
+            // Celebration, from the result at the bottom
             if (
                 single_roll &&
                 (rolls[0] === "1d20" || rolls[0] === "d20") &&
                 roll_result === 20
             ) {
                 confetti_function({
-                    particleCount: 100,
+                    particleCount: 120,
                     spread: 70,
-                    origin: { y: 2 },
+                    origin: { x: 0.5, y: 1 },
                 });
             }
             // Added physcological damage
@@ -192,10 +230,10 @@
                     count: 100,
                     spread: 70,
                     size: 40,
-                    origin: { x: 0.5, y: 2 },
+                    origin: { x: 0.5, y: 1.05 },
                 });
             }
-            modal?.showModal();
+            show_own_roll();
             landed();
         };
 
@@ -229,6 +267,8 @@
                       );
 
             shown_roll = null;
+            clearTimeout(own_card_timer);
+            own_card_until = 0;
             diceBox.clear();
             rolls = new_rolls;
             bonus = new_bonus;
@@ -236,6 +276,7 @@
             d20s = [];
             const roll_id = crypto.randomUUID();
             own_rolls.add(roll_id);
+            own_roll_id = roll_id;
 
             const look = dice_look();
             const recording = await start_recording();
@@ -255,49 +296,53 @@
         });
     };
 
-    /** Shows somebody else's roll with the same dice moving the same way */
+    /**
+     * Shows somebody else's roll with the same dice moving the same way, or only its result
+     * where the dice can't be shown. One's own takes the server's title, e.g. the check.
+     */
     roller.replay = (roll: AnyRoll) => {
-        const replay: DiceReplay | null | undefined = roll.replay;
-        if (
-            !replay ||
-            !diceBox ||
-            !dice_sync_available ||
-            (roll.roll_id && own_rolls.has(roll.roll_id))
-        ) {
+        if (roll.roll_id && own_rolls.has(roll.roll_id)) {
+            if (shown_roll && shown_roll.roll.roll_id === roll.roll_id) {
+                shown_roll.roll = roll;
+            }
             return Promise.resolve();
         }
+        const replay: DiceReplay | null | undefined = roll.replay;
         return enqueue(async () => {
             const interrupted = new Promise<void>(
                 (resolve) => (interrupt_replay = resolve),
             );
-            await Promise.race([modal_closes(3000), interrupted]);
-            diceBox.clear();
-            if (!(await start_replay(replay))) return;
+            await Promise.race([own_card_done(3000), interrupted]);
+            own_roll_id = null;
+            diceBox?.clear();
+            const with_dice =
+                !!replay && !!diceBox && dice_sync_available && (await start_replay(replay));
 
             shown_roll = {
                 roll,
-                color: replay.themeColor ?? "#aa55aa",
-                landed: false,
+                color: replay?.themeColor ?? "#aa55aa",
+                landed: !with_dice,
             };
-            // If something goes wrong, the dice don't block everything after them
-            await Promise.race([
-                throw_dice(replay.notation, {
-                    theme: replay.theme,
-                    themeColor: replay.themeColor,
-                }),
-                sleep(replay_duration(replay) + 5000),
-                interrupted,
-            ]);
-            stop_replay();
-            shown_roll.landed = true;
-            await Promise.race([sleep(2500), interrupted]);
+            if (with_dice && replay) {
+                // If something goes wrong, the dice don't block everything after them
+                await Promise.race([
+                    throw_dice(replay.notation, {
+                        theme: replay.theme,
+                        themeColor: replay.themeColor,
+                    }),
+                    sleep(replay_duration(replay) + 5000),
+                    interrupted,
+                ]);
+                stop_replay();
+                shown_roll.landed = true;
+            }
+            await Promise.race([sleep(with_dice ? 2500 : 3500), interrupted]);
             interrupt_replay = null;
             shown_roll = null;
-            diceBox.clear();
+            diceBox?.clear();
         });
     };
 
-    let bonus_string = $derived(format_bonus(roll_result, bonus));
 </script>
 
 <!-- The same shape on every screen: the dice box has to be the same everywhere for others' dice to land where they did -->
@@ -307,7 +352,7 @@
 ></div>
 {#if shown_roll}
     {@const roll = shown_roll.roll}
-    {@const natural = natural_d20(roll)}
+    {@const natural = shown_roll.natural ?? natural_d20(roll)}
     <div
         class="fixed bottom-[calc(5rem+var(--safe-bottom))] left-1/2 -translate-x-1/2 z-10 pointer-events-none"
         transition:fly={{ y: 20, duration: 200 }}
@@ -346,6 +391,11 @@
                             >{roll_detail(roll)}</span
                         >
                     {/if}
+                    {#if roll.mode && roll.mode !== "normal" && roll.d20s?.length === 2}
+                        <span class="text-[0.65rem] text-base-content/60 tabular-nums mt-0.5">
+                            {roll.d20s[0]} | {roll.d20s[1]}
+                        </span>
+                    {/if}
                 {:else}
                     <span class="loading loading-dots loading-md"></span>
                 {/if}
@@ -353,60 +403,17 @@
         </div>
     </div>
 {/if}
-<dialog
-    bind:this={modal}
-    onclose={() => {
-        // Somebody else's dice may be rolling behind the result already
-        if (!shown_roll) diceBox.clear();
-        modal_closed?.();
-        modal_closed = null;
-    }}
-    class="modal"
->
-    <div class="modal-box flex flex-col items-center">
-        <canvas
-            bind:this={confetti_canvas}
-            class="absolute top-0 left-0 w-full h-full"
-        ></canvas>
-        <canvas
-            bind:this={emoji_canvas}
-            class="absolute top-0 left-0 w-full h-full pointer-events-none"
-        ></canvas>
-        {#if single_roll}
-            <h3 class="text-7xl font-bold flex">
-                {roll_result}{bonus_string}
-            </h3>
-        {:else}
-            <h3 class="text-5xl font-bold flex flex-wrap justify-center gap-2">
-                <span class="text-gray-500">{dice_values}</span><span
-                    class="whitespace-nowrap"
-                    >= {roll_result}{bonus_string}</span
-                >
-            </h3>
-        {/if}
-        {#if mode !== "normal" && d20s.length === 2}
-            <p
-                class="mt-2 text-xl {mode === 'advantage'
-                    ? 'text-success'
-                    : 'text-error'}"
-            >
-                {mode_label(mode)}:
-                {#each d20s as value, i}
-                    {#if i > 0}<span class="mx-1 text-base-content/40">|</span
-                        >{/if}
-                    <span
-                        class={value === kept_d20 && d20s.indexOf(value) === i
-                            ? "font-bold"
-                            : "line-through text-base-content/40"}>{value}</span
-                    >
-                {/each}
-            </p>
-        {/if}
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button class="outline-0">close</button>
-    </form>
-</dialog>
+<!-- Over everything, from the result at the bottom -->
+<canvas
+    bind:this={confetti_canvas}
+    class="fixed inset-0 w-full h-full pointer-events-none z-[1001]"
+    aria-hidden="true"
+></canvas>
+<canvas
+    bind:this={emoji_canvas}
+    class="fixed inset-0 w-full h-full pointer-events-none z-[1001]"
+    aria-hidden="true"
+></canvas>
 
 <style>
     :global(.dice-box-canvas) {
