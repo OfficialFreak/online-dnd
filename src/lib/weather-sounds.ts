@@ -324,23 +324,24 @@ function debris(ctx: AudioContext, seconds: number) {
         t += -Math.log(1 - Math.random()) / (3 + 22 * shaking(t));
     }
 
-    // Gravel shifting: many tiny grains at no beat, softly, on a little after the shaking
+    // Gravel shifting: many grains at no beat, on a little after the shaking. Long and
+    // fading in and out softly, not too bright, many and each quiet: short ones crackled.
     const gravel = make();
     t = 0;
     while (t < seconds + 0.4) {
         const after = Math.max(0, t - seconds * 0.9);
         const moving = Math.max(shaking(t), 0.15 * Math.exp(-after * 5));
-        const strength = (0.5 + Math.random() * 1) * moving;
-        const grain = resonance(700 + Math.random() * 2100, 1.2);
-        const size = (0.002 + Math.random() * 0.004) * rate;
+        const strength = (0.35 + Math.random() * 0.35) * moving;
+        const grain = resonance(500 + Math.random() * 1100, 0.9);
+        const size = (0.006 + Math.random() * 0.012) * rate;
         add(
             gravel,
             Math.floor(t * rate),
             Math.random() * 1.8 - 0.9,
-            (i) => strength * grain(Math.random() * 2 - 1) * Math.sin((Math.PI * i) / size),
+            (i) => strength * grain(Math.random() * 2 - 1) * Math.sin((Math.PI * i) / size) ** 2,
             Math.floor(size),
         );
-        t += -Math.log(1 - Math.random()) / (25 + 170 * moving);
+        t += -Math.log(1 - Math.random()) / (40 + 260 * moving);
     }
 
     const buffer = ([left, right]: readonly [Float32Array, Float32Array]) => {
@@ -449,6 +450,9 @@ export function play_rumble(seconds = 4.4) {
     tumbling.start(at);
     const shifting = ctx.createBufferSource();
     shifting.buffer = gravel;
-    shifting.connect(limit.into);
+    const soften = ctx.createBiquadFilter();
+    soften.type = "lowpass";
+    soften.frequency.value = 2500;
+    shifting.connect(soften).connect(limit.into);
     shifting.start(at);
 }
