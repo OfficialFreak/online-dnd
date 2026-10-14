@@ -202,6 +202,8 @@ type Strike = {
     start: number;
     /** The bolt strikes again a few times, milliseconds after the start */
     strokes: { at: number; strength: number }[];
+    /** Where across the screen it strikes, beside the map */
+    x: number;
     trunk: number[];
     branches: number[][];
 };
@@ -327,6 +329,7 @@ export class WeatherRenderer {
             flash,
             start: performance.now(),
             strokes,
+            x: this.beside(flash.x, this.options.map?.() ?? null),
             trunk: [],
             branches: [],
         };
@@ -337,7 +340,7 @@ export class WeatherRenderer {
         const step = Math.max(7, Math.min(width, height) / 45) * (0.55 + near * 0.6);
         // Leans a little to one side as a whole
         const lean = (next() - 0.5) * 0.7;
-        let x = this.beside(flash.x, this.options.map?.() ?? null);
+        let x = strike.x;
         let y = -10;
         strike.trunk.push(x, y);
         while (y < reach) {
@@ -639,18 +642,11 @@ export class WeatherRenderer {
         // The bolts behind everything else, far ones veiled by the fog, and behind the
         // map: only in the light around it
         if (this.strikes.some((strike) => strike.flash.bolt)) {
-            ctx.save();
-            const map = this.map;
-            if (map) {
-                ctx.beginPath();
-                ctx.rect(0, 0, width, height);
-                ctx.rect(map.left, map.top, map.right - map.left, map.bottom - map.top);
-                ctx.clip("evenodd");
-            }
-            for (const strike of this.strikes) {
-                if (strike.flash.bolt) this.draw_bolt(strike, this.light(strike, now));
-            }
-            ctx.restore();
+            this.behind_map(() => {
+                for (const strike of this.strikes) {
+                    if (strike.flash.bolt) this.draw_bolt(strike, this.light(strike, now));
+                }
+            });
         }
 
         if (shown.fog >= NONE) {
@@ -744,23 +740,42 @@ export class WeatherRenderer {
             }
         }
 
-        // The light of the flashes, from above where it struck: near ones light up the
-        // whole screen, far ones only the sky at the top
-        for (const strike of this.strikes) {
-            const near = 1 - strike.flash.distance;
-            const light =
-                this.light(strike, now) *
-                (strike.flash.bolt ? 0.12 + near * 0.5 : 0.15 + near * 0.35);
-            if (light < 0.01) continue;
-            const x = strike.flash.x * width;
-            const reach = Math.hypot(width, height) * (0.45 + near * 0.9);
-            const glow = ctx.createRadialGradient(x, 0, 0, x, 0, reach);
-            const brightest = Math.min(0.8, light);
-            glow.addColorStop(0, `rgba(235, 240, 255, ${brightest})`);
-            glow.addColorStop(1, `rgba(235, 240, 255, ${brightest * near * 0.4})`);
-            ctx.fillStyle = glow;
-            ctx.fillRect(0, 0, width, height);
+        // The light of the flashes, from above where it struck: near ones light up all
+        // around the map, far ones only the sky at the top. Behind the map like the bolts,
+        // the map itself stays as it is.
+        if (this.strikes.length) {
+            this.behind_map(() => {
+                for (const strike of this.strikes) {
+                    const near = 1 - strike.flash.distance;
+                    const light =
+                        this.light(strike, now) *
+                        (strike.flash.bolt ? 0.12 + near * 0.5 : 0.15 + near * 0.35);
+                    if (light < 0.01) continue;
+                    const reach = Math.hypot(width, height) * (0.45 + near * 0.9);
+                    const glow = ctx.createRadialGradient(strike.x, 0, 0, strike.x, 0, reach);
+                    const brightest = Math.min(0.8, light);
+                    glow.addColorStop(0, `rgba(235, 240, 255, ${brightest})`);
+                    glow.addColorStop(1, `rgba(235, 240, 255, ${brightest * near * 0.4})`);
+                    ctx.fillStyle = glow;
+                    ctx.fillRect(0, 0, width, height);
+                }
+            });
         }
+    }
+
+    /** Paints only where the map isn't, as if behind it */
+    private behind_map(paint: () => void) {
+        const ctx = this.context;
+        const map = this.map;
+        ctx.save();
+        if (map) {
+            ctx.beginPath();
+            ctx.rect(0, 0, this.width, this.height);
+            ctx.rect(map.left, map.top, map.right - map.left, map.bottom - map.top);
+            ctx.clip("evenodd");
+        }
+        paint();
+        ctx.restore();
     }
 
     /** How bright a flash is now, each stroke flaring up and dying away */
