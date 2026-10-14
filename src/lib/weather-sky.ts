@@ -182,7 +182,9 @@ export class Sky {
      */
     private draw_aurora(frame: Frame, strength: number) {
         const { width, height } = frame;
-        const fraction = frame.lite ? 5 : 4;
+        // Coarse on wide screens, where it costs, fine on phones, where few columns are
+        // cheap and a coarse grid showed as blocks
+        const fraction = width > 1200 ? 4 : width > 700 ? 3 : 2;
         const columns = Math.max(1, Math.ceil(width / fraction));
         const rows = Math.max(1, Math.ceil((height * AURORA_SKY) / fraction));
         if (frame.dt === 0 || frame.now - this.aurora_drawn >= (frame.lite ? 100 : 50)) {
@@ -208,8 +210,11 @@ export class Sky {
                                 Math.sin(along * 11 - t * 0.08 + curtain.phase * 1.7) * 0.015)) /
                         fraction;
                     // Lively in bunches, and within them rays of every width, drifting along
-                    const bunch = smoothstep(0.28, 0.72, billows(along * 3.2 + curtain.phase, t * 0.03, 2));
-                    const rays = billows(along * 44 + curtain.phase * 3 + t * 0.02, t * 0.12, 3);
+                    // In pixels, so rays are as wide on a phone as on a desktop: in parts of
+                    // the width they were finer than the grid on a phone and flickered
+                    const x = column * fraction;
+                    const bunch = smoothstep(0.28, 0.72, billows(x / 600 + curtain.phase, t * 0.03, 2));
+                    const rays = billows(x / 44 + curtain.phase * 3 + t * 0.02, t * 0.12, 3);
                     const glow = 2.4 * bright * (0.1 + 0.7 * bunch) * (0.18 + 1.4 * rays * rays);
                     if (glow < 0.01) continue;
                     // Ending below the top of the screen, so the violet tips show: the
@@ -255,6 +260,8 @@ export class Sky {
             }
             layer.getContext("2d")!.putImageData(image, 0, 0);
         }
+        // Stretched smoothly, not in steps
+        frame.ctx.imageSmoothingQuality = "high";
         frame.ctx.drawImage(this.aurora_layer!, 0, 0, columns * fraction, rows * fraction);
     }
 
