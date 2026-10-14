@@ -184,13 +184,17 @@ function branch(
 }
 
 type Drop = { x: number; y: number; z: number };
-/** `land` is where on the screen it comes down on the map, below it if it falls on */
-type Flake = { x: number; y: number; z: number; phase: number; sway: number; land: number };
+/** One that `settles` stays on the top edge of the map if it comes down there */
+type Flake = { x: number; y: number; z: number; phase: number; sway: number; settles: boolean };
 type Cloud = { x: number; y: number; width: number; speed: number; sprite: number; phase: number };
-/** Where a raindrop hits the map: a ring spreading out and a few droplets jumping up */
-type Splash = { x: number; y: number; size: number; age: number; life: number };
-/** A flake that came down and lies there until it melts, ages in seconds */
-type Lying = { x: number; y: number; radius: number; age: number; life: number };
+/**
+ * Where a raindrop hits the top edge of the map: droplets jumping up off it. `at` is where
+ * along the edge, from 0 to 1, so it stays there while the map moves. `lean` sends them
+ * more to one side, with the wind.
+ */
+type Splash = { at: number; size: number; age: number; life: number; lean: number };
+/** The map's box on the screen */
+export type MapBox = { left: number; top: number; right: number; bottom: number };
 /** A flash of lightning while it shows, its bolt as x, y pairs in pixels */
 type Strike = {
     flash: Flash;
@@ -206,10 +210,15 @@ type Strike = {
 const REFERENCE_AREA = 1920 * 1080;
 const MAX_DROPS = 700;
 const MAX_FLAKES = 450;
-/** Raindrops hitting the map each second */
-const MAX_SPLASHES = 650;
-/** Flakes lying on the map at most, also in a long blizzard */
-const MAX_LYING = 900;
+/** Raindrops splashing off the top edge of the map each second, along 1920 pixels of it */
+const MAX_SPLASHES = 220;
+/** The snow on the top edge of the map, how high it is at this many places along it */
+const CAP_PLACES = 160;
+
+/** How high snow lies on the map at most, in pixels, by how much it snows */
+function cap_height(snow: number) {
+    return 3 + 9 * snow;
+}
 const CLOUDS = 7;
 
 /**
@@ -231,15 +240,14 @@ export class WeatherRenderer {
     private splashes: Splash[] = [];
     /** Splashes owed from the last frames, a frame mostly brings only a part of one */
     private splashes_due = 0;
-    private lying: Lying[] = [];
     /**
-     * How much snow lies, from 0 to the snow's strength: it piles up over a minute or so
-     * and melts away a little faster. The longer it snows, the longer flakes stay lying
-     * and the frostier the edges of the screen.
+     * The snow lying on the top edge of the map, in pixels high at CAP_PLACES places along
+     * it. Piles up where flakes come down, evens out and melts once it stops snowing.
      */
-    private cover = 0;
-    /** The frost at the edges, see frost */
-    private frosted = "";
+    private cap = new Float32Array(CAP_PLACES);
+    private capped = false;
+    /** Where the map is this frame, only looked up while something needs it */
+    private map: MapBox | null = null;
     private strikes: Strike[] = [];
     private frame = 0;
     /** The pause between frames while only fog drifts, see tick */
@@ -265,6 +273,11 @@ export class WeatherRenderer {
             calm: boolean;
             /** Whether there is weather to draw, the canvas can go while there is none */
             on_active?: (active: boolean) => void;
+            /**
+             * Where the map is on the screen: rain splashes off its top edge, snow settles
+             * there, lightning strikes behind it
+             */
+            map?: () => MapBox | null;
         },
     ) {
         this.context = canvas.getContext("2d")!;
@@ -276,7 +289,6 @@ export class WeatherRenderer {
         if (this.options.calm) {
             // A still picture, the particles spread over the screen
             this.shown = { ...weather };
-            this.cover = weather.snow;
             this.update(0, performance.now());
             for (const particle of [...this.drops, ...this.flakes]) {
                 particle.y = Math.random() * this.height;
@@ -298,6 +310,7 @@ export class WeatherRenderer {
     /**
      * The bolt from the top of the screen down, jagged and with branches. Near ones reach
      * far down and flicker a few times, far ones stay small at the top, behind the clouds.
+     * It strikes behind the map, beside it where there is room.
      */
     private strike(flash: Flash): Strike {
         const next = seeded(flash.seed);
@@ -324,7 +337,7 @@ export class WeatherRenderer {
         const step = Math.max(7, Math.min(width, height) / 45) * (0.55 + near * 0.6);
         // Leans a little to one side as a whole
         const lean = (next() - 0.5) * 0.7;
-        let x = flash.x * width;
+        let x = this.beside(flash.x, this.options.map?.() ?? null);
         let y = -10;
         strike.trunk.push(x, y);
         while (y < reach) {
@@ -336,6 +349,20 @@ export class WeatherRenderer {
             }
         }
         return strike;
+    }
+
+    /**
+     * Where across the screen, from `at` 0 to 1, in the room left and right of the map.
+     * Without enough of it anywhere across, it shows only above the map.
+     */
+    private beside(at: number, map: MapBox | null) {
+        const { width } = this;
+        if (!map) return at * width;
+        const left = Math.max(0, Math.min(width, map.left));
+        const right = Math.max(0, Math.min(width, width - map.right));
+        if (left + right < 40) return at * width;
+        const spot = at * (left + right);
+        return spot < left ? spot : width - right + (spot - left);
     }
 
     private set_active(active: boolean) {
@@ -418,7 +445,6 @@ export class WeatherRenderer {
             this.drops.length ||
             this.flakes.length ||
             this.splashes.length ||
-            this.lying.length ||
             this.strikes.length
         ) {
             this.frame = requestAnimationFrame(this.tick);
@@ -441,8 +467,7 @@ export class WeatherRenderer {
             !this.drops.length &&
             !this.flakes.length &&
             !this.splashes.length &&
-            !this.lying.length &&
-            this.cover < 0.002 &&
+            !this.capped &&
             this.shown.fog < NONE &&
             !this.strikes.length
         );
@@ -499,17 +524,37 @@ export class WeatherRenderer {
             }
         }
 
-        // Where the rain hits the map it splashes
+        // The map only while something needs it, looking costs a layout when it moved
         const raining = this.shown.rain >= NONE ? this.shown.rain : 0;
-        this.splashes_due += this.count(MAX_SPLASHES, raining) * dt;
-        while (this.splashes_due >= 1) {
+        const snowing = this.shown.snow >= NONE ? this.shown.snow : 0;
+        const map = (this.map =
+            raining || snowing || this.capped || this.strikes.length
+                ? (this.options.map?.() ?? null)
+                : null);
+        const span = map ? map.right - map.left : 0;
+
+        // The rain splashes up off the top edge of the map, like on the cards of a weather
+        // app, and nowhere else: splashes all over the screen looked like noise
+        const left = Math.max(0, map?.left ?? 0);
+        const right = Math.min(width, map?.right ?? 0);
+        if (map && raining && map.top >= 0 && map.top <= height && right > left) {
+            this.splashes_due +=
+                MAX_SPLASHES *
+                raining *
+                ((right - left) / 1920) *
+                (this.options.lite ? 0.6 : 1) *
+                dt;
+        } else {
+            this.splashes_due = 0;
+        }
+        while (this.splashes_due >= 1 && map) {
             this.splashes_due--;
             this.splashes.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                size: 2.5 + Math.random() * 5,
+                at: (left + Math.random() * (right - left) - map.left) / span,
+                size: 3 + Math.random() * 5,
                 age: 0,
-                life: 0.28 + Math.random() * 0.22,
+                life: 0.3 + Math.random() * 0.25,
+                lean: wind * 0.6 + (Math.random() - 0.5) * 0.5,
             });
         }
         for (let i = this.splashes.length - 1; i >= 0; i--) {
@@ -521,16 +566,9 @@ export class WeatherRenderer {
             }
         }
 
-        // Snow drifts down slowly and sways. Most flakes come down on the map somewhere
-        // and lie there a while, the others drift on out of the screen.
-        const snowing = this.shown.snow >= NONE ? this.shown.snow : 0;
-        this.cover =
-            this.cover < snowing
-                ? Math.min(snowing, this.cover + dt * 0.02)
-                : Math.max(snowing, this.cover - dt * 0.05);
-        const land = () => (Math.random() < 0.6 ? height * (0.04 + Math.random()) : Infinity);
+        // Snow drifts down slowly and sways. Some flakes settle on the top edge of the
+        // map, the snow there piles up, the others drift on over the map.
         const flakes = this.count(MAX_FLAKES, this.shown.snow);
-        const lying = this.count(MAX_LYING, 1);
         while (this.flakes.length < flakes) {
             this.flakes.push({
                 x: Math.random() * width,
@@ -538,12 +576,13 @@ export class WeatherRenderer {
                 z: 0.3 + Math.random() * 0.7,
                 phase: Math.random() * Math.PI * 2,
                 sway: 8 + Math.random() * 22,
-                land: land(),
+                settles: Math.random() < 0.4,
             });
         }
         const t = now / 1000;
         for (let i = this.flakes.length - 1; i >= 0; i--) {
             const flake = this.flakes[i];
+            const before = flake.y;
             flake.y += (25 + 75 * flake.z) * dt;
             flake.x +=
                 (wind * 140 * flake.z +
@@ -551,16 +590,14 @@ export class WeatherRenderer {
                 dt;
             if (flake.x < -10) flake.x += width + 20;
             if (flake.x > width + 10) flake.x -= width + 20;
-            const landed = flake.y >= flake.land;
-            if (landed && this.lying.length < lying) {
-                // The longer it snows, the longer it stays before it melts
-                this.lying.push({
-                    x: flake.x,
-                    y: flake.y,
-                    radius: 0.8 + 2.4 * flake.z,
-                    age: 0,
-                    life: (3 + Math.random() * 3) * (1 + this.cover * 7),
-                });
+            let landed = false;
+            if (flake.settles && map && snowing && span > 0) {
+                const place = Math.floor(((flake.x - map.left) / span) * CAP_PLACES);
+                if (place >= 0 && place < CAP_PLACES) {
+                    const surface = map.top - this.cap[place];
+                    landed = before < surface && flake.y >= surface;
+                    if (landed) this.pile(place, span, snowing);
+                }
             }
             if (landed || flake.y - 4 > height) {
                 if (this.flakes.length > flakes) {
@@ -570,19 +607,10 @@ export class WeatherRenderer {
                 }
                 flake.y = -Math.random() * 20;
                 flake.x = Math.random() * width;
-                flake.land = land();
+                flake.settles = Math.random() < 0.4;
             }
         }
-        // Once it stops snowing it melts faster
-        const melt = snowing ? 1 : 2.5;
-        for (let i = this.lying.length - 1; i >= 0; i--) {
-            const flake = this.lying[i];
-            flake.age += dt * melt;
-            if (flake.age >= flake.life) {
-                this.lying[i] = this.lying[this.lying.length - 1];
-                this.lying.pop();
-            }
-        }
+        if (this.capped) this.settle_cap(dt, snowing);
 
         // Fog banks drift with the wind, slowly also without
         if (this.shown.fog >= NONE && !this.clouds.length) this.make_clouds();
@@ -604,19 +632,25 @@ export class WeatherRenderer {
         const { context: ctx, width, height, shown } = this;
         ctx.clearRect(0, 0, width, height);
         this.tint(shown);
-        this.frost();
-        if (
-            is_clear(shown) &&
-            !this.strikes.length &&
-            !this.splashes.length &&
-            !this.lying.length
-        ) {
+        if (is_clear(shown) && !this.strikes.length && !this.splashes.length && !this.capped) {
             return;
         }
 
-        // The bolts behind everything else, far ones veiled by the fog
-        for (const strike of this.strikes) {
-            if (strike.flash.bolt) this.draw_bolt(strike, this.light(strike, now));
+        // The bolts behind everything else, far ones veiled by the fog, and behind the
+        // map: only in the light around it
+        if (this.strikes.some((strike) => strike.flash.bolt)) {
+            ctx.save();
+            const map = this.map;
+            if (map) {
+                ctx.beginPath();
+                ctx.rect(0, 0, width, height);
+                ctx.rect(map.left, map.top, map.right - map.left, map.bottom - map.top);
+                ctx.clip("evenodd");
+            }
+            for (const strike of this.strikes) {
+                if (strike.flash.bolt) this.draw_bolt(strike, this.light(strike, now));
+            }
+            ctx.restore();
         }
 
         if (shown.fog >= NONE) {
@@ -624,58 +658,47 @@ export class WeatherRenderer {
             ctx.drawImage(this.fog_layer!, 0, 0, width, height);
         }
 
-        if (this.lying.length) {
-            // Flat on the map, smaller and fainter as they melt
-            for (const [from, to, alpha] of [
-                [0, 0.34, 0.25],
-                [0.34, 0.67, 0.5],
-                [0.67, 1.01, 0.8],
-            ]) {
-                ctx.beginPath();
-                for (const flake of this.lying) {
-                    const left = Math.min(1, ((flake.life - flake.age) / flake.life) * 3.5);
-                    if (left < from || left >= to) continue;
-                    const radius = flake.radius * (0.55 + 0.45 * left);
-                    ctx.moveTo(flake.x + radius, flake.y);
-                    ctx.ellipse(flake.x, flake.y, radius, radius * 0.7, 0, 0, Math.PI * 2);
-                }
-                ctx.fillStyle = `rgba(240, 246, 255, ${alpha})`;
-                ctx.fill();
-            }
-        }
+        this.draw_cap();
 
-        if (this.splashes.length) {
-            // A ring spreading out flat on the map, fading as it grows
+        const map = this.map;
+        if (this.splashes.length && map) {
+            // A small crown flung up where the drop hits the edge, only at first
             ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (const splash of this.splashes) {
+                const age = splash.age / splash.life;
+                if (age >= 0.3) continue;
+                const reach = splash.size * (0.4 + 2 * age);
+                const [x, y] = this.on_edge(map, splash.at);
+                const { lean } = splash;
+                ctx.moveTo(x - reach * 0.25, y);
+                ctx.lineTo(x - reach * (0.8 - lean * 0.4), y - reach * 0.9);
+                ctx.moveTo(x + reach * 0.25, y);
+                ctx.lineTo(x + reach * (0.8 + lean * 0.4), y - reach * 0.9);
+            }
+            ctx.strokeStyle = "rgba(210, 222, 242, 0.55)";
+            ctx.stroke();
+            // Droplets jumping up off the edge and falling back onto it, fainter as they go
             for (const [from, to, alpha] of [
-                [0, 0.34, 0.55],
-                [0.34, 0.67, 0.32],
-                [0.67, 1.01, 0.14],
+                [0, 0.5, 0.7],
+                [0.5, 1.01, 0.4],
             ]) {
                 ctx.beginPath();
                 for (const splash of this.splashes) {
                     const age = splash.age / splash.life;
                     if (age < from || age >= to) continue;
-                    const radius = splash.size * (0.25 + 0.75 * Math.sqrt(age));
-                    ctx.moveTo(splash.x + radius, splash.y);
-                    ctx.ellipse(splash.x, splash.y, radius, radius * 0.5, 0, 0, Math.PI * 2);
+                    const rise = 4 * age * (1 - age) * splash.size * 1.5;
+                    const out = age * splash.size * 1.3;
+                    const size = 1 + splash.size * 0.16;
+                    const [x, y] = this.on_edge(map, splash.at);
+                    const { lean } = splash;
+                    ctx.rect(x - out * (1 - lean), y - rise * 0.8 - size, size, size);
+                    ctx.rect(x + out * (1 + lean), y - rise - size, size, size);
+                    ctx.rect(x + out * lean * 0.4, y - rise * 1.35 - size, size, size);
                 }
-                ctx.strokeStyle = `rgba(200, 214, 235, ${alpha})`;
-                ctx.stroke();
+                ctx.fillStyle = `rgba(215, 226, 245, ${alpha})`;
+                ctx.fill();
             }
-            // Two droplets jumping up and falling back, in the first half
-            ctx.beginPath();
-            for (const splash of this.splashes) {
-                const age = (splash.age / splash.life) * 2;
-                if (age >= 1) continue;
-                const rise = Math.sin(age * Math.PI) * splash.size;
-                const spread = age * splash.size * 1.1;
-                const size = 0.7 + splash.size * 0.12;
-                ctx.rect(splash.x - spread, splash.y - rise * 0.9, size, size);
-                ctx.rect(splash.x + spread * 0.8, splash.y - rise * 1.2, size, size);
-            }
-            ctx.fillStyle = "rgba(215, 226, 245, 0.6)";
-            ctx.fill();
         }
 
         if (this.drops.length) {
@@ -779,27 +802,87 @@ export class WeatherRenderer {
         ctx.restore();
     }
 
+    /** Where along the top edge of the map `at` is, on the snow lying there */
+    private on_edge(map: MapBox, at: number): [number, number] {
+        const place = Math.min(CAP_PLACES - 1, Math.max(0, Math.floor(at * CAP_PLACES)));
+        return [map.left + at * (map.right - map.left), map.top - this.cap[place] * this.taper(place, map)];
+    }
+
+    /** Lower towards the corners of the map, the snow rounds off over them */
+    private taper(place: number, map: MapBox) {
+        const step = (map.right - map.left) / CAP_PLACES;
+        return Math.min(1, (Math.min(place + 0.5, CAP_PLACES - place - 0.5) * step) / 10);
+    }
+
     /**
-     * Snow that has been lying a while frosts the edges of the screen, thicker in the
-     * corners. A background like the tint, the graphics card only puts it on.
+     * A flake comes down on the snow at `place`: a little heap about as wide as a finger,
+     * the same on a map shown small or large, lower the higher the snow already is
      */
-    private frost() {
-        const strength = Math.round(this.cover * 30) / 100;
-        const colour = (alpha: number) => `rgba(236, 243, 255, ${alpha.toFixed(3)})`;
-        const frost =
-            strength > 0
-                ? [
-                      `radial-gradient(ellipse 45% 40% at 0% 0%, ${colour(strength)}, transparent)`,
-                      `radial-gradient(ellipse 40% 45% at 100% 100%, ${colour(strength)}, transparent)`,
-                      `radial-gradient(ellipse 35% 35% at 100% 0%, ${colour(strength * 0.7)}, transparent)`,
-                      `radial-gradient(ellipse 35% 40% at 0% 100%, ${colour(strength * 0.8)}, transparent)`,
-                      `radial-gradient(ellipse at center, transparent 60%, ${colour(strength * 0.6)})`,
-                  ].join(", ")
-                : "none";
-        if (frost !== this.frosted) {
-            this.frosted = frost;
-            this.canvas.style.backgroundImage = frost;
+    private pile(place: number, span: number, snowing: number) {
+        const step = span / CAP_PLACES;
+        const reach = Math.max(1, Math.round(16 / step));
+        const high = cap_height(snowing);
+        for (let i = -reach; i <= reach; i++) {
+            const at = place + i;
+            if (at < 0 || at >= CAP_PLACES) continue;
+            const room = Math.max(0, 1 - this.cap[at] / high);
+            this.cap[at] += 3.3 * room * (1 - Math.abs(i) / (reach + 1));
         }
+        this.capped = true;
+    }
+
+    /** The snow on the map evens out, and melts once it stops snowing or snows less */
+    private settle_cap(dt: number, snowing: number) {
+        const cap = this.cap;
+        const high = cap_height(snowing);
+        const even = Math.min(0.24, dt * 1.2);
+        let before = cap[0];
+        let any = false;
+        for (let i = 0; i < CAP_PLACES; i++) {
+            const here = cap[i];
+            const after = i + 1 < CAP_PLACES ? cap[i + 1] : here;
+            let next = here + even * (before + after - 2 * here);
+            if (!snowing) next -= dt * 0.5;
+            else if (next > high) next -= dt * 0.3;
+            cap[i] = Math.max(0, next);
+            before = here;
+            any ||= cap[i] > 0.05;
+        }
+        this.capped = any;
+    }
+
+    /** The snow lying on the top edge of the map, a soft white ridge on it */
+    private draw_cap() {
+        const map = this.map;
+        if (!map || !this.capped || map.top < -20 || map.top > this.height + 20) return;
+        const ctx = this.context;
+        const step = (map.right - map.left) / CAP_PLACES;
+        // Only the places on the screen
+        const first = Math.max(0, Math.floor(-map.left / step) - 1);
+        const last = Math.min(CAP_PLACES - 1, Math.ceil((this.width - map.left) / step) + 1);
+        if (first > last) return;
+        ctx.beginPath();
+        ctx.moveTo(map.left + first * step, map.top + 1);
+        let [x, y] = [map.left + (first + 0.5) * step, map.top - this.cap[first] * this.taper(first, map)];
+        ctx.lineTo(x, y);
+        // Through the middles between the places, rounded
+        for (let i = first + 1; i <= last; i++) {
+            const nx = map.left + (i + 0.5) * step;
+            const ny = map.top - this.cap[i] * this.taper(i, map);
+            ctx.quadraticCurveTo(x, y, (x + nx) / 2, (y + ny) / 2);
+            [x, y] = [nx, ny];
+        }
+        ctx.lineTo(x, y);
+        ctx.lineTo(map.left + (last + 1) * step, map.top + 1);
+        ctx.closePath();
+        const shade = ctx.createLinearGradient(0, map.top - cap_height(1), 0, map.top + 1);
+        shade.addColorStop(0, "rgba(255, 255, 255, 0.97)");
+        shade.addColorStop(1, "rgba(214, 226, 244, 0.95)");
+        ctx.fillStyle = shade;
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(170, 188, 215, 0.45)";
+        ctx.stroke();
     }
 
     /** Soft fog banks, drawn once and then only moved */

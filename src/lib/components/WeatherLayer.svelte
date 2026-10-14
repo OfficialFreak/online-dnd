@@ -19,12 +19,25 @@
     /** Only turning it on and off starts the lightning anew, the DM's sliders don't */
     let lightning = $derived(shown.lightning);
 
+    /**
+     * The map's picture: the rain splashes off its top edge, snow settles there and the
+     * lightning strikes behind it
+     */
+    let map: HTMLElement | null = null;
+    function map_box() {
+        if (!map?.isConnected) map = document.querySelector<HTMLElement>('[data-map="main"]');
+        if (!map) return null;
+        const { left, right, top, bottom } = map.getBoundingClientRect();
+        return { left, right, top, bottom };
+    }
+
     $effect(() => {
         const created = new WeatherRenderer(canvas, {
             // Phones get fewer particles
             lite: matchMedia("(pointer: coarse)").matches,
             calm: matchMedia("(prefers-reduced-motion: reduce)").matches,
             on_active: (value) => (active = value),
+            map: map_box,
         });
         renderer = created;
         return () => created.destroy();
