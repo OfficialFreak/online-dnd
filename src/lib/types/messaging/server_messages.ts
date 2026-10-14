@@ -46,6 +46,7 @@ export enum MessageType {
     MOUSE_POSITION = "mouse_position",
     MARKER_POSITION = "marker_position",
     WEATHER = "weather",
+    WEATHER_MOMENT = "weather_moment",
     EFFECTS_ENDED = "effects_ended",
     DOOR = "door",
     PONG = "pong",
@@ -175,7 +176,31 @@ export interface Weather {
     thunders?: string[] | null;
     /** How often lightning strikes, from 0 for rarely to 1 for often, as if 0.5 if missing */
     lightning_rate?: number | null;
+    /** Whether a near flash lights up what the figures don't see, as if true if missing */
+    lightning_reveals?: boolean | null;
+    /** Ash falling and embers rising, a fire nearby, from 0 to 1 */
+    ash?: number | null;
+    /** A sandstorm, from 0 to 1 */
+    sand?: number | null;
+    /** Northern lights behind the map, from 0 to 1 */
+    aurora?: number | null;
+    /** A blood moon and a red sky behind the map, from 0 to 1 */
+    blood_moon?: number | null;
+    /** Shooting stars behind the map now and then */
+    shooting_stars?: boolean | null;
+    /**
+     * The ambience playing along with the weather, louder the stronger it is: its file,
+     * empty for none. Missing, the DM's app picks one of the library called like it once
+     * that weather starts.
+     */
+    sounds?: Partial<Record<WeatherSound, string>> | null;
 }
+
+/** What weather an ambience can go with */
+export type WeatherSound = "rain" | "wind" | "fire";
+
+/** What the DM can let happen for a few seconds over everyone's map */
+export type WeatherMomentKind = "blood" | "gold" | "thunder" | "quake";
 
 /** What plays when the DM switches to a scene, the music last played or stopped in it */
 export type SceneMusic = { kind: "song"; name: string } | { kind: "silence" };
@@ -377,6 +402,16 @@ export interface WeatherChanged extends BaseServerMessage {
     weather: Weather;
 }
 
+/** A few seconds of blood rain, gold rain, a thunderclap or a quake */
+export interface WeatherMoment extends BaseServerMessage {
+    type: MessageType.WEATHER_MOMENT;
+    moment: WeatherMomentKind;
+    /** So it looks the same on every screen */
+    seed: number;
+    /** The thunder's sound file */
+    file?: string | null;
+}
+
 /** Someone called out a quick reaction, with their recording if they made one */
 export interface ReactionMessage extends BaseServerMessage {
     type: MessageType.REACTION;
@@ -499,6 +534,7 @@ export type ServerMessage =
     | StopSound
     | SoundLevel
     | WeatherChanged
+    | WeatherMoment
     | EffectsEnded
     | DoorChanged
     | Pong
@@ -595,6 +631,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as MarkerPosition;
         case MessageType.WEATHER:
             return data as WeatherChanged;
+        case MessageType.WEATHER_MOMENT:
+            return data as WeatherMoment;
         case MessageType.EFFECTS_ENDED:
             return data as EffectsEnded;
         case MessageType.DOOR:

@@ -818,6 +818,10 @@
                 case MessageType.WEATHER:
                     if (gameState.scene) gameState.scene.weather = message.weather;
                     break;
+                case MessageType.WEATHER_MOMENT:
+                    // For the weather over the map, see WeatherLayer.svelte
+                    window.dispatchEvent(new CustomEvent("weather-moment", { detail: message }));
+                    break;
                 case MessageType.PONG:
                     pong_waiters.splice(0).forEach((answered) => answered());
                     break;

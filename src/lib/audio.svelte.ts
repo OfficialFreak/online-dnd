@@ -55,10 +55,19 @@ let held = false;
 const effects = new Map<string, Set<HTMLAudioElement>>();
 /** The players of the ambience playing, by the sound's name */
 const ambience = new Map<string, HTMLAudioElement>();
+/**
+ * Ambience playing along with the weather, by what it goes with, and how strong that
+ * weather is from 0 to 1, see weather_sound()
+ */
+const weather_loops = new Map<string, { player: HTMLAudioElement; file: string; strength: number }>();
 
-/** Whether this player loops music or ambience for everyone right now */
+/** Whether this player loops music or ambience right now */
 function is_live(audio: HTMLAudioElement) {
-    return audio === music || [...ambience.values()].includes(audio);
+    return (
+        audio === music ||
+        [...ambience.values()].includes(audio) ||
+        [...weather_loops.values()].some((loop) => loop.player === audio)
+    );
 }
 
 /** The song's player and the ambience's, each with how loud it should play */
@@ -66,6 +75,7 @@ function live_players(): [HTMLAudioElement, () => number][] {
     const live: [HTMLAudioElement, () => number][] = [];
     if (music && audioState.music) live.push([music, playing_music_volume]);
     for (const [name, player] of ambience) live.push([player, () => ambience_volume(name)]);
+    for (const [kind, loop] of weather_loops) live.push([loop.player, () => weather_volume(kind)]);
     return live;
 }
 
@@ -98,6 +108,11 @@ export function effect_volume() {
 
 function playing_music_volume() {
     return ducked ? 0 : music_volume() * (audioState.music?.level ?? 1);
+}
+
+/** As loud as ambience, by how strong its weather is */
+function weather_volume(kind: string) {
+    return music_volume() * (weather_loops.get(kind)?.strength ?? 0);
 }
 
 /** Pressure leaves the ambience on, it only takes the place of the song */
@@ -412,7 +427,7 @@ function new_loop_player() {
 
 /** One that plays no ambience and has faded out, a new one if all do */
 function free_loop_player() {
-    const busy = new Set(ambience.values());
+    const busy = new Set([...ambience.values(), ...[...weather_loops.values()].map((loop) => loop.player)]);
     return (
         loop_players.find((player) => !busy.has(player) && player.paused) ??
         new_loop_player()
@@ -601,6 +616,37 @@ export function stop_ambience(name: string) {
     if (player) fade_out(player, 2000);
 }
 
+/**
+ * Plays an ambience along with the weather on this screen, as loud as the weather is
+ * strong from 0 to 1: the rain with the rain, the wind with its gusts. It needs no step
+ * with the others, so each screen plays it on its own. Not twice while the DM plays the
+ * same as ambience, and it fades out at 0 or without a file.
+ */
+export function weather_sound(kind: string, file: string | null, strength: number) {
+    const loop = weather_loops.get(kind);
+    const played = !!file && audioState.ambience.some((playing) => playing.file === file);
+    if (!file || strength < 0.01 || played) {
+        if (!loop) return;
+        weather_loops.delete(kind);
+        fade_out(loop.player, 2500);
+        return;
+    }
+    if (loop?.file === file) {
+        loop.strength = strength;
+        if (!fades.has(loop.player)) set_audio_level(loop.player, weather_volume(kind));
+        return;
+    }
+    if (loop) fade_out(loop.player, 2500);
+    const player = free_loop_player();
+    // Its own, not in step with anyone
+    clocks.delete(player);
+    player.src = asset_url(file);
+    set_audio_level(player, 0);
+    weather_loops.set(kind, { player, file, strength });
+    if (!document.hidden) play_or_wait(player);
+    fade(player, () => weather_volume(kind), undefined, 3000);
+}
+
 /** The DM made a sound louder or quieter relative to the others */
 export function set_sound_level(name: string, level: number) {
     if (audioState.music?.name === name) {
@@ -699,6 +745,7 @@ export function release_sound() {
 export function stop_all_sounds() {
     stop_music();
     for (const name of [...ambience.keys()]) stop_ambience(name);
+    for (const kind of [...weather_loops.keys()]) weather_sound(kind, null, 0);
     for (const name of [...effects.keys()]) stop_effect(name);
 }
 

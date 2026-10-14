@@ -7,6 +7,8 @@
         VOICELINE,
     } from "$lib/reactions.svelte";
     import ReactionRecorder from "./ReactionRecorder.svelte";
+    import { MOMENTS, send_moment } from "$lib/moments";
+    import { gameState } from "$lib/state.svelte";
 
     /**
      * The button for quick reactions, in the row of the dice so it moves aside when they
@@ -52,6 +54,21 @@
                     </button>
                 {/each}
             </div>
+            {#if gameState.dm && gameState.scene}
+                <!-- The DM's answer to a natural 20 on a rat: for everyone over the map -->
+                <div class="border-t border-base-content/10 pt-1 grid grid-cols-4 gap-1">
+                    {#each MOMENTS as moment (moment.key)}
+                        <button
+                            class="btn btn-ghost h-auto min-h-0 py-1.5 px-1 flex-col gap-0.5 font-normal"
+                            title={moment.title}
+                            onclick={() => send_moment(moment.key)}
+                        >
+                            <span class="text-2xl leading-none">{moment.emoji}</span>
+                            <span class="text-xs">{moment.label}</span>
+                        </button>
+                    {/each}
+                </div>
+            {/if}
             {#if reactionState.voicelines.length}
                 <div class="border-t border-base-content/10 pt-1 flex flex-col max-h-48 overflow-y-auto">
                     {#each reactionState.voicelines as line (line.id)}

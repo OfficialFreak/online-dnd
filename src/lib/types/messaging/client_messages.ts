@@ -1,4 +1,4 @@
-import type { SceneData, SceneState, Weather } from "./server_messages";
+import type { SceneData, SceneState, Weather, WeatherMomentKind } from "./server_messages";
 import type { CarriedLight, Lighting, SceneLight } from "$lib/lighting";
 import type { Door, Wall } from "$lib/vision";
 import type { RollMode } from "$lib/rolls";
@@ -526,6 +526,13 @@ export class SetWeather {
             type: "set_weather",
             weather: weather
         });
+    }
+}
+
+/** A few seconds of blood rain, gold rain, a thunderclap or a quake, for everyone */
+export class WeatherMoment {
+    static create(moment: WeatherMomentKind, seed: number, file?: string | null): string {
+        return JSON.stringify({ type: "weather_moment", moment, seed, file: file ?? null });
     }
 }
 

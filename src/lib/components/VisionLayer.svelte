@@ -19,6 +19,21 @@
     $effect(() => {
         if (shade_canvas) shade_canvas.getContext("2d")?.putImageData(shade, 0, 0);
     });
+
+    // A near flash of lightning lights up what lies in the dark for a moment, flickering
+    // with it, see WeatherLayer.svelte. The fog the DM lays stays.
+    $effect(() => {
+        const on_reveal = (event: Event) => {
+            const light = (event as CustomEvent<number[]>).detail;
+            if (!shade_canvas || !light.length) return;
+            shade_canvas.animate(
+                light.map((bright) => ({ opacity: 1 - Math.min(0.92, bright * 1.1) })),
+                { duration: light.length * 30, easing: "linear" },
+            );
+        };
+        window.addEventListener("lightning-reveal", on_reveal);
+        return () => window.removeEventListener("lightning-reveal", on_reveal);
+    });
 </script>
 
 <canvas
