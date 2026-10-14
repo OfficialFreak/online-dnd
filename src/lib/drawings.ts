@@ -188,9 +188,20 @@ export function shape_contains(
 ) {
     switch (shape.type) {
         case "circle":
-            return Math.hypot(px - shape.cx, py - shape.cy) <= shape.r;
+            return Math.hypot(px - shape.cx, py - shape.cy) <= shape.r + tolerance;
         case "polygon":
-            return inside_polygon(px, py, shape.points);
+            return (
+                inside_polygon(px, py, shape.points) ||
+                shape.points.some(
+                    (point, i) =>
+                        distance_to_segment(
+                            px,
+                            py,
+                            shape.points[(i || shape.points.length) - 1],
+                            point,
+                        ) <= tolerance,
+                )
+            );
         case "polyline":
             return shape.points.some(
                 (point, i) =>

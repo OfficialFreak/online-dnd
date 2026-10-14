@@ -45,6 +45,8 @@ export enum Tools {
     Select,
     /** Draws and removes the walls and doors that block the players' sight */
     Walls,
+    /** Wiped over the map, deletes every drawing it touches */
+    Erase,
 }
 
 export const appState = $state({

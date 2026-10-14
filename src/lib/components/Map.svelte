@@ -776,6 +776,66 @@
         return !!hit;
     }
 
+    /** How far around the pointer the eraser reaches, in pixels of the map */
+    let eraser_radius = $derived(Math.max(10, size * 0.4));
+    /** Where the eraser is over the map, shown as a ring */
+    let eraser_at: { x: number; y: number } | null = $state(null);
+    let erasing = false;
+    let erased_last: { x: number; y: number } | null = null;
+
+    function start_erasing(event: PointerEvent) {
+        if (event.button !== 0) return;
+        erasing = true;
+        erased_last = null;
+        const point = local(event);
+        eraser_at = point;
+        erase_to(point.x, point.y);
+        on_release(() => {
+            erasing = false;
+            erased_last = null;
+            // A finger leaves no ring behind, a mouse still points there
+            if (event.pointerType !== "mouse") eraser_at = null;
+        });
+    }
+
+    /**
+     * Deletes every drawing the eraser touched on its way here since the last point, also
+     * when it moved fast. Players only delete theirs.
+     */
+    function erase_to(x: number, y: number) {
+        const from = erased_last ?? { x, y };
+        erased_last = { x, y };
+        const steps = Math.max(
+            1,
+            Math.ceil(Math.hypot(x - from.x, y - from.y) / (eraser_radius / 2)),
+        );
+        const hit = new Set<string>();
+        for (const item of drawings) {
+            if (!gameState.dm && item.owner !== gameState.name) continue;
+            const { shape } = drawing_shape(item, w, h, size);
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                if (
+                    shape_contains(
+                        shape,
+                        from.x + (x - from.x) * t,
+                        from.y + (y - from.y) * t,
+                        eraser_radius,
+                    )
+                ) {
+                    hit.add(item.id);
+                    break;
+                }
+            }
+        }
+        if (!hit.size || !gameState.scene) return;
+        // Gone at once, the server tells everyone else
+        gameState.scene.state.drawings = (gameState.scene.state.drawings ?? []).filter(
+            (item) => !hit.has(item.id),
+        );
+        appState.ws?.send(DeleteDrawings.create({ ids: [...hit] }));
+    }
+
     // Touch: one finger uses the tool, a second one turns it into a pinch. The fog waits
     // for the finger to move, so the first finger of a pinch doesn't paint.
     const fingers = new Set<number>();
@@ -790,6 +850,9 @@
     /** Drops what a finger started, e.g. when a second one starts a pinch */
     function cancel_stroke() {
         drawing = null;
+        erasing = false;
+        erased_last = null;
+        eraser_at = null;
         fog_rect = null;
         brush_cell = null;
         waiting_fog = null;
@@ -844,6 +907,10 @@
             wall_down(event);
             return;
         }
+        if (appState.selectedTool === Tools.Erase) {
+            start_erasing(event);
+            return;
+        }
         if (appState.selectedTool === Tools.Draw) start_drawing(event);
         clickHandler(event, true);
     }
@@ -870,6 +937,12 @@
         }
         if (appState.selectedTool === Tools.Walls) {
             wall_move(event);
+            return;
+        }
+        if (appState.selectedTool === Tools.Erase) {
+            const point = local(event);
+            eraser_at = point;
+            if (erasing) erase_to(point.x, point.y);
             return;
         }
         if (appState.selectedTool === Tools.Draw) continue_drawing(event);
@@ -2461,6 +2534,32 @@
                 />
             {/each}
         </div>
+        {#if appState.selectedTool === Tools.Erase && eraser_at}
+            <svg
+                class="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
+                viewBox="0 0 {w || 1} {h || 1}"
+                aria-hidden="true"
+            >
+                <circle
+                    cx={eraser_at.x}
+                    cy={eraser_at.y}
+                    r={eraser_radius}
+                    fill="rgb(255 255 255 / 0.12)"
+                    stroke="rgb(0 0 0 / 0.6)"
+                    stroke-width="3"
+                    vector-effect="non-scaling-stroke"
+                />
+                <circle
+                    cx={eraser_at.x}
+                    cy={eraser_at.y}
+                    r={eraser_radius}
+                    fill="none"
+                    stroke="white"
+                    stroke-width="1.5"
+                    vector-effect="non-scaling-stroke"
+                />
+            </svg>
+        {/if}
         {#if gameState.dm && appState.selectedTool === Tools.Walls}
             <!-- The walls only show while the DM edits them, as wide on the screen at any zoom -->
             <svg
@@ -2789,16 +2888,21 @@
             </div>
         {/if}
     {/if}
-    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler || appState.selectedTool === Tools.Draw || appState.selectedTool === Tools.Walls}
+    {#if appState.selectedTool === Tools.Pointer || appState.selectedTool === Tools.AddFog || appState.selectedTool === Tools.RemoveFog || appState.selectedTool === Tools.Ruler || appState.selectedTool === Tools.Draw || appState.selectedTool === Tools.Walls || appState.selectedTool === Tools.Erase}
         <!-- A finger uses the tool instead of panning, two fingers still pinch and pan -->
         <button
             aria-label="Click Capture Layer"
             class="absolute inset-0 touch-none {appState.selectedTool ===
                 Tools.Draw || appState.selectedTool === Tools.Walls
                 ? 'cursor-crosshair'
-                : ''}"
+                : appState.selectedTool === Tools.Erase
+                  ? 'cursor-none'
+                  : ''}"
             style="-webkit-touch-callout: none"
             onpointermove={tool_move}
+            onpointerleave={() => {
+                if (!erasing) eraser_at = null;
+            }}
             onpointerdown={(evt) => {
                 last_pointer = evt.pointerType;
                 tool_down(evt);
