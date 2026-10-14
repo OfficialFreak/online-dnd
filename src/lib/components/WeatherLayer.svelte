@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { asset_url } from "$lib/assets";
     import { play_effect, weather_sound } from "$lib/audio.svelte";
     import { appState } from "$lib/state.svelte";
     import type {
@@ -71,6 +72,48 @@
     });
 
     /**
+     * When each thunder is over, by its file, in milliseconds since 1970: the same one
+     * doesn't roll twice at once. Every screen works it out the same.
+     */
+    const thunder_ends = new Map<string, number>();
+    /** How long each thunder is, in milliseconds, once its file told */
+    const thunder_lengths = new Map<string, number>();
+
+    function thunder_length(file: string) {
+        if (!thunder_lengths.has(file)) {
+            // Until the file tells, about as long as a thunder rolls
+            thunder_lengths.set(file, 8000);
+            const probe = new Audio();
+            probe.preload = "metadata";
+            probe.addEventListener(
+                "loadedmetadata",
+                () => {
+                    if (Number.isFinite(probe.duration)) thunder_lengths.set(file, probe.duration * 1000);
+                    probe.removeAttribute("src");
+                },
+                { once: true },
+            );
+            probe.src = asset_url(file);
+        }
+        return thunder_lengths.get(file)!;
+    }
+
+    /**
+     * The thunder to roll at `at`: the one `pick` chose, else the next of them that is
+     * over by then, none while all still roll. Marked as rolling until it is over.
+     */
+    function free_thunder(files: string[], pick: number, at: number) {
+        const first = Math.floor(pick * files.length);
+        for (let i = 0; i < files.length; i++) {
+            const file = files[(first + i) % files.length];
+            if ((thunder_ends.get(file) ?? 0) > at) continue;
+            thunder_ends.set(file, at + thunder_length(file));
+            return file;
+        }
+        return null;
+    }
+
+    /**
      * A near flash lights up for a moment what the figures don't see, see VisionLayer.
      * The DM can turn that off.
      */
@@ -95,9 +138,8 @@
             if (now - last > 2000) last = now - 250;
             for (const flash of flashes_between(last, now, shown.lightning_rate)) {
                 reveal(renderer?.flash(flash), flash);
-                const files = thunder_files(weather);
-                if (!files.length) continue;
-                const file = files[Math.floor(flash.pick * files.length)];
+                const file = free_thunder(thunder_files(weather), flash.pick, flash.at + flash.thunder_delay);
+                if (!file) continue;
                 const thunder = setTimeout(() => {
                     thunders.delete(thunder);
                     play_effect("Donner", file, flash.loudness);
@@ -161,7 +203,8 @@
             pick: 0,
         };
         if (appState.show_weather) reveal(renderer?.flash(flash, true), flash);
-        const sound = file ?? thunder_files(weather)[0];
+        // The DM's choice, else one of the scene's that isn't rolling
+        const sound = file ?? free_thunder(thunder_files(weather), next(), Date.now() + flash.thunder_delay);
         if (sound) setTimeout(() => play_effect("Donner", sound, 1), flash.thunder_delay);
     }
 
