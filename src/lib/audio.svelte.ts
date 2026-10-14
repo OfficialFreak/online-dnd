@@ -51,6 +51,12 @@ let music: HTMLAudioElement | null = null;
 let ducked = false;
 /** While the microphone records nothing plays, see hold_sound() */
 let held = false;
+/**
+ * Between two scenes, in the portal's starry realm: the music, ambience and weather of
+ * neither scene play, effects and the portal's own sounds still do. See
+ * quiet_between_scenes().
+ */
+let between = false;
 /** An effect the DM plays again before it ends plays twice at once */
 const effects = new Map<string, Set<HTMLAudioElement>>();
 /** The players of the ambience playing, by the sound's name */
@@ -106,19 +112,24 @@ export function effect_volume() {
     return audioState.muted || held ? 0 : audioState.effect_volume;
 }
 
+/** How loud music, ambience and weather play, silent between two scenes */
+function live_volume() {
+    return between ? 0 : music_volume();
+}
+
 function playing_music_volume() {
-    return ducked ? 0 : music_volume() * (audioState.music?.level ?? 1);
+    return ducked ? 0 : live_volume() * (audioState.music?.level ?? 1);
 }
 
 /** As loud as ambience, by how strong its weather is */
 function weather_volume(kind: string) {
-    return music_volume() * (weather_loops.get(kind)?.strength ?? 0);
+    return live_volume() * (weather_loops.get(kind)?.strength ?? 0);
 }
 
 /** Pressure leaves the ambience on, it only takes the place of the song */
 function ambience_volume(name: string) {
     const playing = audioState.ambience.find((playing) => playing.name === name);
-    return music_volume() * (playing?.level ?? 1);
+    return live_volume() * (playing?.level ?? 1);
 }
 
 // The app plays music, as a music app: iOS mutes Web Audio with the switch on its side,
@@ -725,6 +736,23 @@ export function hold_sound(duration = HOLD_FADE) {
 }
 
 const HOLD_FADE = 300;
+
+/**
+ * A scene change: the sound of the old scene fades out as the smoke closes, and nothing of
+ * either scene plays in the portal between them. What the new scene brings starts silent
+ * meanwhile, see sound_new_scene(). The players go on, so they stay in step.
+ */
+export function quiet_between_scenes(duration = 1100) {
+    between = true;
+    for (const [player] of live_players()) fade(player, () => 0, undefined, duration);
+}
+
+/** The smoke draws back from the new scene, its sound comes in slowly with it */
+export function sound_new_scene(duration = 2500) {
+    if (!between) return;
+    between = false;
+    for (const [player, volume] of live_players()) fade(player, volume, undefined, duration);
+}
 
 /**
  * After recording the music comes back where everyone else is, slowly. A moment later:

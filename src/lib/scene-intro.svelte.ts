@@ -4,7 +4,11 @@
  */
 import { tick } from "svelte";
 import { appState, gameState } from "./state.svelte";
-import { hold_sound, release_sound } from "./audio.svelte";
+import {
+    hold_sound,
+    quiet_between_scenes,
+    release_sound,
+} from "./audio.svelte";
 import {
     gate_stars,
     play_portal_enter,
@@ -181,6 +185,9 @@ export async function change_scene(
         return;
     }
     waiting = scene;
+    // In neither scene while the smoke covers them: the old one's sound fades with the
+    // smoke closing, the new one's comes in as it draws back
+    quiet_between_scenes(1100);
     // Not while the gate waits for the tap, which has its own sound
     if (!at_gate) play_scene_close();
     try {

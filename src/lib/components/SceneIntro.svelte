@@ -5,6 +5,7 @@
     import { cubicIn, cubicOut, linear } from "svelte/easing";
     import { fade } from "svelte/transition";
     import { register_intro } from "$lib/scene-intro.svelte";
+    import { sound_new_scene } from "$lib/audio.svelte";
     import { billows, smoothstep } from "$lib/noise";
     import { play_portal_enter, play_scene_open, play_scene_scroll } from "$lib/portal-sounds";
 
@@ -152,6 +153,7 @@
      */
     function skip() {
         run++;
+        sound_new_scene(300);
         smoke.set(0, { duration: 0 });
         unrolled = 0;
         scroll_shown = false;
@@ -213,6 +215,7 @@
         if (mine !== run) return;
         // Not over the controls anymore, after an announcement
         above = false;
+        sound_new_scene();
         start_smoke();
         smoke.set(0, { duration: 1700, easing: linear });
         if (scroll_shown) {
@@ -270,6 +273,8 @@
         if (mine !== run) return;
         start_smoke();
         if (sounding) play_scene_open();
+        // The new scene's music and ambience come in slowly as the veil lifts
+        sound_new_scene();
         smoke.set(0, { duration: 1700, easing: linear });
         await roll(0, 650, cubicIn);
         if (mine !== run) return;
