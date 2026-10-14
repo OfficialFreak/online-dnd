@@ -9,10 +9,11 @@ reconnect (they look for one then, see src/lib/updates.svelte.ts):
 1. Builds the web version and copies it to the server, which serves it without a restart.
 2. Pushes crud to release, GitHub builds and publishes the desktop app.
 3. With -Server: pushes the server and builds it on the host, the old one keeps running.
-4. Waits until the desktop app is published, a few minutes.
-5. With -Server: restarts the server, unless someone other than -Me is playing. With -Now
-   it restarts right after building, the desktop apps follow once their update is out:
-   after a server update they look for it every two minutes for half an hour.
+4. Restarts the server, the new one with -Server. Everyone is dropped for a few seconds on
+   purpose: reconnecting, the web clients load the new version. The desktop apps follow
+   once their update is out, after a restart they look for it every two minutes for half
+   an hour.
+5. Waits until the desktop app is published, a few minutes.
 
 Run from PowerShell, ssh to the host only works from there.
 
@@ -21,21 +22,20 @@ Run from PowerShell, ssh to the host only works from there.
 .EXAMPLE
 ./scripts/deploy.ps1 -Bump -Server
 .EXAMPLE
-./scripts/deploy.ps1 -Bump -Server -Now
+./scripts/deploy.ps1 -NoRelease
 #>
 param(
     # Raises the patch version and commits it
     [switch]$Bump,
-    # Also deploys and restarts the server
+    # Also deploys the new server, which the restart starts
     [switch]$Server,
-    # Restarts the server even while others are playing, it drops them for a few seconds
-    [switch]$Force,
     # Only the web version, no desktop release
     [switch]$NoRelease,
-    # Restarts the server without waiting for the desktop app, which follows
+    # No longer needed, the server always restarts right after the web version is out:
+    # kept so older calls still run
     [switch]$Now,
-    # Who may be online during a restart, the one deploying
-    [string]$Me = "Nils"
+    [switch]$Force,
+    [string]$Me
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,18 +53,10 @@ function Check([string]$what) {
 }
 
 function Restart-Server {
-    Step "Restarting the server"
-    # Who joined and hasn't left since, by the server's log of the last half day
-    $online = @{}
-    foreach ($line in (ssh private "bash -c 'docker logs --since 12h dnd_online_server 2>&1'")) {
-        if ($line -match '^(\S+) joined the game') { $online[$Matches[1]] = 1 + $online[$Matches[1]] }
-        elseif ($line -match '^(\S+) left the game') { $online[$Matches[1]] = $online[$Matches[1]] - 1 }
-    }
-    $others = @($online.Keys | Where-Object { $online[$_] -gt 0 -and $_ -ne $Me })
-    if ($others.Count -and -not $Force) {
-        throw "Playing right now: $($others -join ', '). Restart with -Force or later: ssh private 'cd $host_dir; docker compose up -d'"
-    }
-    ssh private "bash -c 'cd $host_dir && docker compose up -d'"
+    Step "Restarting the server, everyone reconnects and gets the new version"
+    # A newly built server is started in place of the old one, else the same restarts
+    $how = if ($Server) { "up -d" } else { "restart" }
+    ssh private "bash -c 'cd $host_dir && docker compose $how'"
     Check "Restarting the server"
 }
 
@@ -115,8 +107,9 @@ if ($Server) {
     Check "Pushing the server"
     ssh private "bash -c 'cd $host_dir && git pull --ff-only && docker compose build'"
     Check "Building the server"
-    if ($Now) { Restart-Server }
 }
+
+Restart-Server
 
 if (-not $NoRelease) {
     Step "Waiting until the desktop app is published"
@@ -139,7 +132,5 @@ if (-not $NoRelease) {
     if ($result -ne "success") { throw "The desktop release failed: $result" }
     Write-Host "Published"
 }
-
-if ($Server -and -not $Now) { Restart-Server }
 
 Step "Done: $version"
