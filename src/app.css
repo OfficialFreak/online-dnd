@@ -186,8 +186,29 @@ html.veiled .gui * {
     mask: none !important;
 }
 
+/* The hexagon as a CSS shape, the clipPath #hexClip in app.html only where shape() is
+   missing. WebKit paints a url() clip of a composited box (a marker moving with a
+   condition or over the map's canvases) into a mask layer of its own: on an iPad it
+   stayed as large as before a zoom and cut the portrait. A shape becomes a path layer
+   worked out anew with the box, and has no picture to keep in memory. */
 .mask-hexagon {
     clip-path: url(#hexClip);
+    clip-path: shape(
+        from 89.031% 79.658%,
+        curve to 56.169% 98.631% with 80.569% 84.821% / 64.871% 93.884%,
+        curve to 43.831% 98.631% with 52.822% 100.456% / 47.178% 100.456%,
+        curve to 10.969% 79.658% with 35.129% 93.884% / 19.431% 84.821%,
+        curve to 4.8% 68.972% with 7.715% 77.672% / 4.892% 72.784%,
+        curve to 4.8% 31.027% with 4.56% 59.063% / 4.56% 40.937%,
+        curve to 10.969% 20.342% with 4.892% 27.216% / 7.715% 22.328%,
+        curve to 43.831% 1.369% with 19.431% 15.179% / 35.129% 6.116%,
+        curve to 56.169% 1.369% with 47.178% -0.456% / 52.822% -0.456%,
+        curve to 89.031% 20.342% with 64.871% 6.116% / 80.569% 15.179%,
+        curve to 95.2% 31.028% with 92.285% 22.328% / 95.108% 27.216%,
+        curve to 95.2% 68.973% with 95.44% 40.937% / 95.44% 59.063%,
+        curve to 89.031% 79.658% with 95.108% 72.784% / 92.285% 77.672%,
+        close
+    );
     mask: none !important;
 }
 /* Conditions of markers on the map, see src/lib/conditions.ts. Each one moves the marker
