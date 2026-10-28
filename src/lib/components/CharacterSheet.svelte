@@ -7,6 +7,7 @@
         appState,
         character_marker,
         gameState,
+        picture_scene,
         roller,
     } from "../state.svelte";
     import { dragSource } from "../drag.svelte";
@@ -44,8 +45,11 @@
                 shared_roll(result),
             ),
         );
-        // Only markers on the map take part
-        if (!gameState.scene?.state.markers.some((marker) => marker.name === name)) {
+        // Only markers on the map take part, a picture shows none
+        if (
+            picture_scene() ||
+            !gameState.scene?.state.markers.some((marker) => marker.name === name)
+        ) {
             return;
         }
         const total = result.roll_result + initiative;

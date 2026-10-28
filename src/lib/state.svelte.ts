@@ -7,7 +7,8 @@ import type {
     MarkerTemplate,
     Weather,
 } from "$lib/types/messaging/server_messages";
-import { load_store, type KeyValueStore } from "./platform";
+import { dev } from "$app/environment";
+import { in_tauri, load_store, type KeyValueStore } from "./platform";
 import type { GameSocket } from "./connection.svelte";
 import { circOut } from "svelte/easing";
 import { Tween } from "svelte/motion";
@@ -49,12 +50,27 @@ export enum Tools {
     Erase,
 }
 
+/**
+ * The game server the app talks to. The web version comes from a game server and talks to
+ * that one, so a second server next to the main one, e.g. on localhost, has its own players.
+ * The desktop app and `vite dev` talk to the main server.
+ */
+function game_server() {
+    const served =
+        !in_tauri &&
+        !dev &&
+        typeof location !== "undefined" &&
+        (location.protocol === "https:" || location.protocol === "http:");
+    return served
+        ? { baseUrl: location.host, secure: location.protocol === "https:" }
+        : { baseUrl: "dnd.wiegraebe.dev", secure: true };
+}
+
 export const appState = $state({
     token: null as string | null,
     ws: null as GameSocket | null,
     store: null as any as KeyValueStore,
-    secure: true,
-    baseUrl: "dnd.wiegraebe.dev",
+    ...game_server(),
     selectedTool: Tools.None,
     dragging: false,
     /** How large the map is shown */
@@ -107,6 +123,29 @@ export const gameState = $state({
     /** Oldest first */
     rolls: [] as RollEntry[],
 });
+
+/**
+ * Whether the active scene is a picture without a grid. Nothing is placed, moved or
+ * measured on it, and there is no fog or sight. The server refuses markers on it too.
+ */
+export function picture_scene() {
+    return !!gameState.scene?.gridless;
+}
+
+/**
+ * The tools that need a map's grid: measuring and spell areas, fog, walls and choosing
+ * markers. Pointing, freehand drawing and erasing work on a picture as well.
+ */
+export function needs_grid(tool: Tools) {
+    return (
+        tool === Tools.Ruler ||
+        tool === Tools.AddFog ||
+        tool === Tools.RemoveFog ||
+        tool === Tools.Walls ||
+        tool === Tools.Select ||
+        (tool === Tools.Draw && drawState.kind !== "free")
+    );
+}
 
 export const resetGamestate = () => {
     gameState.name = "Unknown Player";
@@ -356,7 +395,9 @@ export async function advance_turn() {
         !(
             gameState.dm || own_character?.name === gameState.scene?.state.turn
         ) ||
-        !gameState.scene
+        !gameState.scene ||
+        // The turns are the markers', a picture shows none
+        picture_scene()
     )
         return;
 
@@ -375,7 +416,7 @@ export async function advance_turn() {
 
 /** Goes back one turn, used by the DM to undo an accidental advance */
 export async function previous_turn() {
-    if (!gameState.combat || !gameState.dm || !gameState.scene) return;
+    if (!gameState.combat || !gameState.dm || !gameState.scene || picture_scene()) return;
     if (!sorted_initiative?.length) return;
 
     const index = sorted_initiative.findIndex(
@@ -468,7 +509,7 @@ export async function add_to_initiative(
     marker: Pick<MarkerTemplate, "name" | "monster">,
     value?: number,
 ) {
-    if (!gameState.scene) return;
+    if (!gameState.scene || picture_scene()) return;
     if (gameState.scene.state.initiative.some((entry) => entry[1] === marker.name)) return;
     const bonus = initiative_bonus(marker);
     if (value === undefined && bonus === null) return;
@@ -493,7 +534,7 @@ export async function add_to_initiative(
  */
 export async function roll_known_initiative() {
     const scene = gameState.scene;
-    if (!scene) return;
+    if (!scene || picture_scene()) return;
     const missing = scene.state.markers.filter(
         (marker) => !scene.state.initiative.some((entry) => entry[1] === marker.name),
     );
@@ -696,7 +737,8 @@ export async function redo() {
 
 /** Puts a marker from the library into the active scene. x and y are fractions of the map size. */
 export async function add_marker(marker: MarkerTemplate, x = 0, y = 0) {
-    if (!appState.ws || !gameState.scene) return;
+    // A picture has no grid to put it on
+    if (!appState.ws || !gameState.scene || picture_scene()) return;
     record_undo();
     let new_marker = {
         ...marker,
@@ -756,6 +798,14 @@ export function character_marker(name: string) {
 export async function place_party() {
     const scene = gameState.scene;
     if (!appState.ws || !scene) return;
+    if (picture_scene()) {
+        notify(
+            "Auf einer Bildszene gibt es keine Marker",
+            MessageTypes.Warning,
+            3000,
+        );
+        return;
+    }
 
     const party = gameState.characters
         .map((character) => character_marker(character.name))

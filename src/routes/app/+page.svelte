@@ -13,6 +13,7 @@
         toolbarState,
         selection,
         remove_markers,
+        picture_scene,
     } from "../../lib/state.svelte";
     import { MessageType } from "$lib/types/messaging/server_messages";
     import { shared_roll } from "$lib/rolls";
@@ -150,6 +151,7 @@
         ]}
         markers={gameState.scene.state.markers}
         editable={true}
+        gridless={!!gameState.scene.gridless}
     />
     <WeatherLayer weather={gameState.scene.weather} />
 {:else if appState.ws && gameState.users.length > 0}
@@ -205,7 +207,8 @@
             >
         </div>
     {/if}
-    {#if gameState.scene && gameState.combat}
+    <!-- The initiative is the markers', a picture shows none -->
+    {#if gameState.scene && gameState.combat && !picture_scene()}
         <div
             class="gui fixed top-[calc(var(--titlebar)+var(--safe-top))] left-[var(--safe-left)] ml-14 w-[calc(100vw-5rem-var(--safe-left)-var(--safe-right))] overflow-x-auto overflow-y-hidden pb-12 flex justify-center pointer-events-none"
         >
@@ -274,7 +277,7 @@
         </div>
     </div>
 
-    {#if gameState.combat && (gameState.scene?.state.initiative?.length || 0) > 0 && (gameState.dm || get_own_character()?.name === gameState.scene?.state.turn)}
+    {#if gameState.combat && !picture_scene() && (gameState.scene?.state.initiative?.length || 0) > 0 && (gameState.dm || get_own_character()?.name === gameState.scene?.state.turn)}
         <!-- On phones the dice take the bottom left, so it goes to the right -->
         <div
             class="gui fixed bottom-[var(--corner-bottom)] left-1/2 -translate-x-1/2 max-sm:left-auto max-sm:right-[var(--corner-right)] max-sm:translate-x-0 z-10"

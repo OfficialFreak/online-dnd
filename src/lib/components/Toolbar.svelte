@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { untrack } from "svelte";
     import { fade } from "svelte/transition";
     import {
         appState,
@@ -24,6 +25,8 @@
         drawState,
         wallState,
         rollState,
+        picture_scene,
+        needs_grid,
     } from "../state.svelte";
     import { DRAWING_COLORS, DRAWING_KINDS } from "$lib/drawings";
     import { LIGHT_PRESETS, LIGHTING_LABELS, type Lighting } from "$lib/lighting";
@@ -48,10 +51,23 @@
     function selectTool(tool: Tools) {
         if (appState.selectedTool === tool) {
             appState.selectedTool = Tools.None;
-        } else {
+        } else if (!(picture && needs_grid(tool))) {
             appState.selectedTool = tool;
         }
     }
+
+    /** A picture scene has no grid, the tools that need one aren't offered */
+    let picture = $derived(picture_scene());
+
+    // Switched to a picture, nothing of the map's tools stays active unseen
+    $effect(() => {
+        if (!picture) return;
+        untrack(() => {
+            if (needs_grid(appState.selectedTool)) appState.selectedTool = Tools.None;
+            selection.clear();
+            if (open_menu !== "measure") open_menu = null;
+        });
+    });
 
     // The menus beside the controls open and close with their button, and close with a
     // click or tap next to them. Opened on hover they couldn't be closed with the button,
@@ -98,12 +114,19 @@
         if (measuring) last_measure_tool = appState.selectedTool;
     });
     let measure_icon = $derived(
-        last_measure_tool === Tools.Ruler
-            ? "fa-ruler"
-            : last_measure_tool === Tools.Erase
-              ? "fa-eraser"
-              : (DRAWING_KINDS.find((entry) => entry.kind === drawState.kind)?.icon ??
-                "fa-pen-ruler"),
+        picture && needs_grid(last_measure_tool)
+            ? // Only freehand drawing and the eraser are left on a picture
+              "fa-pencil"
+            : last_measure_tool === Tools.Ruler
+              ? "fa-ruler"
+              : last_measure_tool === Tools.Erase
+                ? "fa-eraser"
+                : (DRAWING_KINDS.find((entry) => entry.kind === drawState.kind)?.icon ??
+                  "fa-pen-ruler"),
+    );
+    /** The drawings that don't need a grid, on a picture only freehand */
+    let drawing_kinds = $derived(
+        picture ? DRAWING_KINDS.filter((entry) => entry.kind === "free") : DRAWING_KINDS,
     );
 
     function pick_drawing(kind: (typeof DRAWING_KINDS)[number]["kind"]) {
@@ -210,6 +233,8 @@
                 selectTool(Tools.Ruler);
                 break;
             case "KeyD":
+                // A picture only takes freehand drawings
+                if (picture) drawState.kind = "free";
                 selectTool(Tools.Draw);
                 break;
             case "KeyE":
@@ -339,7 +364,7 @@
     }
 
     function fillAll() {
-        if (!gameState.scene) return;
+        if (!gameState.scene || picture) return;
         record_undo();
 
         let edit_players =
@@ -358,7 +383,7 @@
     }
 
     function removeAll() {
-        if (!gameState.scene) return;
+        if (!gameState.scene || picture) return;
         record_undo();
 
         let edit_players =
@@ -488,8 +513,10 @@
                             >
                             <button
                                 class="btn"
-                                disabled={!gameState.scene}
-                                title="Stellt alle Charaktere im Kreis in die Mitte der Karte"
+                                disabled={!gameState.scene || picture}
+                                title={picture
+                                    ? "Auf einer Bildszene gibt es keine Marker"
+                                    : "Stellt alle Charaktere im Kreis in die Mitte der Karte"}
                                 onclick={place_party}
                             >
                                 <i class="fa-solid fa-people-group"></i>
@@ -600,19 +627,22 @@
                 use:keep_in_view
             >
                 <div class="flex flex-row items-center gap-0.5">
-                    <button
-                        class="btn btn-sm btn-square {appState.selectedTool ===
-                        Tools.Ruler
-                            ? 'btn-info'
-                            : 'btn-ghost'}"
-                        title="Lineal (L)"
-                        aria-label="Lineal"
-                        onclick={() => pick_tool(Tools.Ruler)}
-                    >
-                        <i class="fa-solid fa-ruler"></i>
-                    </button>
-                    <span class="w-px h-5 bg-base-content/15 mx-1"></span>
-                    {#each DRAWING_KINDS as { kind, label, icon }}
+                    <!-- A picture has no grid to measure on, nor spell areas -->
+                    {#if !picture}
+                        <button
+                            class="btn btn-sm btn-square {appState.selectedTool ===
+                            Tools.Ruler
+                                ? 'btn-info'
+                                : 'btn-ghost'}"
+                            title="Lineal (L)"
+                            aria-label="Lineal"
+                            onclick={() => pick_tool(Tools.Ruler)}
+                        >
+                            <i class="fa-solid fa-ruler"></i>
+                        </button>
+                        <span class="w-px h-5 bg-base-content/15 mx-1"></span>
+                    {/if}
+                    {#each drawing_kinds as { kind, label, icon }}
                         <button
                             class="btn btn-sm btn-square {appState.selectedTool ===
                                 Tools.Draw && drawState.kind === kind
@@ -651,17 +681,19 @@
                         ></button>
                     {/each}
                     <span class="flex-1"></span>
-                    <button
-                        class="btn btn-xs btn-square {drawState.snap
-                            ? 'btn-info'
-                            : 'btn-ghost'}"
-                        title="Am Raster einrasten"
-                        aria-label="Am Raster einrasten"
-                        aria-pressed={drawState.snap}
-                        onclick={() => (drawState.snap = !drawState.snap)}
-                    >
-                        <i class="fa-solid fa-border-all"></i>
-                    </button>
+                    {#if !picture}
+                        <button
+                            class="btn btn-xs btn-square {drawState.snap
+                                ? 'btn-info'
+                                : 'btn-ghost'}"
+                            title="Am Raster einrasten"
+                            aria-label="Am Raster einrasten"
+                            aria-pressed={drawState.snap}
+                            onclick={() => (drawState.snap = !drawState.snap)}
+                        >
+                            <i class="fa-solid fa-border-all"></i>
+                        </button>
+                    {/if}
                 </div>
                 <div class="flex flex-row gap-1 border-t border-base-content/10 pt-2">
                     <button
@@ -685,7 +717,7 @@
                 </div>
             </div>
         </div>
-        {#if gameState.dm}
+        {#if gameState.dm && !picture}
             <div class="tooltip tooltip-right">
                 <div class="tooltip-content">
                     Mehrere Marker auswählen
@@ -814,6 +846,8 @@
             </div>
         {/if}
         {#if gameState.dm}
+            <!-- Fog, sight and walls need a map's grid, a picture has none -->
+            {#if !picture}
             <span class="tool-divider" aria-hidden="true"></span>
             <!-- What the players see -->
             <div
@@ -1072,6 +1106,7 @@
                     {/if}
                 </div>
             </div>
+            {/if}
             <span class="tool-divider" aria-hidden="true"></span>
             <!-- The game -->
             <div class="tooltip tooltip-right">

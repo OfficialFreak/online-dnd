@@ -77,7 +77,8 @@ export class SaveResult {
 }
 
 export class PutScene {
-    static create(name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number, state: SceneState): string {
+    /** A new scene, or one replacing the scene of that name. gridless makes it a picture without a grid. */
+    static create(name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number, state: SceneState, gridless = false): string {
         return JSON.stringify({
             type: "put_scene",
             name: name,
@@ -88,9 +89,11 @@ export class PutScene {
             rows: rows,
             x_offset: x_offset,
             y_offset: y_offset,
+            gridless: gridless,
             state: state
         });
     }
+    /** Without gridless: whether it is a picture only changes with its settings */
     static update(scene: SceneData): string {
         let new_markers = scene.state.markers.map((marker) => {
             return {
@@ -177,8 +180,8 @@ export class UpdateSceneMarker {
 }
 
 export class UpdateScene {
-    /** Changes everything but the scene's state, a different name renames it */
-    static create(old_name: string, name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number): string {
+    /** Changes everything but the scene's state, a different name renames it, gridless makes it a picture */
+    static create(old_name: string, name: string, map_file: string, background_file: string | null, background_blur: number, columns: number, rows: number, x_offset: number, y_offset: number, gridless: boolean): string {
         return JSON.stringify({
             type: "update_scene",
             old_name: old_name,
@@ -189,7 +192,8 @@ export class UpdateScene {
             columns: columns,
             rows: rows,
             x_offset: x_offset,
-            y_offset: y_offset
+            y_offset: y_offset,
+            gridless: gridless
         });
     }
 }

@@ -4,6 +4,7 @@
         delete_marker_template,
         dialogs,
         gameState,
+        picture_scene,
     } from "$lib/state.svelte";
     import Display from "./Display.svelte";
 
@@ -36,6 +37,13 @@
 
 <div class="p-2 px-4 flex flex-col gap-2 min-h-full">
     <h1 class="text-3xl font-bold">Marker</h1>
+    {#if picture_scene()}
+        <p class="text-sm text-base-content/60">
+            <i class="fa-solid fa-image"></i>
+            Die aktive Szene ist eine Bildszene ohne Raster, auf ihr lassen sich keine
+            Marker platzieren.
+        </p>
+    {/if}
     <label class="input input-sm w-full">
         <i class="fa-solid fa-magnifying-glass opacity-50"></i>
         <input type="search" placeholder="Suchen" bind:value={search} />

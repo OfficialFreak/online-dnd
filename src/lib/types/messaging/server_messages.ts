@@ -245,6 +245,11 @@ export interface SceneData extends BaseServerMessage {
     x_offset: number;
     y_offset: number;
     /** Missing from older servers and in scenes without any */
+    /**
+     * A picture for the players instead of a map: no grid, no markers, fog, walls or
+     * measuring. Missing from older servers.
+     */
+    gridless?: boolean;
     weather?: Weather | null;
     state: SceneState;
 }
@@ -265,6 +270,8 @@ export interface Scene {
     weather?: Weather | null;
 }
 
+    /** A picture without a grid, missing for maps */
+    gridless?: boolean;
 export interface SceneList extends BaseServerMessage {
     type: MessageType.SCENE_LIST;
     scenes: Scene[];

@@ -24,6 +24,8 @@
     let scene_rows: number = $state(10);
     let scene_x_offset: number = $state(0);
     let scene_y_offset: number = $state(0);
+    /** A picture for the players instead of a map, without a grid */
+    let gridless: boolean = $state(false);
 
     /** Another scene already has this name */
     let name_taken = $derived(
@@ -43,6 +45,7 @@
         scene_columns = 10;
         scene_x_offset = 0;
         scene_y_offset = 0;
+        gridless = false;
     }
 
     /** Opens the dialog for a new scene. With a path, that file is uploaded as its map. */
@@ -64,6 +67,7 @@
         scene_rows = scene.rows;
         scene_x_offset = scene.x_offset;
         scene_y_offset = scene.y_offset;
+        gridless = !!scene.gridless;
         dialog?.showModal();
     }
 
@@ -149,16 +153,22 @@
                 );
                 return;
             }
-            await appState.ws.send(UpdateScene.create(editing.name, ...settings));
+            await appState.ws.send(
+                UpdateScene.create(editing.name, ...settings, gridless),
+            );
             notify("Szene gespeichert", MessageTypes.Success, 3000);
         } else {
             await appState.ws.send(
-                PutScene.create(...settings, {
-                    fog_squares: {},
-                    markers: [],
-                    initiative: [],
-                    turn: null,
-                }),
+                PutScene.create(
+                    ...settings,
+                    {
+                        fog_squares: {},
+                        markers: [],
+                        initiative: [],
+                        turn: null,
+                    },
+                    gridless,
+                ),
             );
             notify(
                 name_taken ? "Szene ersetzt" : "Szene erstellt",
@@ -226,36 +236,58 @@
                     </button>
                 </div>
             {:else}
-                <legend class="fieldset-legend">Spalten</legend>
-                <input
-                    type="number"
-                    bind:value={scene_columns}
-                    min="1"
-                    max={MAX_GRID_SIZE}
-                    class="input w-full"
-                    placeholder="10"
-                />
-                {#if editing && to_int(scene_columns, 10, 1, MAX_GRID_SIZE) !== editing.columns}
+                <label class="flex items-start gap-2 text-sm mt-2 cursor-pointer">
+                    <input
+                        type="checkbox"
+                        class="toggle toggle-sm mt-0.5"
+                        bind:checked={gridless}
+                    />
+                    Ohne Raster (Bildszene)
+                </label>
+                <p class="fieldset-label">
+                    Ein Bild für die Spieler statt einer Karte. Marker, Nebel und
+                    Wände lassen sich dort nicht benutzen, Wetter und Musik schon.
+                </p>
+                {#if gridless && editing && !editing.gridless}
                     <p class="fieldset-label">
-                        Der Nebel wird an das neue Raster angepasst.
+                        Marker und Nebel der Karte bleiben gespeichert und sind mit
+                        Raster wieder da.
                     </p>
                 {/if}
 
-                <legend class="fieldset-legend">X-Offset</legend>
-                <input
-                    type="number"
-                    bind:value={scene_x_offset}
-                    class="input w-full"
-                    placeholder="10"
-                />
+                <!-- A picture keeps its grid's values, only hidden -->
+                {#if !gridless}
+                    <legend class="fieldset-legend">Spalten</legend>
+                    <input
+                        type="number"
+                        bind:value={scene_columns}
+                        min="1"
+                        max={MAX_GRID_SIZE}
+                        class="input w-full"
+                        placeholder="10"
+                    />
+                    {#if editing && to_int(scene_columns, 10, 1, MAX_GRID_SIZE) !== editing.columns}
+                        <p class="fieldset-label">
+                            Der Nebel wird an das neue Raster angepasst.
+                        </p>
+                    {/if}
 
-                <legend class="fieldset-legend">Y-Offset</legend>
-                <input
-                    type="number"
-                    bind:value={scene_y_offset}
-                    class="input w-full"
-                    placeholder="10"
-                />
+                    <legend class="fieldset-legend">X-Offset</legend>
+                    <input
+                        type="number"
+                        bind:value={scene_x_offset}
+                        class="input w-full"
+                        placeholder="10"
+                    />
+
+                    <legend class="fieldset-legend">Y-Offset</legend>
+                    <input
+                        type="number"
+                        bind:value={scene_y_offset}
+                        class="input w-full"
+                        placeholder="10"
+                    />
+                {/if}
 
                 <div class="w-full mt-4">
                     <Map
@@ -266,6 +298,7 @@
                         y_offset={scene_y_offset}
                         fog_squares={{}}
                         markers={[]}
+                        {gridless}
                     />
                 </div>
                 <div class="grid grid-cols-2 gap-2">

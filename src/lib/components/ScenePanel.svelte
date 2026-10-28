@@ -96,10 +96,12 @@
                         loading="lazy"
                         decoding="async"
                     />
-                    <div
-                        class="absolute inset-0"
-                        style="background: linear-gradient(to right, rgb(0 0 0 / 0.5) 1px, transparent 1px) 0 0 / calc(100cqw / {scene.columns}) 100%, linear-gradient(to bottom, rgb(0 0 0 / 0.5) 1px, transparent 1px) 0 0 / 100% calc(100cqw / {scene.columns})"
-                    ></div>
+                    {#if !scene.gridless}
+                        <div
+                            class="absolute inset-0"
+                            style="background: linear-gradient(to right, rgb(0 0 0 / 0.5) 1px, transparent 1px) 0 0 / calc(100cqw / {scene.columns}) 100%, linear-gradient(to bottom, rgb(0 0 0 / 0.5) 1px, transparent 1px) 0 0 / 100% calc(100cqw / {scene.columns})"
+                        ></div>
+                    {/if}
                 </div>
                 <div class="flex-1 min-w-0 flex flex-col">
                     <span class="font-bold truncate" title={scene.name}
@@ -107,6 +109,13 @@
                     >
                     {#if active}
                         <span class="badge badge-info badge-xs">Aktiv</span>
+                    {/if}
+                    {#if scene.gridless}
+                        <span
+                            class="badge badge-ghost badge-xs"
+                            title="Ohne Raster: ein Bild für die Spieler, ohne Marker, Nebel und Wände"
+                            ><i class="fa-solid fa-image"></i> Bildszene</span
+                        >
                     {/if}
                     {#if scene.music || scene.ambience?.length || weather_icons(scene.weather).length}
                         <span

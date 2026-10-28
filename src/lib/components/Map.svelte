@@ -75,10 +75,18 @@
         set_rows = () => {},
         x_offset,
         y_offset,
-        fog_squares,
-        markers,
+        fog_squares: scene_fog,
+        markers: scene_markers,
         editable = false,
+        /** A picture instead of a map: no grid, and nothing that needs one */
+        gridless = false,
     } = $props();
+    /**
+     * A picture shows neither the markers nor the fog its scene kept from when it was a
+     * map, they are back once it is a map again
+     */
+    let fog_squares = $derived(gridless ? undefined : scene_fog);
+    let markers = $derived(gridless ? [] : scene_markers);
     let fogCanvas: any = $state();
     let fogCtx: CanvasRenderingContext2D | null = $state(null);
     let w = $state(0);
@@ -102,7 +110,7 @@
 
     // Lines instead of a canvas, they stay sharp when zoomed and on high-DPI screens
     let grid_path = $derived.by(() => {
-        if (gradient_grid || !size || !rows) return "";
+        if (gridless || gradient_grid || !size || !rows) return "";
         let path = "";
         for (let i = 1; i < columns; i++) {
             path += `M${size * i + x_offset} ${y_offset}V${(rows - 1) * size + y_offset}`;
@@ -657,7 +665,12 @@
     /** The drawing being drawn, the others only see it when it's done */
     let drawing: Drawing | null = $state(null);
     let drawings: Drawing[] = $derived(
-        editable ? (gameState.scene?.state.drawings ?? []) : [],
+        editable
+            ? (gameState.scene?.state.drawings ?? []).filter(
+                  // Spell areas are measured on the grid, a picture only has freehand ones
+                  (drawing) => !gridless || drawing.kind === "free",
+              )
+            : [],
     );
     let shown_drawings = $derived(drawing ? [...drawings, drawing] : drawings);
 
@@ -676,8 +689,11 @@
         window.addEventListener("pointercancel", finish);
     }
 
-    /** Ctrl or the snap switch of the drawing menu, phones and tablets have no Ctrl */
-    let snapping = $derived(appState.ctrlPressed || drawState.snap);
+    /**
+     * Ctrl or the snap switch of the drawing menu, phones and tablets have no Ctrl. A
+     * picture has no grid to snap to.
+     */
+    let snapping = $derived(!gridless && (appState.ctrlPressed || drawState.snap));
 
     function start_drawing(event: PointerEvent) {
         if (event.button !== 0 || !editable) return;
@@ -1524,6 +1540,7 @@
         if (
             event.button === 0 &&
             gameState.dm &&
+            !gridless &&
             (appState.selectedTool === Tools.None ||
                 appState.selectedTool === Tools.Select) &&
             !on_marker &&
@@ -1632,7 +1649,8 @@
 
     // Sight: walls and closed doors block what the players' figures see. It is worked
     // out in cells, the walls are stored as fractions of the map.
-    let vision_on = $derived(editable && !!gameState.scene?.state.vision);
+    // A picture has no figures to see with, everyone sees all of it
+    let vision_on = $derived(editable && !gridless && !!gameState.scene?.state.vision);
     /** The map's height in cells */
     /**
      * Rows of the map, from its shape. The sizes rounded after a zoom changed it in the
@@ -2262,6 +2280,8 @@
             activate_scene(payload.scene.name);
             return;
         }
+        // A picture has no grid to put markers on, the server refuses them too
+        if (gridless) return;
 
         // Everything in screen pixels, i.e. already scaled by the zoom
         const rect = map_element.getBoundingClientRect();
@@ -2345,7 +2365,11 @@
         : ''} {zooming ? 'zooming' : ''}"
     bind:this={map_element}
     use:dropTarget={editable && gameState.dm
-        ? { name: "map", accepts: ["marker", "scene"], onDrop: on_drop }
+        ? {
+              name: "map",
+              accepts: gridless ? ["scene"] : ["marker", "scene"],
+              onDrop: on_drop,
+          }
         : null}
     onpointerdown={start_pan}
     ondragstart={(event) => event.preventDefault()}
@@ -2379,8 +2403,8 @@
     <!-- The grid, see gradient_grid. In Firefox gradients in tiles of a cell the graphics
          card repeats, nothing changing during a gesture. The lines' edges are soft, hard
          ones jumped between pixels while zooming. They are a pixel of the map wide and grow
-         with a gesture until the map is laid out again. -->
-    {#if !gradient_grid}
+         with a gesture until the map is laid out again. A picture has none. -->
+    {#if !gridless && !gradient_grid}
         <!-- One screen pixel wide at any zoom -->
         <svg
             class="absolute top-0 left-0 w-full h-full z-0 opacity-50 pointer-events-none"
@@ -2394,7 +2418,7 @@
                 stroke-width={1 / gesture_scale}
             />
         </svg>
-    {:else if size > 0}
+    {:else if !gridless && size > 0}
         <div
             class="absolute top-0 left-0 w-full h-full z-0 overflow-hidden pointer-events-none"
             aria-hidden="true"
