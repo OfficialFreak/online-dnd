@@ -1,5 +1,6 @@
 import { MessageType, type AnyRoll } from "./types/messaging/server_messages";
 import type { DiceReplay } from "./dice-sync";
+import type { Skill } from "./types/character";
 
 export type RollMode = "normal" | "advantage" | "disadvantage";
 
@@ -37,8 +38,38 @@ const STAT_LABELS: Record<string, string> = {
     initiative: "Initiative",
 };
 
+/**
+ * The skills' German names, by D&D Beyond's sub type a skill check sends as its stat.
+ * Soft hyphens (\u00AD) mark where the long ones may break on a narrow character sheet,
+ * browsers without German hyphenation would let them run into the roll button.
+ */
+export const SKILL_LABELS: Record<Skill, string> = {
+    acrobatics: "Akrobatik",
+    "animal-handling": "Mit Tieren umgehen",
+    arcana: "Arkane Kunde",
+    athletics: "Athletik",
+    deception: "Täuschen",
+    history: "Ge\u00ADschichte",
+    insight: "Motiv erkennen",
+    intimidation: "Ein\u00ADschüch\u00ADtern",
+    investigation: "Nach\u00ADfor\u00ADschungen",
+    medicine: "Heilkunde",
+    nature: "Natur\u00ADkunde",
+    perception: "Wahr\u00ADnehmung",
+    performance: "Auftreten",
+    persuasion: "Über\u00ADzeugen",
+    religion: "Religion",
+    "sleight-of-hand": "Finger\u00ADfertig\u00ADkeit",
+    stealth: "Heimlich\u00ADkeit",
+    survival: "Über\u00ADlebens\u00ADkunst",
+};
+
 export function stat_label(stat: string) {
-    return STAT_LABELS[stat] ?? stat[0].toUpperCase() + stat.substring(1);
+    return (
+        STAT_LABELS[stat] ??
+        SKILL_LABELS[stat as Skill] ??
+        stat[0].toUpperCase() + stat.substring(1)
+    );
 }
 
 export function mode_label(mode?: RollMode | null) {

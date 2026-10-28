@@ -10,12 +10,19 @@
         roller,
     } from "../state.svelte";
     import { dragSource } from "../drag.svelte";
-    import { shared_roll } from "$lib/rolls";
+    import { SKILL_LABELS, shared_roll } from "$lib/rolls";
+    import { SKILLS, type Skill as SkillName } from "$lib/types/character";
     import SavingStat from "./CharacterSheet/SavingStat.svelte";
     import Sense from "./CharacterSheet/Sense.svelte";
+    import Skill from "./CharacterSheet/Skill.svelte";
     import Stat from "./CharacterSheet/Stat.svelte";
 
     let { character } = $props();
+
+    // Sorted by their German names, down the first column and then the second
+    const skills = (Object.keys(SKILLS) as SkillName[]).sort((a, b) =>
+        SKILL_LABELS[a].localeCompare(SKILL_LABELS[b], "de"),
+    );
 
     // The DM drags the portrait onto the map to place the character's marker
     let marker = $derived(
@@ -215,6 +222,14 @@
         <div class="w-full flex flex-wrap gap-y-1">
             {#each [0, 3, 1, 4, 2, 5] as stat}
                 <SavingStat {stat} {character} />
+            {/each}
+        </div>
+        <div class="divider text-white">Fertigkeiten</div>
+        <div
+            class="w-full grid grid-cols-2 grid-rows-[repeat(9,auto)] grid-flow-col gap-x-2 gap-y-1 px-1"
+        >
+            {#each skills as skill}
+                <Skill {skill} {character} />
             {/each}
         </div>
         <div class="divider text-white">Senses</div>

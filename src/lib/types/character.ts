@@ -1,3 +1,30 @@
+/** The skills by D&D Beyond's sub type for their modifiers, with the ability each one uses */
+export const SKILLS = {
+    acrobatics: "dexterity",
+    "animal-handling": "wisdom",
+    arcana: "intelligence",
+    athletics: "strength",
+    deception: "charisma",
+    history: "intelligence",
+    insight: "wisdom",
+    intimidation: "charisma",
+    investigation: "intelligence",
+    medicine: "wisdom",
+    nature: "intelligence",
+    perception: "wisdom",
+    performance: "charisma",
+    persuasion: "charisma",
+    religion: "intelligence",
+    "sleight-of-hand": "dexterity",
+    stealth: "dexterity",
+    survival: "wisdom",
+} as const;
+
+export type Skill = keyof typeof SKILLS;
+
+/** How much of the proficiency bonus a check adds: expertise twice, Jack of All Trades half */
+export type ProficiencyLevel = 0 | 0.5 | 1 | 2;
+
 export class Character {
     /** The D&D Beyond id */
     id!: number;
@@ -144,40 +171,65 @@ export class Character {
         return stats;
     }
 
-    /** The proficiency bonus a check with the skill adds: twice with expertise, half by Jack of All Trades */
-    skillProficiency(skill: string): number {
-        if (this.hasModifier("expertise", skill)) {
-            return 2 * this.proficiencyBonus;
-        }
-        if (this.hasModifier("proficiency", skill)) {
-            return this.proficiencyBonus;
-        }
+    /**
+     * How proficient the character is with the skill. Jack of All Trades gives half
+     * proficiency in all ability checks, so in every skill without proficiency.
+     */
+    skillProficiencyLevel(skill: Skill): ProficiencyLevel {
+        if (this.hasModifier("expertise", skill)) return 2;
+        if (this.hasModifier("proficiency", skill)) return 1;
         if (
             this.hasModifier("half-proficiency", skill) ||
             this.hasModifier("half-proficiency", "ability-checks")
         ) {
-            return Math.floor(this.proficiencyBonus / 2);
+            return 0.5;
         }
         return 0;
     }
 
+    /** The proficiency bonus a check with the skill adds, half of it rounded down */
+    skillProficiency(skill: Skill): number {
+        return Math.floor(
+            this.skillProficiencyLevel(skill) * this.proficiencyBonus,
+        );
+    }
+
+    /**
+     * What a check with the skill adds to the d20, like D&D Beyond shows it: the ability
+     * modifier, the proficiency and bonuses to the skill or to all ability checks
+     */
+    skillModifier(skill: Skill): number {
+        return (
+            this.statModifiers[SKILLS[skill]] +
+            this.skillProficiency(skill) +
+            this.bonus(skill) +
+            this.bonus("ability-checks")
+        );
+    }
+
+    get skillModifiers(): Record<Skill, number> {
+        return Object.fromEntries(
+            (Object.keys(SKILLS) as Skill[]).map((skill) => [
+                skill,
+                this.skillModifier(skill),
+            ]),
+        ) as Record<Skill, number>;
+    }
+
+    /** 10 and the skill's modifier, and bonuses to only the passive score like Observant's */
     get passiveSenses() {
-        const modifiers = this.statModifiers;
         return {
             perception:
                 10 +
-                modifiers.wisdom +
-                this.skillProficiency("perception") +
+                this.skillModifier("perception") +
                 this.bonus("passive-perception"),
             investigation:
                 10 +
-                modifiers.intelligence +
-                this.skillProficiency("investigation") +
+                this.skillModifier("investigation") +
                 this.bonus("passive-investigation"),
             insight:
                 10 +
-                modifiers.wisdom +
-                this.skillProficiency("insight") +
+                this.skillModifier("insight") +
                 this.bonus("passive-insight"),
         };
     }
