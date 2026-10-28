@@ -78,7 +78,8 @@
         type AnyRoll,
         type SceneData,
     } from "$lib/types/messaging/server_messages";
-    import { change_scene } from "$lib/scene-intro.svelte";
+    import { change_scene, set_scene_weather } from "$lib/scene-intro.svelte";
+    import { roll_requested } from "$lib/requested-roll";
     import { emoji_cannon } from "$lib/emoji-burst";
     import { Tween } from "svelte/motion";
     import { circOut } from "svelte/easing";
@@ -816,11 +817,15 @@
                     set_sound_level(message.name, message.level);
                     break;
                 case MessageType.WEATHER:
-                    if (gameState.scene) gameState.scene.weather = message.weather;
+                    set_scene_weather(message.weather);
                     break;
                 case MessageType.WEATHER_MOMENT:
                     // For the weather over the map, see WeatherLayer.svelte
                     window.dispatchEvent(new CustomEvent("weather-moment", { detail: message }));
+                    break;
+                case MessageType.ROLL_REQUEST:
+                    // Not awaited: the dice take seconds, the messages after them mustn't wait
+                    roll_requested(message);
                     break;
                 case MessageType.PONG:
                     pong_waiters.splice(0).forEach((answered) => answered());

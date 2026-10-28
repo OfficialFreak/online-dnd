@@ -52,7 +52,8 @@ export enum MessageType {
     PONG = "pong",
     REACTION = "reaction",
     REACTIONS = "reactions",
-    HIDDEN_ROLL = "hidden_roll"
+    HIDDEN_ROLL = "hidden_roll",
+    ROLL_REQUEST = "roll_request"
 }
 
 export enum EventType {
@@ -244,13 +245,18 @@ export interface SceneData extends BaseServerMessage {
     rows: number;
     x_offset: number;
     y_offset: number;
-    /** Missing from older servers and in scenes without any */
     /**
      * A picture for the players instead of a map: no grid, no markers, fog, walls or
      * measuring. Missing from older servers.
      */
     gridless?: boolean;
+    /** Missing from older servers and in scenes without any */
     weather?: Weather | null;
+    /**
+     * Changed to at once, without the intro: another view of the same place, as a cut in
+     * a film. Missing from older servers.
+     */
+    cut?: boolean;
     state: SceneState;
 }
 
@@ -264,14 +270,14 @@ export interface Scene {
     columns: number;
     x_offset: number;
     y_offset: number;
+    /** A picture without a grid, missing for maps */
+    gridless?: boolean;
     music?: SceneMusic | null;
     /** The ambience that plays alongside, by the names of the sounds */
     ambience?: string[] | null;
     weather?: Weather | null;
 }
 
-    /** A picture without a grid, missing for maps */
-    gridless?: boolean;
 export interface SceneList extends BaseServerMessage {
     type: MessageType.SCENE_LIST;
     scenes: Scene[];
@@ -554,7 +560,22 @@ export type ServerMessage =
     | TabletopAudio
     | SoundImportFailed
     | MousePosition
-    | MarkerPosition;
+    | MarkerPosition
+    | RollRequest;
+
+/**
+ * The DM has this player's app roll at once, as if the button on the sheet was pressed: a
+ * check on an ability, a skill or the initiative, a save, or dice like a damage roll
+ */
+export interface RollRequest extends BaseServerMessage {
+    type: MessageType.ROLL_REQUEST;
+    kind: "check" | "save" | "dice";
+    /** An ability as "dexterity", a skill as "sleight-of-hand", or "initiative" */
+    stat?: string | null;
+    /** For "dice", e.g. ["1d8"]: the DM adds any bonus */
+    dice?: string[] | null;
+    mode?: RollMode | null;
+}
 
 // Parser function
 export function parseServerMessage(json: string): ServerMessage {
@@ -654,6 +675,8 @@ export function parseServerMessage(json: string): ServerMessage {
             return data as Reactions;
         case MessageType.HIDDEN_ROLL:
             return data as HiddenRoll;
+        case MessageType.ROLL_REQUEST:
+            return data as RollRequest;
         default:
             throw new Error(`Unknown message type: ${data.type}`);
     }

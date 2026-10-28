@@ -3,6 +3,7 @@
  * underneath while its name unrolls on a scroll, then the smoke draws back from it.
  */
 import { tick } from "svelte";
+import { asset_kind, asset_url } from "./assets";
 import { appState, gameState } from "./state.svelte";
 import {
     can_play_unasked,
@@ -162,6 +163,15 @@ export async function portal_rewoven() {
 /** The scene shown once the smoke covers the old one, the newest if more came */
 let waiting: SceneData | null = null;
 
+/**
+ * Weather the server sent for its active scene, which may still wait behind the smoke: set on
+ * the old one, it was lost as the new one came with its own
+ */
+export function set_scene_weather(weather: SceneData["weather"]) {
+    if (waiting) waiting.weather = weather;
+    else if (gameState.scene) gameState.scene.weather = weather;
+}
+
 /** Shows a scene the server sent, with the intro if it is another one than before */
 export async function change_scene(
     scene: SceneData,
@@ -183,6 +193,18 @@ export async function change_scene(
         return;
     }
     const other = !!gameState.scene && gameState.scene.name !== scene.name;
+    // A cut: the old picture stays until the new one has loaded, nothing flashes empty
+    if (other && scene.cut) {
+        waiting = scene;
+        try {
+            await picture_loaded(scene.map);
+        } finally {
+            const latest = waiting;
+            waiting = null;
+            show(latest);
+        }
+        return;
+    }
     if (!intro || !other || !appState.scene_intro || document.hidden) {
         show(scene);
         return;
@@ -206,6 +228,17 @@ export async function change_scene(
         await drawn();
         intro?.reveal(latest.name, map_loaded(latest.map));
     }
+}
+
+/** Loads a scene's picture ahead, for at most a few seconds. A video shows at once. */
+function picture_loaded(file: string) {
+    if (asset_kind(file) !== "image") return Promise.resolve();
+    const image = new Image();
+    image.src = asset_url(file);
+    return Promise.race([
+        image.decode().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
 }
 
 /**
